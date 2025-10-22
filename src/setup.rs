@@ -13,9 +13,6 @@ pub fn setup(
     // Insert global camera settings resource (easy to tweak)
     commands.insert_resource(CameraSettings {
         offset: Vec3::new(0.0, 50.0, 30.0),
-        yaw_degrees: -45.0,
-        pitch_degrees: -45.0,
-        lock_rotation: true,
     });
 
     commands.spawn((
@@ -61,22 +58,12 @@ pub fn setup(
             MeshMaterial3d(player_mat),
             Transform::from_xyz(0.0, 2.0, 0.0), // Higher up so it's more visible
             IsoPlayer,
-            Player {
-                speed: 200.0,
-                wood: 0,
-                rock: 0,
-            },
+            Player { wood: 0, rock: 0 },
         ))
         .id();
 
     // Spawn village (center)
-    commands.spawn((
-        Village {
-            health: 100,
-            max_health: 100,
-        },
-        Transform::from_xyz(0.0, 0.0, 0.0),
-    ));
+    commands.spawn((Village { health: 100 }, Transform::from_xyz(0.0, 0.0, 0.0)));
 
     // Spawn trees around the map
     for i in 0..15 {
@@ -102,7 +89,6 @@ pub fn setup(
             Transform::from_xyz(x, 1.5, y),
             Tree {
                 wood_amount,
-                max_wood: wood_amount,
                 is_chopped: false,
             },
         ));
@@ -143,8 +129,5 @@ pub fn setup(
     });
 
     // Spawn building mode
-    commands.spawn(BuildingMode {
-        is_active: false,
-        tower_type: TowerType::Basic,
-    });
+    commands.spawn(BuildingMode { is_active: false });
 }

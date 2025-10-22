@@ -31,7 +31,7 @@ pub fn tower_building(
     windows: Query<&Window>,
     camera_query: Query<(&Camera, &GlobalTransform)>,
     player_query: Query<&Transform, (With<Player>, Without<Tower>)>,
-    mut building_mode_query: Query<&mut BuildingMode>,
+    building_mode_query: Query<&BuildingMode>,
     mut tower_events: MessageWriter<TowerBuilt>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -68,7 +68,6 @@ pub fn tower_building(
                     MeshMaterial3d(t_mat),
                     Transform::from_translation(Vec3::new(tower_position.x, 1.25, tower_position.y)),
                     Tower {
-                        tower_type: building_mode.tower_type,
                         range: 80.0,
                         damage: 25,
                         last_shot: 0.0,
@@ -77,7 +76,6 @@ pub fn tower_building(
                 
                 tower_events.write(TowerBuilt {
                     position: tower_position,
-                    tower_type: building_mode.tower_type,
                 });
             }
         }
@@ -119,9 +117,7 @@ pub fn enemy_spawning(
                 Enemy {
                     health: 50,
                     speed: 30.0,
-                    target: Vec3::ZERO, // Target village
                 },
-                IsoEnemy,
             ));
             
             enemy_events.write(EnemySpawned { position });

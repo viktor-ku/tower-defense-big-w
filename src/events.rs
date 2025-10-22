@@ -15,7 +15,6 @@ pub struct WoodCollected {
 #[derive(Event, Message, Debug)]
 pub struct TowerBuilt {
     pub position: Vec3,
-    pub tower_type: crate::components::TowerType,
 }
 
 #[derive(Event, Message, Debug)]

@@ -21,12 +21,3 @@ pub fn day_night_cycle(
     }
 }
 
-// Map world y to z so lower y draws above (fake 3D layering)
-pub fn y_to_z_sort(mut q: Query<&mut Transform, With<YSort>>) {
-    for mut transform in q.iter_mut() {
-        let y = transform.translation.y;
-        // Compress into a tight z band to preserve UI/camera layers
-        let z = 0.5 - (y / 10000.0).clamp(-0.49, 0.49);
-        transform.translation.z = z;
-    }
-}

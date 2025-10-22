@@ -4,9 +4,6 @@ use bevy::prelude::*;
 #[derive(Resource, Clone)]
 pub struct CameraSettings {
     pub offset: Vec3,
-    pub yaw_degrees: f32,
-    pub pitch_degrees: f32,
-    pub lock_rotation: bool,
 }
 
 pub fn camera_system(

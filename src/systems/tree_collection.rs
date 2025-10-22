@@ -5,8 +5,7 @@ use bevy::prelude::*;
 pub fn tree_collection(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut player_query: Query<(&Transform, &mut Player)>,
-    mut tree_query: Query<(Entity, &Transform, &mut Tree)>,
-    mut commands: Commands,
+    mut tree_query: Query<(&Transform, &mut Tree)>,
     mut wood_events: MessageWriter<WoodCollected>,
 ) {
     if !keyboard_input.pressed(KeyCode::KeyE) {
@@ -14,7 +13,7 @@ pub fn tree_collection(
     }
 
     if let Ok((player_transform, mut player)) = player_query.single_mut() {
-        for (tree_entity, tree_transform, mut tree) in tree_query.iter_mut() {
+        for (tree_transform, mut tree) in tree_query.iter_mut() {
             // Check if player is near tree and tree has wood
             let distance = player_transform
                 .translation
