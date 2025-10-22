@@ -10,19 +10,16 @@ pub fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    info!(
-        "Controls: WASD / Arrows to move. E to collect wood from trees. B to toggle build. ESC to menu/quit."
-    );
-    // Isometric 3D camera and light - positioned further back to see more of the world
     commands.spawn((
         Camera3d::default(),
-        Transform::from_xyz(25.0, 30.0, 25.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(0.0, 20.0, 70.0).looking_at(Vec3::ZERO, Vec3::Y),
         CameraFollow {
             offset: Vec3::new(0.0, 20.0, 0.0), // Camera stays above and behind player
             follow_speed: 3.0,                 // How fast camera follows (higher = faster)
             edge_threshold: 0.15,              // 15% of screen edge triggers movement
         },
     ));
+
     commands.spawn((
         DirectionalLight {
             shadows_enabled: true,
@@ -31,7 +28,7 @@ pub fn setup(
         },
         Transform::from_xyz(10.0, 20.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
-    // Ground plane
+
     let ground_mesh = meshes.add(Plane3d::default().mesh().size(200.0, 200.0).build());
     let ground_mat = materials.add(StandardMaterial {
         base_color: Color::srgb(0.2, 0.35, 0.2),
@@ -39,6 +36,7 @@ pub fn setup(
         metallic: 0.0,
         ..default()
     });
+
     commands.spawn((
         Mesh3d(ground_mesh),
         MeshMaterial3d(ground_mat),
