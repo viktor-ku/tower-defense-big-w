@@ -44,7 +44,7 @@ pub fn setup(
         Transform::IDENTITY,
     ));
 
-    // Roads: four strips leading to village center, distinct dark material
+    // Roads: four curvy strips leading to village center, distinct dark material
     let road_mat = materials.add(StandardMaterial {
         base_color: Color::srgb(0.15, 0.15, 0.15),
         perceptual_roughness: 1.0,
@@ -52,35 +52,81 @@ pub fn setup(
         ..default()
     });
 
-    // North-South oriented road strip (X width 12, Z length 100)
-    let road_ns_mesh = meshes.add(Plane3d::default().mesh().size(12.0, 100.0).build());
-    // East-West oriented road strip (X length 100, Z width 12)
-    let road_ew_mesh = meshes.add(Plane3d::default().mesh().size(100.0, 12.0).build());
+    // Helper to spawn a curved road along Bezier points
+    let mut spawn_curved_road = |p0: Vec3, p1: Vec3, p2: Vec3, p3: Vec3, width: f32| {
+        let steps = 24;
+        let y = 0.011; // slightly above ground to avoid z-fighting
+        let mut last = p0;
+        for i in 1..=steps {
+            let t = i as f32 / steps as f32;
+            let it = 1.0 - t;
+            // Cubic bezier on XZ (keep Y fixed)
+            let x = it * it * it * p0.x
+                + 3.0 * it * it * t * p1.x
+                + 3.0 * it * t * t * p2.x
+                + t * t * t * p3.x;
+            let z = it * it * it * p0.z
+                + 3.0 * it * it * t * p1.z
+                + 3.0 * it * t * t * p2.z
+                + t * t * t * p3.z;
+            let current = Vec3::new(x, y, z);
+            let dir = (current - last);
+            let seg_len = Vec2::new(dir.x, dir.z).length().max(0.001);
+            let mid = (current + last) * 0.5;
+            // Yaw to align local X with segment direction
+            let yaw = dir.z.atan2(dir.x);
+            let rotation = Quat::from_rotation_y(yaw);
 
-    // North road: from north edge to center
-    commands.spawn((
-        Mesh3d(road_ns_mesh.clone()),
-        MeshMaterial3d(road_mat.clone()),
-        Transform::from_xyz(0.0, 0.01, -50.0),
-    ));
-    // South road: from south edge to center
-    commands.spawn((
-        Mesh3d(road_ns_mesh.clone()),
-        MeshMaterial3d(road_mat.clone()),
-        Transform::from_xyz(0.0, 0.01, 50.0),
-    ));
-    // West road: from west edge to center
-    commands.spawn((
-        Mesh3d(road_ew_mesh.clone()),
-        MeshMaterial3d(road_mat.clone()),
-        Transform::from_xyz(-50.0, 0.01, 0.0),
-    ));
-    // East road: from east edge to center
-    commands.spawn((
-        Mesh3d(road_ew_mesh),
-        MeshMaterial3d(road_mat),
-        Transform::from_xyz(50.0, 0.01, 0.0),
-    ));
+            // Mesh sized along local X by segment length and local Z by width
+            let seg_mesh = meshes.add(Plane3d::default().mesh().size(seg_len, width).build());
+            commands.spawn((
+                Mesh3d(seg_mesh),
+                MeshMaterial3d(road_mat.clone()),
+                Transform {
+                    translation: Vec3::new(mid.x, y, mid.z),
+                    rotation,
+                    scale: Vec3::ONE,
+                },
+            ));
+
+            last = current;
+        }
+    };
+
+    let road_width = 6.0; // narrower roads
+
+    // North road (from z=-100 to center) with slight S-curve
+    spawn_curved_road(
+        Vec3::new(0.0, 0.0, -100.0),
+        Vec3::new(-25.0, 0.0, -70.0),
+        Vec3::new(20.0, 0.0, -30.0),
+        Vec3::new(0.0, 0.0, 0.0),
+        road_width,
+    );
+    // South road
+    spawn_curved_road(
+        Vec3::new(0.0, 0.0, 100.0),
+        Vec3::new(25.0, 0.0, 70.0),
+        Vec3::new(-20.0, 0.0, 30.0),
+        Vec3::new(0.0, 0.0, 0.0),
+        road_width,
+    );
+    // West road
+    spawn_curved_road(
+        Vec3::new(-100.0, 0.0, 0.0),
+        Vec3::new(-70.0, 0.0, -25.0),
+        Vec3::new(-30.0, 0.0, 20.0),
+        Vec3::new(0.0, 0.0, 0.0),
+        road_width,
+    );
+    // East road
+    spawn_curved_road(
+        Vec3::new(100.0, 0.0, 0.0),
+        Vec3::new(70.0, 0.0, 25.0),
+        Vec3::new(30.0, 0.0, -20.0),
+        Vec3::new(0.0, 0.0, 0.0),
+        road_width,
+    );
 
     // 3D player box (larger and more visible)
     let player_mesh = meshes.add(Cuboid::new(2.0, 4.0, 2.0));
