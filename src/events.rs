@@ -7,6 +7,12 @@ pub struct ResourceCollected {
 }
 
 #[derive(Event, Message, Debug)]
+pub struct WoodCollected {
+    pub amount: u32,
+    pub tree_position: Vec3,
+}
+
+#[derive(Event, Message, Debug)]
 pub struct TowerBuilt {
     pub position: Vec3,
     pub tower_type: crate::components::TowerType,

@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::components::{Resource as GameResource, *};
+use bevy::prelude::*;
 
 pub fn setup(
     mut commands: Commands,
@@ -8,15 +8,19 @@ pub fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     info!(
-        "Controls: WASD / Arrows to move. B to toggle build. ESC to menu/quit."
+        "Controls: WASD / Arrows to move. E to collect wood from trees. B to toggle build. ESC to menu/quit."
     );
-    // Isometric 3D camera and light
+    // Isometric 3D camera and light - positioned further back to see more of the world
     commands.spawn((
         Camera3d::default(),
-        Transform::from_xyz(12.0, 14.0, 12.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(25.0, 30.0, 25.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     commands.spawn((
-        DirectionalLight { shadows_enabled: true, illuminance: 10000.0, ..default() },
+        DirectionalLight {
+            shadows_enabled: true,
+            illuminance: 10000.0,
+            ..default()
+        },
         Transform::from_xyz(10.0, 20.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     // Ground plane
@@ -27,8 +31,12 @@ pub fn setup(
         metallic: 0.0,
         ..default()
     });
-    commands.spawn((Mesh3d(ground_mesh), MeshMaterial3d(ground_mat), Transform::IDENTITY));
-    
+    commands.spawn((
+        Mesh3d(ground_mesh),
+        MeshMaterial3d(ground_mat),
+        Transform::IDENTITY,
+    ));
+
     // 3D player box (1x1x2 units approx)
     let player_mesh = meshes.add(Cuboid::new(1.0, 2.0, 1.0));
     let player_mat = materials.add(StandardMaterial {
@@ -43,10 +51,14 @@ pub fn setup(
             MeshMaterial3d(player_mat),
             Transform::from_xyz(0.0, 1.0, 0.0),
             IsoPlayer,
-            Player { speed: 200.0 },
+            Player {
+                speed: 200.0,
+                wood: 0,
+                rock: 0,
+            },
         ))
         .id();
-    
+
     // Spawn village (center)
     commands.spawn((
         Village {
@@ -55,42 +67,63 @@ pub fn setup(
         },
         Transform::from_xyz(0.0, 0.0, 0.0),
     ));
-    
-    // Spawn some resources
-    for i in 0..10 {
-        let angle = (i as f32 / 10.0) * 2.0 * std::f32::consts::PI;
-        let distance = 80.0 + rand::random::<f32>() * 40.0;
+
+    // Spawn trees around the map
+    for i in 0..15 {
+        let angle = (i as f32 / 15.0) * 2.0 * std::f32::consts::PI;
+        let distance = 60.0 + rand::random::<f32>() * 80.0;
         let x = angle.cos() * distance;
         let y = angle.sin() * distance;
-        
-        let resource_type = if rand::random::<bool>() {
-            ResourceType::Wood
-        } else {
-            ResourceType::Rock
-        };
-        
-        let color = match resource_type {
-            ResourceType::Wood => Color::srgb(0.6, 0.4, 0.2),
-            ResourceType::Rock => Color::srgb(0.5, 0.5, 0.5),
-        };
-        
-        let res_mesh = meshes.add(Cuboid::new(0.8, 0.6, 0.8));
-        let res_mat = materials.add(StandardMaterial {
-            base_color: color,
+
+        // Random wood amount per tree
+        let wood_amount = 15 + rand::random::<u32>() % 20; // 15-35 wood per tree
+
+        let tree_mesh = meshes.add(Cuboid::new(1.2, 3.0, 1.2));
+        let tree_mat = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.2, 0.6, 0.2), // Green for trees
+            perceptual_roughness: 0.8,
+            metallic: 0.0,
+            ..default()
+        });
+
+        commands.spawn((
+            Mesh3d(tree_mesh),
+            MeshMaterial3d(tree_mat),
+            Transform::from_xyz(x, 1.5, y),
+            Tree {
+                wood_amount,
+                max_wood: wood_amount,
+                is_chopped: false,
+            },
+        ));
+    }
+
+    // Spawn some rock resources
+    for i in 0..8 {
+        let angle = (i as f32 / 8.0) * 2.0 * std::f32::consts::PI;
+        let distance = 50.0 + rand::random::<f32>() * 60.0;
+        let x = angle.cos() * distance;
+        let y = angle.sin() * distance;
+
+        let rock_mesh = meshes.add(Cuboid::new(0.8, 0.6, 0.8));
+        let rock_mat = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.5, 0.5, 0.5),
             perceptual_roughness: 0.9,
             metallic: 0.0,
             ..default()
         });
-        let _res = commands
-            .spawn((
-                Mesh3d(res_mesh),
-                MeshMaterial3d(res_mat),
-                Transform::from_xyz(x, 0.3, y),
-                GameResource { resource_type, amount: 10 },
-            ))
-            .id();
+
+        commands.spawn((
+            Mesh3d(rock_mesh),
+            MeshMaterial3d(rock_mat),
+            Transform::from_xyz(x, 0.3, y),
+            GameResource {
+                resource_type: ResourceType::Rock,
+                amount: 10,
+            },
+        ));
     }
-    
+
     // Spawn day/night cycle
     commands.spawn(DayNight {
         is_day: true,
@@ -98,7 +131,7 @@ pub fn setup(
         day_duration: 30.0,
         night_duration: 20.0,
     });
-    
+
     // Spawn building mode
     commands.spawn(BuildingMode {
         is_active: false,

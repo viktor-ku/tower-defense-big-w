@@ -18,7 +18,7 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "Village Defender v0.1".into(),
-                        resolution: (1024, 768).into(),
+                        resolution: (1920, 1080).into(),
                         ..default()
                     }),
                     exit_condition: bevy::window::ExitCondition::OnPrimaryClosed,
@@ -40,6 +40,7 @@ fn main() {
         .init_state::<GameState>()
         .insert_state(GameState::Playing)
         .add_message::<ResourceCollected>()
+        .add_message::<WoodCollected>()
         .add_message::<TowerBuilt>()
         .add_message::<EnemySpawned>()
         .add_message::<EnemyKilled>()
@@ -63,6 +64,11 @@ fn main() {
         .add_systems(Update, y_to_z_sort.run_if(in_state(GameState::Playing)))
         .add_systems(Update, day_night_cycle.run_if(in_state(GameState::Playing)))
         .add_systems(Update, handle_events.run_if(in_state(GameState::Playing)))
+        // Tree collection system
+        .add_systems(
+            Update,
+            (tree_collection, handle_wood_collected_events).run_if(in_state(GameState::Playing)),
+        )
         // Window close handling - use force exit for immediate termination
         .add_systems(Update, force_exit_on_close)
         .run();

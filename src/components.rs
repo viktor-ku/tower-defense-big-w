@@ -11,12 +11,21 @@ pub enum GameState {
 #[derive(Component)]
 pub struct Player {
     pub speed: f32,
+    pub wood: u32,
+    pub rock: u32,
 }
 
 #[derive(Component)]
 pub struct Resource {
     pub resource_type: ResourceType,
     pub amount: u32,
+}
+
+#[derive(Component)]
+pub struct Tree {
+    pub wood_amount: u32,
+    pub max_wood: u32,
+    pub is_chopped: bool,
 }
 
 #[derive(Component)]
