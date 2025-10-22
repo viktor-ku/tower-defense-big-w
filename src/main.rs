@@ -40,7 +40,7 @@ fn main() {
         .add_message::<EnemyKilled>()
         .add_message::<bevy::window::WindowCloseRequested>()
         .add_message::<AppExit>()
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, spawn_village_health_bar))
         .add_systems(Update, handle_menu_input.run_if(in_state(GameState::Menu)))
         .add_systems(
             Update,
@@ -59,6 +59,11 @@ fn main() {
         .add_systems(Update, handle_events.run_if(in_state(GameState::Playing)))
         // Camera system
         .add_systems(Update, camera_system.run_if(in_state(GameState::Playing)))
+        // HUD system
+        .add_systems(
+            Update,
+            village_health_hud.run_if(in_state(GameState::Playing)),
+        )
         // Tree collection system
         .add_systems(
             Update,

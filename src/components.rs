@@ -41,6 +41,7 @@ pub struct Enemy {
 #[derive(Component)]
 pub struct Village {
     pub health: u32,
+    pub max_health: u32,
 }
 
 #[derive(Component)]

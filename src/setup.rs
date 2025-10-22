@@ -12,13 +12,13 @@ pub fn setup(
 ) {
     // Insert global camera settings resource (easy to tweak)
     commands.insert_resource(CameraSettings {
-        offset: Vec3::new(0.0, 50.0, 30.0),
+        offset: Vec3::new(0.0, 80.0, 50.0), // Further away: height 80, distance 50
     });
 
     commands.spawn((
         Camera3d::default(),
         // Initial camera pose will be overridden by camera_system every frame based on settings
-        Transform::from_xyz(0.0, 50.0, 30.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(0.0, 80.0, 50.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 
     commands.spawn((
@@ -62,8 +62,24 @@ pub fn setup(
         ))
         .id();
 
-    // Spawn village (center)
-    commands.spawn((Village { health: 100 }, Transform::from_xyz(0.0, 0.0, 0.0)));
+    // Spawn village (center) - Big purple block for visibility
+    let village_mesh = meshes.add(Cuboid::new(8.0, 6.0, 8.0)); // Big block
+    let village_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.8, 0.2, 0.8), // Bright purple
+        perceptual_roughness: 0.7,
+        metallic: 0.0,
+        ..default()
+    });
+
+    commands.spawn((
+        Mesh3d(village_mesh),
+        MeshMaterial3d(village_mat),
+        Transform::from_xyz(0.0, 3.0, 0.0), // Elevated so it's visible
+        Village {
+            health: 100,
+            max_health: 100,
+        },
+    ));
 
     // Spawn trees around the map
     for i in 0..15 {
