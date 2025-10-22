@@ -65,3 +65,15 @@ pub struct IsoPlayer;
 pub enum ResourceType {
     Rock,
 }
+
+// Road pathing
+#[derive(Resource, Default, Debug, Clone)]
+pub struct RoadPaths {
+    pub roads: Vec<Vec<Vec3>>, // Each road is a sequence of waypoints (centerline on XZ)
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct PathFollower {
+    pub road_index: usize,
+    pub next_index: usize,
+}

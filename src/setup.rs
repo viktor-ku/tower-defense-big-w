@@ -52,11 +52,13 @@ pub fn setup(
         ..default()
     });
 
-    // Helper to spawn a curved road along Bezier points
-    let mut spawn_curved_road = |p0: Vec3, p1: Vec3, p2: Vec3, p3: Vec3, width: f32| {
+    // Helper to spawn a curved road along Bezier points and collect waypoints
+    let mut spawn_curved_road = |p0: Vec3, p1: Vec3, p2: Vec3, p3: Vec3, width: f32| -> Vec<Vec3> {
         let steps = 24;
         let y = 0.011; // slightly above ground to avoid z-fighting
         let mut last = p0;
+        let mut waypoints = Vec::with_capacity(steps + 1);
+        waypoints.push(Vec3::new(p0.x, 0.0, p0.z));
         for i in 1..=steps {
             let t = i as f32 / steps as f32;
             let it = 1.0 - t;
@@ -70,6 +72,7 @@ pub fn setup(
                 + 3.0 * it * t * t * p2.z
                 + t * t * t * p3.z;
             let current = Vec3::new(x, y, z);
+            waypoints.push(Vec3::new(x, 0.0, z));
             let dir = (current - last);
             let seg_len = Vec2::new(dir.x, dir.z).length().max(0.001);
             let mid = (current + last) * 0.5;
@@ -91,12 +94,13 @@ pub fn setup(
 
             last = current;
         }
+        waypoints
     };
 
     let road_width = 6.0; // narrower roads
 
     // North road (from z=-100 to center) with slight S-curve
-    spawn_curved_road(
+    let north = spawn_curved_road(
         Vec3::new(0.0, 0.0, -100.0),
         Vec3::new(-25.0, 0.0, -70.0),
         Vec3::new(20.0, 0.0, -30.0),
@@ -104,7 +108,7 @@ pub fn setup(
         road_width,
     );
     // South road
-    spawn_curved_road(
+    let south = spawn_curved_road(
         Vec3::new(0.0, 0.0, 100.0),
         Vec3::new(25.0, 0.0, 70.0),
         Vec3::new(-20.0, 0.0, 30.0),
@@ -112,7 +116,7 @@ pub fn setup(
         road_width,
     );
     // West road
-    spawn_curved_road(
+    let west = spawn_curved_road(
         Vec3::new(-100.0, 0.0, 0.0),
         Vec3::new(-70.0, 0.0, -25.0),
         Vec3::new(-30.0, 0.0, 20.0),
@@ -120,13 +124,18 @@ pub fn setup(
         road_width,
     );
     // East road
-    spawn_curved_road(
+    let east = spawn_curved_road(
         Vec3::new(100.0, 0.0, 0.0),
         Vec3::new(70.0, 0.0, 25.0),
         Vec3::new(30.0, 0.0, -20.0),
         Vec3::new(0.0, 0.0, 0.0),
         road_width,
     );
+
+    // Save roads for path following
+    commands.insert_resource(RoadPaths {
+        roads: vec![north, south, west, east],
+    });
 
     // 3D player box (larger and more visible)
     let player_mesh = meshes.add(Cuboid::new(2.0, 4.0, 2.0));

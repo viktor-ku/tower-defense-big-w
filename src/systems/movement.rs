@@ -42,17 +42,34 @@ pub fn player_movement(
 pub fn enemy_movement(
     time: Res<Time>,
     mut commands: Commands,
-    mut enemy_query: Query<(Entity, &mut Transform, &Enemy)>,
+    mut enemy_query: Query<(Entity, &mut Transform, &Enemy, Option<&mut PathFollower>)>,
     mut village_query: Query<&mut Village>,
+    roads: Option<Res<RoadPaths>>,
 ) {
     // Village block is 8x8 units, so collision radius should be about 4-5 units
     const VILLAGE_COLLISION_RADIUS: f32 = 5.0;
 
-    for (entity, mut transform, enemy) in enemy_query.iter_mut() {
-        // Move towards village on XZ plane
-        let to_center = Vec3::new(0.0, transform.translation.y, 0.0) - transform.translation;
-        let dir = Vec3::new(to_center.x, 0.0, to_center.z).normalize_or_zero();
-        transform.translation += dir * enemy.speed * time.delta_secs();
+    for (entity, mut transform, enemy, follower_opt) in enemy_query.iter_mut() {
+        if let (Some(roads), Some(mut follower)) = (&roads, follower_opt) {
+            if let Some(road) = roads.roads.get(follower.road_index) {
+                if follower.next_index < road.len() {
+                    let target = road[follower.next_index];
+                    let to_target = Vec3::new(target.x, transform.translation.y, target.z)
+                        - transform.translation;
+                    let dir = Vec3::new(to_target.x, 0.0, to_target.z).normalize_or_zero();
+                    transform.translation += dir * enemy.speed * time.delta_secs();
+                    // Advance waypoint when close
+                    if Vec2::new(to_target.x, to_target.z).length() < 1.0 {
+                        follower.next_index += 1;
+                    }
+                }
+            }
+        } else {
+            // Fallback: Move towards center
+            let to_center = Vec3::new(0.0, transform.translation.y, 0.0) - transform.translation;
+            let dir = Vec3::new(to_center.x, 0.0, to_center.z).normalize_or_zero();
+            transform.translation += dir * enemy.speed * time.delta_secs();
+        }
 
         // Check if enemy actually hit the village block (much more precise collision)
         if Vec2::new(transform.translation.x, transform.translation.z).length()
