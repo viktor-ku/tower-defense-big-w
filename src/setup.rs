@@ -44,6 +44,44 @@ pub fn setup(
         Transform::IDENTITY,
     ));
 
+    // Roads: four strips leading to village center, distinct dark material
+    let road_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.15, 0.15, 0.15),
+        perceptual_roughness: 1.0,
+        metallic: 0.0,
+        ..default()
+    });
+
+    // North-South oriented road strip (X width 12, Z length 100)
+    let road_ns_mesh = meshes.add(Plane3d::default().mesh().size(12.0, 100.0).build());
+    // East-West oriented road strip (X length 100, Z width 12)
+    let road_ew_mesh = meshes.add(Plane3d::default().mesh().size(100.0, 12.0).build());
+
+    // North road: from north edge to center
+    commands.spawn((
+        Mesh3d(road_ns_mesh.clone()),
+        MeshMaterial3d(road_mat.clone()),
+        Transform::from_xyz(0.0, 0.01, -50.0),
+    ));
+    // South road: from south edge to center
+    commands.spawn((
+        Mesh3d(road_ns_mesh.clone()),
+        MeshMaterial3d(road_mat.clone()),
+        Transform::from_xyz(0.0, 0.01, 50.0),
+    ));
+    // West road: from west edge to center
+    commands.spawn((
+        Mesh3d(road_ew_mesh.clone()),
+        MeshMaterial3d(road_mat.clone()),
+        Transform::from_xyz(-50.0, 0.01, 0.0),
+    ));
+    // East road: from east edge to center
+    commands.spawn((
+        Mesh3d(road_ew_mesh),
+        MeshMaterial3d(road_mat),
+        Transform::from_xyz(50.0, 0.01, 0.0),
+    ));
+
     // 3D player box (larger and more visible)
     let player_mesh = meshes.add(Cuboid::new(2.0, 4.0, 2.0));
     let player_mat = materials.add(StandardMaterial {
