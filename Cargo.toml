@@ -16,7 +16,6 @@ features = [
     "flac",
     "jpeg",
     "mp3",
-    "raw_vulkan_init",
     "reflect_documentation",
     "symphonia-all",
     "tiff",
