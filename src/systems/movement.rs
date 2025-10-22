@@ -4,9 +4,9 @@ use bevy::prelude::*;
 pub fn player_movement(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Query<&mut Transform, With<Player>>,
+    mut player_query: Query<&mut Transform, (With<Player>, With<IsoPlayer>)>,
 ) {
-    for mut transform in player_query.iter_mut() {
+    if let Ok(mut transform) = player_query.single_mut() {
         let mut direction = Vec3::ZERO;
 
         if keyboard_input.pressed(KeyCode::KeyW) || keyboard_input.pressed(KeyCode::ArrowUp) {
@@ -25,6 +25,16 @@ pub fn player_movement(
         if direction.length() > 0.0 {
             direction = direction.normalize();
             transform.translation += direction * 80.0 * time.delta_secs();
+            
+            // Debug: Log player position every few seconds
+            static mut LAST_LOG: f32 = 0.0;
+            unsafe {
+                LAST_LOG += time.delta_secs();
+                if LAST_LOG > 2.0 {
+                    info!("Player position: {:?}", transform.translation);
+                    LAST_LOG = 0.0;
+                }
+            }
         }
     }
 }

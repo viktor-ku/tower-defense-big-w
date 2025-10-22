@@ -1,6 +1,6 @@
 use crate::{
     components::{Resource as GameResource, *},
-    systems::CameraFollow,
+    systems::CameraSettings,
 };
 use bevy::prelude::*;
 
@@ -10,14 +10,18 @@ pub fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    // Insert global camera settings resource (easy to tweak)
+    commands.insert_resource(CameraSettings {
+        offset: Vec3::new(0.0, 50.0, 30.0),
+        yaw_degrees: -45.0,
+        pitch_degrees: -45.0,
+        lock_rotation: true,
+    });
+
     commands.spawn((
         Camera3d::default(),
-        Transform::from_xyz(0.0, 20.0, 70.0).looking_at(Vec3::ZERO, Vec3::Y),
-        CameraFollow {
-            offset: Vec3::new(0.0, 20.0, 0.0), // Camera stays above and behind player
-            follow_speed: 3.0,                 // How fast camera follows (higher = faster)
-            edge_threshold: 0.15,              // 15% of screen edge triggers movement
-        },
+        // Initial camera pose will be overridden by camera_system every frame based on settings
+        Transform::from_xyz(0.0, 50.0, 30.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 
     commands.spawn((
@@ -43,10 +47,10 @@ pub fn setup(
         Transform::IDENTITY,
     ));
 
-    // 3D player box (1x1x2 units approx)
-    let player_mesh = meshes.add(Cuboid::new(1.0, 2.0, 1.0));
+    // 3D player box (larger and more visible)
+    let player_mesh = meshes.add(Cuboid::new(2.0, 4.0, 2.0));
     let player_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.1, 0.4, 0.9),
+        base_color: Color::srgb(1.0, 0.2, 0.2), // Bright red for visibility
         perceptual_roughness: 0.6,
         metallic: 0.0,
         ..default()
@@ -55,7 +59,7 @@ pub fn setup(
         .spawn((
             Mesh3d(player_mesh),
             MeshMaterial3d(player_mat),
-            Transform::from_xyz(0.0, 1.0, 0.0),
+            Transform::from_xyz(0.0, 2.0, 0.0), // Higher up so it's more visible
             IsoPlayer,
             Player {
                 speed: 200.0,

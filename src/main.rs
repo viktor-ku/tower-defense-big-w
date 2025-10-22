@@ -64,6 +64,8 @@ fn main() {
         .add_systems(Update, y_to_z_sort.run_if(in_state(GameState::Playing)))
         .add_systems(Update, day_night_cycle.run_if(in_state(GameState::Playing)))
         .add_systems(Update, handle_events.run_if(in_state(GameState::Playing)))
+        // Camera system
+        .add_systems(Update, camera_system.run_if(in_state(GameState::Playing)))
         // Tree collection system
         .add_systems(
             Update,
