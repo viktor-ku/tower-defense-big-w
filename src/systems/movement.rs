@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::components::*;
+use bevy::prelude::*;
 
 pub fn player_movement(
     time: Res<Time>,
@@ -8,7 +8,7 @@ pub fn player_movement(
 ) {
     for mut transform in player_query.iter_mut() {
         let mut direction = Vec3::ZERO;
-        
+
         if keyboard_input.pressed(KeyCode::KeyW) || keyboard_input.pressed(KeyCode::ArrowUp) {
             direction.z -= 1.0;
         }
@@ -21,10 +21,10 @@ pub fn player_movement(
         if keyboard_input.pressed(KeyCode::KeyD) || keyboard_input.pressed(KeyCode::ArrowRight) {
             direction.x += 1.0;
         }
-        
+
         if direction.length() > 0.0 {
             direction = direction.normalize();
-            transform.translation += direction * 200.0 * time.delta_secs();
+            transform.translation += direction * 80.0 * time.delta_secs();
         }
     }
 }
@@ -35,13 +35,13 @@ pub fn enemy_movement(
     mut village_query: Query<&mut Village>,
 ) {
     const VILLAGE_SIZE: f32 = 50.0;
-    
+
     for (mut transform, enemy) in enemy_query.iter_mut() {
         // Move towards village on XZ plane
         let to_center = Vec3::new(0.0, transform.translation.y, 0.0) - transform.translation;
         let dir = Vec3::new(to_center.x, 0.0, to_center.z).normalize_or_zero();
         transform.translation += dir * enemy.speed * time.delta_secs();
-        
+
         // Check if enemy reached village
         if Vec2::new(transform.translation.x, transform.translation.z).length() < VILLAGE_SIZE {
             if let Ok(mut village) = village_query.single_mut() {

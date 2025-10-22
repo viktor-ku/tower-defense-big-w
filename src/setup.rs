@@ -1,4 +1,7 @@
-use crate::components::{Resource as GameResource, *};
+use crate::{
+    components::{Resource as GameResource, *},
+    systems::CameraFollow,
+};
 use bevy::prelude::*;
 
 pub fn setup(
@@ -14,6 +17,11 @@ pub fn setup(
     commands.spawn((
         Camera3d::default(),
         Transform::from_xyz(25.0, 30.0, 25.0).looking_at(Vec3::ZERO, Vec3::Y),
+        CameraFollow {
+            offset: Vec3::new(0.0, 20.0, 0.0), // Camera stays above and behind player
+            follow_speed: 3.0,                 // How fast camera follows (higher = faster)
+            edge_threshold: 0.15,              // 15% of screen edge triggers movement
+        },
     ));
     commands.spawn((
         DirectionalLight {
