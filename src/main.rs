@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 mod components;
 mod events;
@@ -12,14 +13,19 @@ use setup::*;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Village Defender v0.1".into(),
-                resolution: (1024, 768).into(),
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Village Defender v0.1".into(),
+                    resolution: (1024, 768).into(),
+                    ..default()
+                }),
                 ..default()
             }),
-            ..default()
-        }))
+            // Performance diagnostics
+            FrameTimeDiagnosticsPlugin::default(),
+            LogDiagnosticsPlugin::default(),
+        ))
         .init_state::<GameState>()
         .insert_state(GameState::Playing)
         .add_message::<ResourceCollected>()
