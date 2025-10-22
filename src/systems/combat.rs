@@ -112,22 +112,30 @@ pub fn enemy_spawning(
         if LAST_SPAWN >= 3.0 {
             LAST_SPAWN = 0.0;
 
-            let (spawn_pos, road_index_for_follower) = if let Some(roads) = &roads {
+            let (spawn_pos, _road_index_for_follower) = if let Some(roads) = &roads {
                 if !roads.roads.is_empty() {
                     let n = roads.roads.len() as f32;
                     let mut ri = (rand::random::<f32>() * n).floor() as usize;
-                    if ri >= roads.roads.len() { ri = roads.roads.len() - 1; }
+                    if ri >= roads.roads.len() {
+                        ri = roads.roads.len() - 1;
+                    }
                     let wp = &roads.roads[ri][0];
                     (Vec3::new(wp.x, 0.0, wp.z), Some(ri))
                 } else {
                     let angle = rand::random::<f32>() * 2.0 * std::f32::consts::PI;
                     let distance = 200.0;
-                    (Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance), None)
+                    (
+                        Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance),
+                        None,
+                    )
                 }
             } else {
                 let angle = rand::random::<f32>() * 2.0 * std::f32::consts::PI;
                 let distance = 200.0;
-                (Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance), None)
+                (
+                    Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance),
+                    None,
+                )
             };
 
             let e_mesh = meshes.add(Cuboid::new(0.9, 1.6, 0.9));
@@ -148,13 +156,21 @@ pub fn enemy_spawning(
                     health: 50,
                     speed: random_speed,
                 },
-                // Attach follower toward chosen road if available
-                match road_index_for_follower {
-                    Some(ri) => PathFollower { road_index: ri, next_index: 1 },
-                    None => PathFollower { road_index: 0, next_index: 0 },
+                // Attach PathFollower to follow the chosen road
+                match _road_index_for_follower {
+                    Some(ri) => PathFollower {
+                        road_index: ri,
+                        next_index: 1,
+                    },
+                    None => PathFollower {
+                        road_index: 0,
+                        next_index: 0,
+                    },
                 },
             ));
-            enemy_events.write(EnemySpawned { position: spawn_pos });
+            enemy_events.write(EnemySpawned {
+                position: spawn_pos,
+            });
         }
     }
 }
