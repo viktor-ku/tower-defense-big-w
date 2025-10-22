@@ -122,13 +122,16 @@ pub fn enemy_spawning(
                 metallic: 0.0,
                 ..default()
             });
+            // Random speed between 20.0 and 50.0 for variety
+            let random_speed = 20.0 + rand::random::<f32>() * 30.0;
+
             commands.spawn((
                 Mesh3d(e_mesh),
                 MeshMaterial3d(e_mat),
                 Transform::from_translation(Vec3::new(position.x, 0.8, position.y)),
                 Enemy {
                     health: 50,
-                    speed: 30.0,
+                    speed: random_speed,
                 },
             ));
 
