@@ -109,6 +109,7 @@ fn main() {
             ..default()
         }))
         .init_state::<GameState>()
+        .insert_state(GameState::Playing)
         .add_message::<ResourceCollected>()
         .add_message::<TowerBuilt>()
         .add_message::<EnemySpawned>()
@@ -128,6 +129,9 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, _asset_server: Res<AssetServer>) {
+    info!(
+        "Controls: WASD / Arrows to move. B to toggle build. ESC to menu/quit."
+    );
     // Spawn camera
     commands.spawn(Camera2d::default());
     
