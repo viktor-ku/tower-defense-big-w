@@ -146,8 +146,8 @@ pub fn enemy_spawning(
                 metallic: 0.0,
                 ..default()
             });
-            // Random speed between 20.0 and 50.0 for variety
-            let random_speed = 20.0 + rand::random::<f32>() * 30.0;
+            // Random speed between 10.0 and 25.0 for variety (slower on average)
+            let random_speed = 10.0 + rand::random::<f32>() * 15.0;
 
             commands.spawn((
                 Mesh3d(e_mesh),
