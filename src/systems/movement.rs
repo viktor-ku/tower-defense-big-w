@@ -62,6 +62,12 @@ pub fn enemy_movement(
                     if Vec2::new(to_target.x, to_target.z).length() < 1.0 {
                         follower.next_index += 1;
                     }
+                } else {
+                    // Finished following the road, now move to village center
+                    let to_center =
+                        Vec3::new(0.0, transform.translation.y, 0.0) - transform.translation;
+                    let dir = Vec3::new(to_center.x, 0.0, to_center.z).normalize_or_zero();
+                    transform.translation += dir * enemy.speed * time.delta_secs();
                 }
             }
         } else {

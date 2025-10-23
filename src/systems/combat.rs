@@ -114,6 +114,7 @@ pub fn enemy_spawning(
 
             let (spawn_pos, _road_index_for_follower) = if let Some(roads) = &roads {
                 if !roads.roads.is_empty() {
+                    // Pick any road (all roads now go directly to village center)
                     let n = roads.roads.len() as f32;
                     let mut ri = (rand::random::<f32>() * n).floor() as usize;
                     if ri >= roads.roads.len() {

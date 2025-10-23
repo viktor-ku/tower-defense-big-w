@@ -4,6 +4,188 @@ use crate::{
 };
 use bevy::prelude::*;
 
+// Road pattern types
+#[derive(Debug, Clone, Copy)]
+enum RoadPattern {
+    Straight,
+    Curved,
+    Snake,
+}
+
+// Generate and spawn a road pattern between two points
+fn generate_and_spawn_road(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    material: Handle<StandardMaterial>,
+    start: Vec3,
+    end: Vec3,
+    width: f32,
+) -> Option<Vec<Vec3>> {
+    let mut waypoints = generate_road_pattern(start, end, width)?;
+
+    // Enforce exact endpoints to guarantee clean connections to the town square
+    if let Some(first) = waypoints.first_mut() {
+        *first = Vec3::new(start.x, 0.0, start.z);
+    }
+    if let Some(last) = waypoints.last_mut() {
+        *last = Vec3::new(end.x, 0.0, end.z);
+    }
+
+    // Spawn road segments
+    let mut last = waypoints[0];
+    for &current in waypoints.iter().skip(1) {
+        let dir = current - last;
+        let seg_len = dir.length();
+        if seg_len > 0.001 {
+            let mid = (last + current) / 2.0;
+            let yaw = dir.z.atan2(dir.x);
+            let rotation = Quat::from_rotation_y(yaw);
+
+            let seg_mesh = meshes.add(Plane3d::default().mesh().size(seg_len, width).build());
+            commands.spawn((
+                Mesh3d(seg_mesh),
+                MeshMaterial3d(material.clone()),
+                Transform {
+                    translation: Vec3::new(mid.x, 0.011, mid.z),
+                    rotation,
+                    scale: Vec3::ONE,
+                },
+            ));
+        }
+        last = current;
+    }
+
+    Some(waypoints)
+}
+
+// Generate a random road pattern between two points
+fn generate_road_pattern(start: Vec3, end: Vec3, _width: f32) -> Option<Vec<Vec3>> {
+    let pattern = match rand::random::<u8>() % 3 {
+        0 => RoadPattern::Straight,
+        1 => RoadPattern::Curved,
+        2 => RoadPattern::Snake,
+        _ => RoadPattern::Straight,
+    };
+
+    match pattern {
+        RoadPattern::Straight => {
+            // Almost straight line with subtle wiggling and random variations
+            let mut waypoints = Vec::new();
+            let steps = 20;
+
+            // Random variations for this road
+            let wiggle_amplitude = 6.0 + rand::random::<f32>() * 8.0; // 6-14 units
+            let wiggle_frequency = 2.0 + rand::random::<f32>() * 3.0; // 2-5 waves
+            let phase_offset = rand::random::<f32>() * 2.0 * std::f32::consts::PI; // Random phase
+
+            for i in 0..=steps {
+                let t = i as f32 / steps as f32;
+                let base_point = start.lerp(end, t);
+
+                // Add subtle wiggling with random variations
+                // Fade offsets near endpoints so connections are always clean
+                let edge_fade = (t * (1.0 - t)).max(0.0).sqrt();
+                let wiggle_offset = (t * std::f32::consts::PI * wiggle_frequency + phase_offset)
+                    .sin()
+                    * wiggle_amplitude
+                    * edge_fade;
+
+                // Add some random noise for extra variation
+                let noise_amplitude = 3.0 * edge_fade;
+                let noise_x = (rand::random::<f32>() - 0.5) * noise_amplitude;
+                let noise_z = (rand::random::<f32>() - 0.5) * noise_amplitude;
+
+                // Calculate perpendicular direction for wiggling
+                let main_direction = (end - start).normalize();
+                let perpendicular = Vec3::new(-main_direction.z, 0.0, main_direction.x);
+
+                let wiggled_point =
+                    base_point + perpendicular * wiggle_offset + Vec3::new(noise_x, 0.0, noise_z);
+                waypoints.push(wiggled_point);
+            }
+            Some(waypoints)
+        }
+        RoadPattern::Curved => {
+            // Curved road with random control points and variations
+            let curve_strength = 20.0 + rand::random::<f32>() * 40.0; // 20-60 units
+            let mid1_offset = 0.2 + rand::random::<f32>() * 0.3; // 0.2-0.5
+            let mid2_offset = 0.5 + rand::random::<f32>() * 0.3; // 0.5-0.8
+
+            let mid1 = start
+                + (end - start) * mid1_offset
+                + Vec3::new(
+                    (rand::random::<f32>() - 0.5) * curve_strength,
+                    0.0,
+                    (rand::random::<f32>() - 0.5) * curve_strength,
+                );
+            let mid2 = start
+                + (end - start) * mid2_offset
+                + Vec3::new(
+                    (rand::random::<f32>() - 0.5) * curve_strength,
+                    0.0,
+                    (rand::random::<f32>() - 0.5) * curve_strength,
+                );
+
+            let segments = 15 + (rand::random::<u8>() % 11) as usize; // 15-25 segments
+            generate_bezier_curve(start, mid1, mid2, end, segments)
+        }
+        RoadPattern::Snake => {
+            // S-shaped road with random variations
+            let mut waypoints = Vec::new();
+            let steps = 25 + (rand::random::<u8>() % 16) as usize; // 25-40 steps
+
+            // Random variations for snake pattern
+            let snake_amplitude = 20.0 + rand::random::<f32>() * 25.0; // 20-45 units
+            let snake_frequency = 1.5 + rand::random::<f32>() * 2.0; // 1.5-3.5 waves
+            let phase_offset = rand::random::<f32>() * 2.0 * std::f32::consts::PI;
+
+            for i in 0..=steps {
+                let t = i as f32 / steps as f32;
+                let base_point = start.lerp(end, t);
+
+                // Add S-curve offset with random variations
+                // Fade offsets near endpoints so connections are always clean
+                let edge_fade = (t * (1.0 - t)).max(0.0).sqrt();
+                let offset = (t * std::f32::consts::PI * snake_frequency + phase_offset).sin()
+                    * snake_amplitude
+                    * edge_fade;
+
+                // Add secondary wave for more complex snake pattern
+                let secondary_amplitude = snake_amplitude * 0.3;
+                let secondary_frequency = snake_frequency * 2.0;
+                let secondary_offset = (t * std::f32::consts::PI * secondary_frequency).cos()
+                    * (secondary_amplitude * edge_fade);
+
+                let perpendicular = Vec3::new(-(end.z - start.z), 0.0, end.x - start.x).normalize();
+                let point = base_point + perpendicular * (offset + secondary_offset);
+                waypoints.push(point);
+            }
+            Some(waypoints)
+        }
+    }
+}
+
+// Generate a cubic Bezier curve
+fn generate_bezier_curve(
+    p0: Vec3,
+    p1: Vec3,
+    p2: Vec3,
+    p3: Vec3,
+    num_segments: usize,
+) -> Option<Vec<Vec3>> {
+    let mut points = Vec::new();
+    for i in 0..=num_segments {
+        let t = i as f32 / num_segments as f32;
+        let omt = 1.0 - t;
+        let point = omt.powf(3.0) * p0
+            + 3.0 * omt.powf(2.0) * t * p1
+            + 3.0 * omt * t.powf(2.0) * p2
+            + t.powf(3.0) * p3;
+        points.push(point);
+    }
+    Some(points)
+}
+
 pub fn setup(
     mut commands: Commands,
     _asset_server: Res<AssetServer>,
@@ -52,90 +234,63 @@ pub fn setup(
         ..default()
     });
 
-    // Helper to spawn a curved road along Bezier points and collect waypoints
-    let mut spawn_curved_road = |p0: Vec3, p1: Vec3, p2: Vec3, p3: Vec3, width: f32| -> Vec<Vec3> {
-        let steps = 24;
-        let y = 0.011; // slightly above ground to avoid z-fighting
-        let mut last = p0;
-        let mut waypoints = Vec::with_capacity(steps + 1);
-        waypoints.push(Vec3::new(p0.x, 0.0, p0.z));
-        for i in 1..=steps {
-            let t = i as f32 / steps as f32;
-            let it = 1.0 - t;
-            // Cubic bezier on XZ (keep Y fixed)
-            let x = it * it * it * p0.x
-                + 3.0 * it * it * t * p1.x
-                + 3.0 * it * t * t * p2.x
-                + t * t * t * p3.x;
-            let z = it * it * it * p0.z
-                + 3.0 * it * it * t * p1.z
-                + 3.0 * it * t * t * p2.z
-                + t * t * t * p3.z;
-            let current = Vec3::new(x, y, z);
-            waypoints.push(Vec3::new(x, 0.0, z));
-            let dir = (current - last);
-            let seg_len = Vec2::new(dir.x, dir.z).length().max(0.001);
-            let mid = (current + last) * 0.5;
-            // Yaw to align local X with segment direction
-            let yaw = dir.z.atan2(dir.x);
-            let rotation = Quat::from_rotation_y(yaw);
-
-            // Mesh sized along local X by segment length and local Z by width
-            let seg_mesh = meshes.add(Plane3d::default().mesh().size(seg_len, width).build());
-            commands.spawn((
-                Mesh3d(seg_mesh),
-                MeshMaterial3d(road_mat.clone()),
-                Transform {
-                    translation: Vec3::new(mid.x, y, mid.z),
-                    rotation,
-                    scale: Vec3::ONE,
-                },
-            ));
-
-            last = current;
-        }
-        waypoints
-    };
-
     let road_width = 6.0; // narrower roads
 
-    // North road (from z=-100 to center) with slight S-curve
-    let north = spawn_curved_road(
+    // Generate random road patterns for each direction
+    let mut all_roads = Vec::new();
+
+    // Roads connect directly to village center (no town square)
+
+    // North road (from z=-100 to village center)
+    let north = generate_and_spawn_road(
+        &mut commands,
+        &mut meshes,
+        road_mat.clone(),
         Vec3::new(0.0, 0.0, -100.0),
-        Vec3::new(-25.0, 0.0, -70.0),
-        Vec3::new(20.0, 0.0, -30.0),
-        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 0.0), // Direct to village center
         road_width,
-    );
-    // South road
-    let south = spawn_curved_road(
+    )
+    .unwrap();
+    all_roads.push(north);
+
+    // South road (from z=100 to village center)
+    let south = generate_and_spawn_road(
+        &mut commands,
+        &mut meshes,
+        road_mat.clone(),
         Vec3::new(0.0, 0.0, 100.0),
-        Vec3::new(25.0, 0.0, 70.0),
-        Vec3::new(-20.0, 0.0, 30.0),
-        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 0.0), // Direct to village center
         road_width,
-    );
-    // West road
-    let west = spawn_curved_road(
+    )
+    .unwrap();
+    all_roads.push(south);
+
+    // West road (from x=-100 to village center)
+    let west = generate_and_spawn_road(
+        &mut commands,
+        &mut meshes,
+        road_mat.clone(),
         Vec3::new(-100.0, 0.0, 0.0),
-        Vec3::new(-70.0, 0.0, -25.0),
-        Vec3::new(-30.0, 0.0, 20.0),
-        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 0.0), // Direct to village center
         road_width,
-    );
-    // East road
-    let east = spawn_curved_road(
+    )
+    .unwrap();
+    all_roads.push(west);
+
+    // East road (from x=100 to village center)
+    let east = generate_and_spawn_road(
+        &mut commands,
+        &mut meshes,
+        road_mat.clone(),
         Vec3::new(100.0, 0.0, 0.0),
-        Vec3::new(70.0, 0.0, 25.0),
-        Vec3::new(30.0, 0.0, -20.0),
-        Vec3::new(0.0, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 0.0), // Direct to village center
         road_width,
-    );
+    )
+    .unwrap();
+    all_roads.push(east);
 
     // Save roads for path following
-    commands.insert_resource(RoadPaths {
-        roads: vec![north, south, west, east],
-    });
+    commands.insert_resource(RoadPaths { roads: all_roads });
 
     // 3D player box (larger and more visible)
     let player_mesh = meshes.add(Cuboid::new(2.0, 4.0, 2.0));
