@@ -2,6 +2,7 @@ use crate::components::*;
 use crate::events::*;
 use bevy::prelude::*;
 
+/// Logs gameplay events to the console.
 pub fn handle_events(
     mut resource_events: MessageReader<ResourceCollected>,
     mut tower_events: MessageReader<TowerBuilt>,
@@ -9,10 +10,7 @@ pub fn handle_events(
     mut enemy_killed_events: MessageReader<EnemyKilled>,
 ) {
     for event in resource_events.read() {
-        info!(
-            "Resource collected: {:?} x{}",
-            event.resource_type, event.amount
-        );
+        info!("Resource collected: {:?} x{}", event.kind, event.amount);
     }
 
     for event in tower_events.read() {
@@ -28,7 +26,7 @@ pub fn handle_events(
     }
 }
 
-// UI Health bar system for village - updates persistent HUD fill width
+/// Updates the persistent HUD health bar for the village.
 pub fn village_health_hud(
     windows: Query<&Window>,
     village_query: Query<&Village>,
@@ -50,11 +48,11 @@ pub fn village_health_hud(
     }
 }
 
-// Component to mark health bar entities
+/// Marker component for the health bar fill node.
 #[derive(Component)]
 pub struct HealthBar;
 
-// Spawn persistent on-screen HUD: background + fill (marked with HealthBar)
+/// Spawns the persistent on-screen HUD with a background and a fill node.
 pub fn spawn_village_health_bar(mut commands: Commands) {
     // Root container: centered horizontally using left: 20% and width: 60%
     commands
@@ -80,4 +78,72 @@ pub fn spawn_village_health_bar(mut commands: Commands) {
                 HealthBar,
             ));
         });
+}
+
+/// Marker for the wood counter text node.
+#[derive(Component)]
+pub struct WoodCounterText;
+
+/// Marker for the rock counter text node.
+#[derive(Component)]
+pub struct RockCounterText;
+
+/// Spawns resource counters (wood and rock) at the top-left of the screen.
+pub fn spawn_resource_counters(mut commands: Commands) {
+    commands
+        .spawn((
+            Node {
+                left: Val::Px(20.0),
+                top: Val::Px(70.0),
+                width: Val::Auto,
+                height: Val::Auto,
+                ..default()
+            },
+            BackgroundColor(Color::NONE),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("Wood: 0"),
+                TextFont {
+                    font_size: 24.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                WoodCounterText,
+            ));
+
+            parent.spawn((
+                Node {
+                    height: Val::Px(6.0),
+                    ..default()
+                },
+                BackgroundColor(Color::NONE),
+            ));
+
+            parent.spawn((
+                Text::new("Rock: 0"),
+                TextFont {
+                    font_size: 24.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                RockCounterText,
+            ));
+        });
+}
+
+/// Updates the on-screen resource counters from the Player inventory.
+pub fn update_resource_counters(
+    player_q: Query<&Player>,
+    mut wood_q: Query<&mut Text, (With<WoodCounterText>, Without<RockCounterText>)>,
+    mut rock_q: Query<&mut Text, (With<RockCounterText>, Without<WoodCounterText>)>,
+) {
+    if let Ok(player) = player_q.single() {
+        if let Ok(mut wood_text) = wood_q.single_mut() {
+            *wood_text = Text::new(format!("Wood: {}", player.wood));
+        }
+        if let Ok(mut rock_text) = rock_q.single_mut() {
+            *rock_text = Text::new(format!("Rock: {}", player.rock));
+        }
+    }
 }

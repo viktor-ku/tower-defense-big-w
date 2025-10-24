@@ -2,15 +2,11 @@ use bevy::prelude::*;
 
 #[derive(Event, Message, Debug)]
 pub struct ResourceCollected {
-    pub resource_type: crate::components::ResourceType,
+    pub kind: crate::components::HarvestableKind,
     pub amount: u32,
 }
 
-#[derive(Event, Message, Debug)]
-pub struct WoodCollected {
-    pub amount: u32,
-    pub tree_position: Vec3,
-}
+// WoodCollected removed; use ResourceCollected
 
 #[derive(Event, Message, Debug)]
 pub struct TowerBuilt {

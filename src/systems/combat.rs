@@ -1,30 +1,8 @@
-use crate::components::{Resource as GameResource, *};
+use crate::components::*;
 use crate::events::*;
 use bevy::prelude::*;
 
-pub fn resource_collection(
-    mut commands: Commands,
-    player_query: Query<&Transform, With<Player>>,
-    resource_query: Query<(Entity, &Transform, &GameResource)>,
-    mut resource_events: MessageWriter<ResourceCollected>,
-) {
-    if let Ok(player_transform) = player_query.single() {
-        for (entity, resource_transform, resource) in resource_query.iter() {
-            let distance = player_transform
-                .translation
-                .distance(resource_transform.translation);
-
-            if distance < 30.0 {
-                commands.entity(entity).despawn();
-                resource_events.write(ResourceCollected {
-                    resource_type: resource.resource_type,
-                    amount: resource.amount,
-                });
-            }
-        }
-    }
-}
-
+/// Places a tower at the mouse cursor when in building mode and within range.
 pub fn tower_building(
     mut commands: Commands,
     mouse_input: Res<ButtonInput<MouseButton>>,
@@ -98,6 +76,7 @@ pub fn tower_building(
     }
 }
 
+/// Spawns enemies at intervals on road entrances or at a ring around the map.
 pub fn enemy_spawning(
     mut commands: Commands,
     time: Res<Time>,
@@ -176,6 +155,7 @@ pub fn enemy_spawning(
     }
 }
 
+/// Makes towers shoot the closest enemy in range at a fixed fire rate.
 pub fn tower_shooting(
     time: Res<Time>,
     mut commands: Commands,

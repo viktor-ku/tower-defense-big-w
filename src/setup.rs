@@ -1,10 +1,7 @@
-use crate::{
-    components::{Resource as GameResource, *},
-    systems::CameraSettings,
-};
+use crate::{components::*, systems::CameraSettings};
 use bevy::prelude::*;
 
-// Road pattern types
+/// Road pattern types used for procedural road generation.
 #[derive(Debug, Clone, Copy)]
 enum RoadPattern {
     Straight,
@@ -12,7 +9,7 @@ enum RoadPattern {
     Snake,
 }
 
-// Generate and spawn a road pattern between two points
+/// Generates and spawns a road mesh between two points; returns the path waypoints.
 fn generate_and_spawn_road(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
@@ -58,7 +55,7 @@ fn generate_and_spawn_road(
     Some(waypoints)
 }
 
-// Generate a random road pattern between two points
+/// Generates a random road path (straight, curved, snake) between two points.
 fn generate_road_pattern(start: Vec3, end: Vec3, _width: f32) -> Option<Vec<Vec3>> {
     let pattern = match rand::random::<u8>() % 3 {
         0 => RoadPattern::Straight,
@@ -165,7 +162,7 @@ fn generate_road_pattern(start: Vec3, end: Vec3, _width: f32) -> Option<Vec<Vec3
     }
 }
 
-// Generate a cubic Bezier curve
+/// Generates points on a cubic Bezier curve.
 fn generate_bezier_curve(
     p0: Vec3,
     p1: Vec3,
@@ -186,6 +183,7 @@ fn generate_bezier_curve(
     Some(points)
 }
 
+/// Sets up the world: camera, light, ground, roads, player, village, trees, rocks, and systems state.
 pub fn setup(
     mut commands: Commands,
     _asset_server: Res<AssetServer>,
@@ -351,9 +349,10 @@ pub fn setup(
             Mesh3d(tree_mesh),
             MeshMaterial3d(tree_mat),
             Transform::from_xyz(x, 1.5, y),
-            Tree {
-                wood_amount,
-                is_chopped: false,
+            Tree,
+            Harvestable {
+                kind: HarvestableKind::Wood,
+                amount: wood_amount,
             },
         ));
     }
@@ -377,20 +376,12 @@ pub fn setup(
             Mesh3d(rock_mesh),
             MeshMaterial3d(rock_mat),
             Transform::from_xyz(x, 0.3, y),
-            GameResource {
-                resource_type: ResourceType::Rock,
+            Harvestable {
+                kind: HarvestableKind::Rock,
                 amount: 10,
             },
         ));
     }
-
-    // Spawn day/night cycle
-    commands.spawn(DayNight {
-        is_day: true,
-        time_until_switch: 30.0, // 30 seconds per day/night cycle
-        day_duration: 30.0,
-        night_duration: 20.0,
-    });
 
     // Spawn building mode
     commands.spawn(BuildingMode { is_active: false });

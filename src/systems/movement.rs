@@ -1,6 +1,7 @@
 use crate::components::*;
 use bevy::prelude::*;
 
+/// Moves the player using WASD/arrow keys at a fixed speed.
 pub fn player_movement(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
@@ -39,6 +40,7 @@ pub fn player_movement(
     }
 }
 
+/// Moves enemies along roads (if assigned) or toward the village center.
 pub fn enemy_movement(
     time: Res<Time>,
     mut commands: Commands,

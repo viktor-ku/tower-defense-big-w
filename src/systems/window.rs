@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-// Force exit on any window close
+/// Forces process exit when a window close is requested.
 pub fn force_exit_on_close(
     mut window_close_events: MessageReader<bevy::window::WindowCloseRequested>,
 ) {

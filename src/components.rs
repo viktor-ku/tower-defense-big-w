@@ -13,17 +13,20 @@ pub struct Player {
     pub rock: u32,
 }
 
-#[derive(Component)]
-pub struct Resource {
-    pub resource_type: ResourceType,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HarvestableKind {
+    Wood,
+    Rock,
+}
+
+#[derive(Component, Debug, Clone, Copy)]
+pub struct Harvestable {
+    pub kind: HarvestableKind,
     pub amount: u32,
 }
 
 #[derive(Component)]
-pub struct Tree {
-    pub wood_amount: u32,
-    pub is_chopped: bool,
-}
+pub struct Tree;
 
 #[derive(Component)]
 pub struct Tower {
@@ -44,13 +47,7 @@ pub struct Village {
     pub max_health: u32,
 }
 
-#[derive(Component)]
-pub struct DayNight {
-    pub is_day: bool,
-    pub time_until_switch: f32,
-    pub day_duration: f32,
-    pub night_duration: f32,
-}
+// DayNight removed
 
 #[derive(Component)]
 pub struct BuildingMode {
@@ -61,10 +58,7 @@ pub struct BuildingMode {
 #[derive(Component)]
 pub struct IsoPlayer;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ResourceType {
-    Rock,
-}
+// ResourceType removed in favor of HarvestableKind
 
 // Road pathing
 #[derive(Resource, Default, Debug, Clone)]

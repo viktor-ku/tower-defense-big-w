@@ -5,7 +5,7 @@ pub mod movement;
 pub mod tree_collection;
 pub mod ui;
 pub mod window;
-pub mod world;
+// world module removed
 
 pub use camera::*;
 pub use combat::*;
@@ -14,4 +14,3 @@ pub use movement::*;
 pub use tree_collection::*;
 pub use ui::*;
 pub use window::*;
-pub use world::*;
