@@ -71,3 +71,10 @@ pub struct PathFollower {
     pub road_index: usize,
     pub next_index: usize,
 }
+
+/// Tracks the current hold-to-collect target and normalized progress [0,1].
+#[derive(Resource, Default, Debug, Clone, Copy)]
+pub struct CurrentCollectProgress {
+    pub target: Option<Entity>,
+    pub progress: f32,
+}

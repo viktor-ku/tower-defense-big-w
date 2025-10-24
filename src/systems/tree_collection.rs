@@ -25,12 +25,15 @@ pub fn hold_to_collect(
     mut player_query: Query<(&Transform, &mut Player)>,
     harvestables: Query<(Entity, &Transform, &Harvestable)>,
     mut resource_events: MessageWriter<ResourceCollected>,
+    mut current: ResMut<CurrentCollectProgress>,
     mut commands: Commands,
     mut hold: Local<HoldCollectState>,
 ) {
     let Ok((player_transform, mut player)) = player_query.single_mut() else {
         hold.current_target = None;
         hold.elapsed_seconds = 0.0;
+        current.target = None;
+        current.progress = 0.0;
         return;
     };
 
@@ -65,6 +68,9 @@ pub fn hold_to_collect(
                 hold.elapsed_seconds = 0.0;
             }
 
+            current.target = Some(entity);
+            current.progress = (hold.elapsed_seconds / HOLD_DURATION).clamp(0.0, 1.0);
+
             if hold.elapsed_seconds >= HOLD_DURATION {
                 let collected = harvestable.amount;
                 if collected > 0 {
@@ -85,11 +91,15 @@ pub fn hold_to_collect(
                 commands.entity(entity).despawn();
                 hold.current_target = None;
                 hold.elapsed_seconds = 0.0;
+                current.target = None;
+                current.progress = 0.0;
             }
         }
         _ => {
             hold.current_target = None;
             hold.elapsed_seconds = 0.0;
+            current.target = None;
+            current.progress = 0.0;
         }
     }
 }

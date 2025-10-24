@@ -33,6 +33,8 @@ fn main() {
         .add_systems(Update, bevy::window::exit_on_all_closed)
         .init_state::<GameState>()
         .insert_state(GameState::Playing)
+        .insert_resource(CurrentCollectProgress::default())
+        .insert_resource(CollectUiState::default())
         .add_message::<ResourceCollected>()
         .add_message::<TowerBuilt>()
         .add_message::<EnemySpawned>()
@@ -59,7 +61,12 @@ fn main() {
         // HUD systems
         .add_systems(
             Update,
-            (village_health_hud, update_resource_counters).run_if(in_state(GameState::Playing)),
+            (
+                village_health_hud,
+                update_resource_counters,
+                manage_collect_bar_ui,
+            )
+                .run_if(in_state(GameState::Playing)),
         )
         // Tree collection system
         .add_systems(Update, hold_to_collect.run_if(in_state(GameState::Playing)))
