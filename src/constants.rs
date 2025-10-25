@@ -19,7 +19,6 @@ pub const C_GATE_WIDTH: f32 = 20.0;
 pub const C_SQUARE_SIZE: f32 = 60.0;
 pub const C_GROUND_COLOR_SRGB: (f32, f32, f32) = (0.2, 0.3, 0.2);
 pub const C_ROAD_WIDTH: f32 = 5.0;
-pub const C_ROAD_ENDPOINT_DISTANCE: f32 = 100.0;
 // Chunking & world seed
 pub const C_WORLD_SEED: u64 = 0xC0FFEE_u64;
 pub const C_CHUNK_SIZE: f32 = 1024.0;
@@ -65,7 +64,6 @@ pub const C_MAX_BUILD_DISTANCE: f32 = 50.0;
 pub const C_RING_INNER_RATIO: f32 = 0.92;
 pub const C_IMPACT_EFFECT_DURATION_SECS: f32 = 0.2;
 pub const C_DAMAGE_NUMBER_LIFETIME_SECS: f32 = 0.3;
-pub const C_DAMAGE_NUMBER_FLOAT_SPEED: f32 = 0.1;
 pub const C_DAMAGE_NUMBER_SPAWN_HEIGHT: f32 = 0.0;
 pub const C_DAMAGE_NUMBER_FONT_SIZE: f32 = 16.0;
 pub const C_ENEMY_FLASH_DURATION_SECS: f32 = 0.22;
@@ -85,13 +83,9 @@ pub const C_TREES_COUNT: u32 = 100;
 pub const C_TREE_WOOD_MIN: u32 = 20;
 pub const C_TREE_WOOD_MAX: u32 = 60;
 pub const C_TREE_SIZE: (f32, f32, f32) = (1.4, 3.2, 1.4);
-pub const C_TREE_DISTANCE_MIN: f32 = 30.0;
-pub const C_TREE_DISTANCE_MAX: f32 = 90.0; // inside walls
 
 pub const C_ROCKS_COUNT: u32 = 50;
 pub const C_ROCK_SIZE: (f32, f32, f32) = (1.0, 0.8, 1.0);
-pub const C_ROCK_DISTANCE_MIN: f32 = 30.0;
-pub const C_ROCK_DISTANCE_MAX: f32 = 100.0; // inside walls
 
 /// Tunable values that control the game. Insert this as a Bevy resource to tweak gameplay,
 /// visuals, and pacing without touching system code. Values are read at runtime by systems.
@@ -115,8 +109,6 @@ pub struct Tunables {
     pub ground_color: Color,
     /// Road strip width in world units.
     pub road_width: f32,
-    /// Distance from the center where roads start/end.
-    pub road_endpoint_distance: f32,
 
     /// Deterministic world seed for procedural content.
     pub world_seed: u64,
@@ -199,8 +191,6 @@ pub struct Tunables {
     pub impact_effect_duration_secs: f32,
     /// Lifetime of floating damage numbers.
     pub damage_number_lifetime_secs: f32,
-    /// Upward speed (units/s) for floating damage numbers.
-    pub damage_number_float_speed: f32,
     /// Initial height offset for damage numbers.
     pub damage_number_spawn_height: f32,
     /// Font size for damage numbers.
@@ -233,19 +223,11 @@ pub struct Tunables {
     pub tree_wood_max: u32,
     /// Tree mesh dimensions.
     pub tree_size: Vec3,
-    /// Minimum radial distance for spawning trees.
-    pub tree_distance_min: f32,
-    /// Maximum radial distance for spawning trees.
-    pub tree_distance_max: f32,
 
     /// Number of rocks to spawn.
     pub rocks_count: u32,
     /// Rock mesh dimensions.
     pub rock_size: Vec3,
-    /// Minimum radial distance for spawning rocks.
-    pub rock_distance_min: f32,
-    /// Maximum radial distance for spawning rocks.
-    pub rock_distance_max: f32,
 }
 
 impl Default for Tunables {
@@ -268,7 +250,6 @@ impl Default for Tunables {
                 C_GROUND_COLOR_SRGB.2,
             ),
             road_width: C_ROAD_WIDTH,
-            road_endpoint_distance: C_ROAD_ENDPOINT_DISTANCE,
             world_seed: C_WORLD_SEED,
             chunk_size: C_CHUNK_SIZE,
             chunks_active_radius: C_CHUNKS_ACTIVE_RADIUS,
@@ -316,7 +297,6 @@ impl Default for Tunables {
             ring_inner_ratio: C_RING_INNER_RATIO,
             impact_effect_duration_secs: C_IMPACT_EFFECT_DURATION_SECS,
             damage_number_lifetime_secs: C_DAMAGE_NUMBER_LIFETIME_SECS,
-            damage_number_float_speed: C_DAMAGE_NUMBER_FLOAT_SPEED,
             damage_number_spawn_height: C_DAMAGE_NUMBER_SPAWN_HEIGHT,
             damage_number_font_size: C_DAMAGE_NUMBER_FONT_SIZE,
             enemy_flash_duration_secs: C_ENEMY_FLASH_DURATION_SECS,
@@ -336,13 +316,9 @@ impl Default for Tunables {
             tree_wood_min: C_TREE_WOOD_MIN,
             tree_wood_max: C_TREE_WOOD_MAX,
             tree_size: Vec3::new(C_TREE_SIZE.0, C_TREE_SIZE.1, C_TREE_SIZE.2),
-            tree_distance_min: C_TREE_DISTANCE_MIN,
-            tree_distance_max: C_TREE_DISTANCE_MAX,
 
             rocks_count: C_ROCKS_COUNT,
             rock_size: Vec3::new(C_ROCK_SIZE.0, C_ROCK_SIZE.1, C_ROCK_SIZE.2),
-            rock_distance_min: C_ROCK_DISTANCE_MIN,
-            rock_distance_max: C_ROCK_DISTANCE_MAX,
         }
     }
 }

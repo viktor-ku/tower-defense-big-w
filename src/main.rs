@@ -3,6 +3,7 @@ use bevy::prelude::*;
 mod constants;
 
 mod components;
+mod entities;
 mod events;
 mod materials;
 mod setup;

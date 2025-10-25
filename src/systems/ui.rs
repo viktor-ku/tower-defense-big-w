@@ -97,6 +97,25 @@ pub struct WaveCounterText;
 #[derive(Component)]
 pub struct WaveTimerText;
 
+/// Tracks last rendered value for resource counters to avoid repeated allocations.
+#[derive(Component)]
+pub(crate) struct ResourceCounter {
+    kind: HarvestableKind,
+    last_value: u32,
+}
+
+/// Tracks last rendered wave number.
+#[derive(Component)]
+pub(crate) struct WaveCounterDisplay {
+    last_value: u32,
+}
+
+/// Tracks last rendered timer seconds (or `None` for "Wave in progress").
+#[derive(Component)]
+pub(crate) struct WaveTimerDisplay {
+    last_seconds: Option<u32>,
+}
+
 /// Spawns resource counters (wood and rock) at the top-left of the screen.
 pub fn spawn_resource_counters(mut commands: Commands) {
     commands
@@ -124,6 +143,10 @@ pub fn spawn_resource_counters(mut commands: Commands) {
                 },
                 TextColor(Color::srgba(0.93, 0.86, 0.68, 1.0)),
                 WoodCounterText,
+                ResourceCounter {
+                    kind: HarvestableKind::Wood,
+                    last_value: 0,
+                },
             ));
 
             parent.spawn((
@@ -134,17 +157,32 @@ pub fn spawn_resource_counters(mut commands: Commands) {
                 },
                 TextColor(Color::srgba(0.86, 0.88, 0.95, 1.0)),
                 RockCounterText,
+                ResourceCounter {
+                    kind: HarvestableKind::Rock,
+                    last_value: 0,
+                },
             ));
         });
 }
 
 /// Spawns HUD elements for the current wave and intermission timer.
 pub fn spawn_wave_hud(mut commands: Commands, wave_state: Res<WaveState>) {
-    let wave_label = format!("Wave: {}", wave_state.upcoming_wave_number());
-    let intermission_label = format!(
-        "Next wave in: {:.0}s",
-        wave_state.remaining_intermission_secs().ceil().max(0.0)
-    );
+    let wave_number = wave_state.upcoming_wave_number();
+    let (timer_label, timer_state) = match wave_state.phase {
+        WavePhase::Intermission => {
+            let seconds = wave_state.remaining_intermission_secs().ceil().max(0.0) as u32;
+            (
+                format!("Next wave in: {}s", seconds),
+                WaveTimerDisplay {
+                    last_seconds: Some(seconds),
+                },
+            )
+        }
+        WavePhase::Spawning => (
+            "Wave in progress".to_string(),
+            WaveTimerDisplay { last_seconds: None },
+        ),
+    };
 
     commands
         .spawn((
@@ -166,23 +204,27 @@ pub fn spawn_wave_hud(mut commands: Commands, wave_state: Res<WaveState>) {
         ))
         .with_children(|parent| {
             parent.spawn((
-                Text::new(wave_label),
+                Text::new(format!("Wave: {}", wave_number)),
                 TextFont {
                     font_size: 32.0,
                     ..default()
                 },
                 TextColor(Color::srgba(0.92, 0.88, 1.0, 1.0)),
                 WaveCounterText,
+                WaveCounterDisplay {
+                    last_value: wave_number,
+                },
             ));
 
             parent.spawn((
-                Text::new(intermission_label),
+                Text::new(timer_label),
                 TextFont {
                     font_size: 24.0,
                     ..default()
                 },
                 TextColor(Color::srgba(0.78, 0.86, 0.95, 1.0)),
                 WaveTimerText,
+                timer_state,
             ));
         });
 }
@@ -190,15 +232,23 @@ pub fn spawn_wave_hud(mut commands: Commands, wave_state: Res<WaveState>) {
 /// Updates the on-screen resource counters from the Player inventory.
 pub fn update_resource_counters(
     player_q: Query<&Player>,
-    mut wood_q: Query<&mut Text, (With<WoodCounterText>, Without<RockCounterText>)>,
-    mut rock_q: Query<&mut Text, (With<RockCounterText>, Without<WoodCounterText>)>,
+    mut counters: Query<(&mut Text, &mut ResourceCounter)>,
 ) {
     if let Ok(player) = player_q.single() {
-        if let Ok(mut wood_text) = wood_q.single_mut() {
-            *wood_text = Text::new(format!("Wood: {}", player.wood));
-        }
-        if let Ok(mut rock_text) = rock_q.single_mut() {
-            *rock_text = Text::new(format!("Rock: {}", player.rock));
+        for (mut text, mut counter) in counters.iter_mut() {
+            let value = match counter.kind {
+                HarvestableKind::Wood => player.wood,
+                HarvestableKind::Rock => player.rock,
+            };
+
+            if counter.last_value != value {
+                counter.last_value = value;
+                let label = match counter.kind {
+                    HarvestableKind::Wood => "Wood",
+                    HarvestableKind::Rock => "Rock",
+                };
+                *text = Text::new(format!("{}: {}", label, value));
+            }
         }
     }
 }
@@ -206,21 +256,34 @@ pub fn update_resource_counters(
 /// Updates the wave counter and intermission timer text.
 pub fn update_wave_hud(
     wave_state: Res<WaveState>,
-    mut wave_text_q: Query<&mut Text, (With<WaveCounterText>, Without<WaveTimerText>)>,
-    mut timer_text_q: Query<&mut Text, (With<WaveTimerText>, Without<WaveCounterText>)>,
+    mut wave_text_q: Query<(&mut Text, &mut WaveCounterDisplay), With<WaveCounterText>>,
+    mut timer_text_q: Query<
+        (&mut Text, &mut WaveTimerDisplay),
+        (With<WaveTimerText>, Without<WaveCounterText>),
+    >,
 ) {
-    if let Ok(mut wave_text) = wave_text_q.single_mut() {
-        *wave_text = Text::new(format!("Wave: {}", wave_state.upcoming_wave_number()));
+    if let Ok((mut wave_text, mut display)) = wave_text_q.single_mut() {
+        let upcoming = wave_state.upcoming_wave_number();
+        if display.last_value != upcoming {
+            display.last_value = upcoming;
+            *wave_text = Text::new(format!("Wave: {}", upcoming));
+        }
     }
 
-    if let Ok(mut timer_text) = timer_text_q.single_mut() {
+    if let Ok((mut timer_text, mut display)) = timer_text_q.single_mut() {
         match wave_state.phase {
             WavePhase::Intermission => {
-                let seconds = wave_state.remaining_intermission_secs().ceil().max(0.0);
-                *timer_text = Text::new(format!("Next wave in: {:.0}s", seconds));
+                let seconds = wave_state.remaining_intermission_secs().ceil().max(0.0) as u32;
+                if display.last_seconds != Some(seconds) {
+                    display.last_seconds = Some(seconds);
+                    *timer_text = Text::new(format!("Next wave in: {}s", seconds));
+                }
             }
             WavePhase::Spawning => {
-                *timer_text = Text::new("Wave in progress".to_string());
+                if display.last_seconds.is_some() {
+                    display.last_seconds = None;
+                    *timer_text = Text::new("Wave in progress");
+                }
             }
         }
     }
