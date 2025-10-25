@@ -1,6 +1,5 @@
 ## Solid Next Moves
 
-- Resource economy: Add tower costs and a build-deny UI when you can’t afford.
 - Enemy waves: Wave count, intermission timer, difficulty scaling.
 - Tower variety: Add AoE/slow/long-range towers + simple upgrade path.
 - Enemy health bars: Small floating bars; fade when full/out of combat.

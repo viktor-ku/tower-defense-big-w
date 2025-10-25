@@ -546,38 +546,36 @@ pub fn enemy_spawning(
     mut health_bar_assets: ResMut<EnemyHealthBarAssets>,
     roads: Option<Res<RoadPaths>>,
     tunables: Res<Tunables>,
-    mut spawn_timer: Local<Option<Timer>>,
+    mut wave_state: ResMut<WaveState>,
 ) {
-    let timer = spawn_timer.get_or_insert_with(|| {
-        Timer::from_seconds(tunables.enemy_spawn_interval_secs, TimerMode::Repeating)
-    });
-
-    // Keep timer duration synced with tunables
-    if timer.duration() != Duration::from_secs_f32(tunables.enemy_spawn_interval_secs) {
-        timer.set_duration(Duration::from_secs_f32(tunables.enemy_spawn_interval_secs));
+    if wave_state.phase != WavePhase::Spawning {
+        return;
     }
 
-    timer.tick(time.delta());
-    if timer.just_finished() {
+    if wave_state.enemies_spawned >= wave_state.enemies_to_spawn {
+        return;
+    }
 
-            let (spawn_pos, _road_index_for_follower) = if let Some(roads) = &roads {
-                if !roads.roads.is_empty() {
-                    // Pick any road (all roads now go directly to village center)
-                    let n = roads.roads.len() as f32;
-                    let mut ri = (rand::random::<f32>() * n).floor() as usize;
-                    if ri >= roads.roads.len() {
-                        ri = roads.roads.len() - 1;
-                    }
-                    let wp = &roads.roads[ri][0];
-                    (Vec3::new(wp.x, 0.0, wp.z), Some(ri))
-                } else {
-                    let angle = rand::random::<f32>() * 2.0 * std::f32::consts::PI;
-                    let distance = tunables.enemy_spawn_ring_distance;
-                    (
-                        Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance),
-                        None,
-                    )
+    if wave_state.spawn_timer.duration()
+        != Duration::from_secs_f32(tunables.enemy_spawn_interval_secs)
+    {
+        wave_state
+            .spawn_timer
+            .set_duration(Duration::from_secs_f32(tunables.enemy_spawn_interval_secs));
+    }
+
+    wave_state.spawn_timer.tick(time.delta());
+    if wave_state.spawn_timer.just_finished() {
+        let (spawn_pos, _road_index_for_follower) = if let Some(roads) = &roads {
+            if !roads.roads.is_empty() {
+                // Pick any road (all roads now go directly to village center)
+                let n = roads.roads.len() as f32;
+                let mut ri = (rand::random::<f32>() * n).floor() as usize;
+                if ri >= roads.roads.len() {
+                    ri = roads.roads.len() - 1;
                 }
+                let wp = &roads.roads[ri][0];
+                (Vec3::new(wp.x, 0.0, wp.z), Some(ri))
             } else {
                 let angle = rand::random::<f32>() * 2.0 * std::f32::consts::PI;
                 let distance = tunables.enemy_spawn_ring_distance;
@@ -585,97 +583,109 @@ pub fn enemy_spawning(
                     Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance),
                     None,
                 )
-            };
+            }
+        } else {
+            let angle = rand::random::<f32>() * 2.0 * std::f32::consts::PI;
+            let distance = tunables.enemy_spawn_ring_distance;
+            (
+                Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance),
+                None,
+            )
+        };
 
-            let e_mesh = meshes.add(Cuboid::new(0.9, 1.6, 0.9));
-            let e_mat = materials.add(StandardMaterial {
-                base_color: Color::srgb(0.9, 0.1, 0.1),
-                perceptual_roughness: 0.7,
-                metallic: 0.0,
-                ..default()
-            });
-            // Random speed in configured range
-            let random_speed = tunables.enemy_random_speed_min
-                + rand::random::<f32>()
-                    * (tunables.enemy_random_speed_max - tunables.enemy_random_speed_min);
+        let e_mesh = meshes.add(Cuboid::new(0.9, 1.6, 0.9));
+        let e_mat = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.9, 0.1, 0.1),
+            perceptual_roughness: 0.7,
+            metallic: 0.0,
+            ..default()
+        });
+        // Random speed in configured range
+        let random_speed = tunables.enemy_random_speed_min
+            + rand::random::<f32>()
+                * (tunables.enemy_random_speed_max - tunables.enemy_random_speed_min);
+        let difficulty_tier = wave_state.current_wave / 5;
+        let mut enemy_health = tunables.enemy_default_health;
+        if difficulty_tier > 0 {
+            enemy_health += difficulty_tier * tunables.wave_health_bonus_per_tier;
+        }
 
-            let enemy_entity = commands
+        let enemy_entity = commands
+            .spawn((
+                Mesh3d(e_mesh),
+                MeshMaterial3d(e_mat),
+                Transform::from_translation(Vec3::new(spawn_pos.x, 0.8, spawn_pos.z)),
+                Enemy {
+                    health: enemy_health,
+                    max_health: enemy_health,
+                    speed: random_speed,
+                },
+                match _road_index_for_follower {
+                    Some(ri) => PathFollower {
+                        road_index: ri,
+                        next_index: 1,
+                    },
+                    None => PathFollower {
+                        road_index: 0,
+                        next_index: 0,
+                    },
+                },
+            ))
+            .id();
+
+        let quad_mesh = health_bar_assets.mesh(&mut meshes);
+        let background_mat = health_bar_assets.background_material(&mut materials);
+        let fill_mat = health_bar_assets.fill_material(&mut materials);
+
+        commands.entity(enemy_entity).with_children(|parent| {
+            parent
                 .spawn((
-                    Mesh3d(e_mesh),
-                    MeshMaterial3d(e_mat),
-                    Transform::from_translation(Vec3::new(spawn_pos.x, 0.8, spawn_pos.z)),
-                    Enemy {
-                        health: tunables.enemy_default_health,
-                        max_health: tunables.enemy_default_health,
-                        speed: random_speed,
-                    },
-                    match _road_index_for_follower {
-                        Some(ri) => PathFollower {
-                            road_index: ri,
-                            next_index: 1,
-                        },
-                        None => PathFollower {
-                            road_index: 0,
-                            next_index: 0,
-                        },
-                    },
+                    EnemyHealthBarRoot,
+                    Transform::from_translation(Vec3::new(0.0, tunables.health_bar_offset_y, 0.0)),
+                    GlobalTransform::default(),
+                    Visibility::default(),
+                    InheritedVisibility::default(),
                 ))
-                .id();
+                .with_children(|bar| {
+                    bar.spawn((
+                        Mesh3d(quad_mesh.clone()),
+                        MeshMaterial3d(background_mat.clone()),
+                        Transform {
+                            translation: Vec3::ZERO,
+                            scale: Vec3::new(
+                                tunables.health_bar_width,
+                                tunables.health_bar_height,
+                                1.0,
+                            ),
+                            ..default()
+                        },
+                    ));
 
-            let quad_mesh = health_bar_assets.mesh(&mut meshes);
-            let background_mat = health_bar_assets.background_material(&mut materials);
-            let fill_mat = health_bar_assets.fill_material(&mut materials);
+                    bar.spawn((
+                        Mesh3d(quad_mesh.clone()),
+                        MeshMaterial3d(fill_mat),
+                        Transform {
+                            translation: Vec3::new(0.0, 0.0, 0.001),
+                            scale: Vec3::new(
+                                tunables.health_bar_width,
+                                tunables.health_bar_fill_height,
+                                1.0,
+                            ),
+                            ..default()
+                        },
+                        EnemyHealthBarFill {
+                            max_width: tunables.health_bar_width,
+                            owner: enemy_entity,
+                            last_ratio: 1.0,
+                        },
+                    ));
+                });
+        });
 
-            commands.entity(enemy_entity).with_children(|parent| {
-                parent
-                    .spawn((
-                        EnemyHealthBarRoot,
-                        Transform::from_translation(Vec3::new(
-                            0.0,
-                            tunables.health_bar_offset_y,
-                            0.0,
-                        )),
-                        GlobalTransform::default(),
-                        Visibility::default(),
-                        InheritedVisibility::default(),
-                    ))
-                    .with_children(|bar| {
-                        bar.spawn((
-                            Mesh3d(quad_mesh.clone()),
-                            MeshMaterial3d(background_mat.clone()),
-                            Transform {
-                                translation: Vec3::ZERO,
-                                scale: Vec3::new(
-                                    tunables.health_bar_width,
-                                    tunables.health_bar_height,
-                                    1.0,
-                                ),
-                                ..default()
-                            },
-                        ));
-
-                        bar.spawn((
-                            Mesh3d(quad_mesh.clone()),
-                            MeshMaterial3d(fill_mat),
-                            Transform {
-                                translation: Vec3::new(0.0, 0.0, 0.001),
-                                scale: Vec3::new(
-                                    tunables.health_bar_width,
-                                    tunables.health_bar_fill_height,
-                                    1.0,
-                                ),
-                                ..default()
-                            },
-                            EnemyHealthBarFill {
-                                max_width: tunables.health_bar_width,
-                                owner: enemy_entity,
-                                last_ratio: 1.0,
-                            },
-                        ));
-                    });
-            });
-
-            enemy_events.write(EnemySpawned { position: spawn_pos });
+        enemy_events.write(EnemySpawned {
+            position: spawn_pos,
+        });
+        wave_state.enemies_spawned += 1;
     }
 }
 

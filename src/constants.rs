@@ -41,6 +41,13 @@ pub const C_ENEMY_DEFAULT_HEALTH: u32 = 50;
 pub const C_ENEMY_RANDOM_SPEED_MIN: f32 = 10.0;
 pub const C_ENEMY_RANDOM_SPEED_MAX: f32 = 25.0;
 
+// Waves
+pub const C_WAVE_INITIAL_DELAY_SECS: f32 = 30.0;
+pub const C_WAVE_INTERMISSION_SECS: f32 = 15.0;
+pub const C_WAVE_BASE_ENEMY_COUNT: u32 = 6;
+pub const C_WAVE_ENEMY_INCREMENT: u32 = 2;
+pub const C_WAVE_HEALTH_BONUS_PER_TIER: u32 = 15;
+
 // Towers
 pub const C_TOWER_RANGE: f32 = 45.0;
 pub const C_TOWER_WIDTH: f32 = 1.2;
@@ -138,6 +145,16 @@ pub struct Tunables {
     pub enemy_random_speed_min: f32,
     /// Maximum enemy speed (units/second).
     pub enemy_random_speed_max: f32,
+    /// Seconds before the first wave begins.
+    pub wave_initial_delay_secs: f32,
+    /// Seconds between waves after the first.
+    pub wave_intermission_secs: f32,
+    /// Base number of enemies spawned during the first wave.
+    pub wave_base_enemy_count: u32,
+    /// Number of additional enemies added per wave.
+    pub wave_enemy_increment: u32,
+    /// Enemy health bonus applied per difficulty tier (every 5 waves).
+    pub wave_health_bonus_per_tier: u32,
 
     /// Tower attack range in world units.
     pub tower_range: f32,
@@ -237,6 +254,11 @@ impl Default for Tunables {
             enemy_default_health: C_ENEMY_DEFAULT_HEALTH,
             enemy_random_speed_min: C_ENEMY_RANDOM_SPEED_MIN,
             enemy_random_speed_max: C_ENEMY_RANDOM_SPEED_MAX,
+            wave_initial_delay_secs: C_WAVE_INITIAL_DELAY_SECS,
+            wave_intermission_secs: C_WAVE_INTERMISSION_SECS,
+            wave_base_enemy_count: C_WAVE_BASE_ENEMY_COUNT,
+            wave_enemy_increment: C_WAVE_ENEMY_INCREMENT,
+            wave_health_bonus_per_tier: C_WAVE_HEALTH_BONUS_PER_TIER,
 
             // Towers
             tower_range: C_TOWER_RANGE,

@@ -1,7 +1,7 @@
 use crate::components::*;
 use crate::events::*;
-use bevy::prelude::*;
 use bevy::input::keyboard::Key;
+use bevy::prelude::*;
 
 /// Local state for hold-to-collect interaction.
 /// Tracks which target is being collected and how long E has been held.

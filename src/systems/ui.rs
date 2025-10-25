@@ -60,19 +60,22 @@ pub fn spawn_village_health_bar(mut commands: Commands) {
                 width: Val::Percent(60.0),
                 height: Val::Px(40.0),
                 border: UiRect::all(Val::Px(2.0)),
+                padding: UiRect::axes(Val::Px(8.0), Val::Px(6.0)),
                 ..default()
             },
             // White outline
-            BackgroundColor(Color::srgb(0.12, 0.12, 0.12)),
+            BackgroundColor(Color::srgba(0.05, 0.05, 0.05, 0.85)),
+            BorderColor::all(Color::srgba(0.95, 0.95, 0.98, 0.55)),
         ))
         .with_children(|parent| {
             parent.spawn((
                 Node {
                     width: Val::Percent(100.0),
                     height: Val::Percent(100.0),
+                    border: UiRect::all(Val::Px(1.0)),
                     ..default()
                 },
-                BackgroundColor(Color::srgb(0.2, 0.85, 0.2)),
+                BackgroundColor(Color::srgba(0.22, 0.75, 0.28, 0.95)),
                 HealthBar,
             ));
         });
@@ -86,6 +89,14 @@ pub struct WoodCounterText;
 #[derive(Component)]
 pub struct RockCounterText;
 
+/// Marker for the wave counter text node.
+#[derive(Component)]
+pub struct WaveCounterText;
+
+/// Marker for the wave timer text node.
+#[derive(Component)]
+pub struct WaveTimerText;
+
 /// Spawns resource counters (wood and rock) at the top-left of the screen.
 pub fn spawn_resource_counters(mut commands: Commands) {
     commands
@@ -95,37 +106,83 @@ pub fn spawn_resource_counters(mut commands: Commands) {
                 top: Val::Px(70.0),
                 width: Val::Auto,
                 height: Val::Auto,
+                padding: UiRect::all(Val::Px(10.0)),
+                border: UiRect::all(Val::Px(2.0)),
+                row_gap: Val::Px(6.0),
+                flex_direction: FlexDirection::Column,
                 ..default()
             },
-            BackgroundColor(Color::NONE),
+            BackgroundColor(Color::srgba(0.04, 0.04, 0.06, 0.92)),
+            BorderColor::all(Color::srgba(0.6, 0.72, 0.9, 0.45)),
         ))
         .with_children(|parent| {
             parent.spawn((
                 Text::new("Wood: 0"),
                 TextFont {
-                    font_size: 24.0,
+                    font_size: 26.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextColor(Color::srgba(0.93, 0.86, 0.68, 1.0)),
                 WoodCounterText,
-            ));
-
-            parent.spawn((
-                Node {
-                    height: Val::Px(6.0),
-                    ..default()
-                },
-                BackgroundColor(Color::NONE),
             ));
 
             parent.spawn((
                 Text::new("Rock: 0"),
                 TextFont {
+                    font_size: 26.0,
+                    ..default()
+                },
+                TextColor(Color::srgba(0.86, 0.88, 0.95, 1.0)),
+                RockCounterText,
+            ));
+        });
+}
+
+/// Spawns HUD elements for the current wave and intermission timer.
+pub fn spawn_wave_hud(mut commands: Commands, wave_state: Res<WaveState>) {
+    let wave_label = format!("Wave: {}", wave_state.upcoming_wave_number());
+    let intermission_label = format!(
+        "Next wave in: {:.0}s",
+        wave_state.remaining_intermission_secs().ceil().max(0.0)
+    );
+
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                right: Val::Px(20.0),
+                top: Val::Px(20.0),
+                width: Val::Auto,
+                height: Val::Auto,
+                padding: UiRect::all(Val::Px(12.0)),
+                border: UiRect::all(Val::Px(2.0)),
+                row_gap: Val::Px(8.0),
+                align_items: AlignItems::FlexEnd,
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.05, 0.06, 0.08, 0.9)),
+            BorderColor::all(Color::srgba(0.75, 0.6, 0.9, 0.45)),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new(wave_label),
+                TextFont {
+                    font_size: 32.0,
+                    ..default()
+                },
+                TextColor(Color::srgba(0.92, 0.88, 1.0, 1.0)),
+                WaveCounterText,
+            ));
+
+            parent.spawn((
+                Text::new(intermission_label),
+                TextFont {
                     font_size: 24.0,
                     ..default()
                 },
-                TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                RockCounterText,
+                TextColor(Color::srgba(0.78, 0.86, 0.95, 1.0)),
+                WaveTimerText,
             ));
         });
 }
@@ -142,6 +199,29 @@ pub fn update_resource_counters(
         }
         if let Ok(mut rock_text) = rock_q.single_mut() {
             *rock_text = Text::new(format!("Rock: {}", player.rock));
+        }
+    }
+}
+
+/// Updates the wave counter and intermission timer text.
+pub fn update_wave_hud(
+    wave_state: Res<WaveState>,
+    mut wave_text_q: Query<&mut Text, (With<WaveCounterText>, Without<WaveTimerText>)>,
+    mut timer_text_q: Query<&mut Text, (With<WaveTimerText>, Without<WaveCounterText>)>,
+) {
+    if let Ok(mut wave_text) = wave_text_q.single_mut() {
+        *wave_text = Text::new(format!("Wave: {}", wave_state.upcoming_wave_number()));
+    }
+
+    if let Ok(mut timer_text) = timer_text_q.single_mut() {
+        match wave_state.phase {
+            WavePhase::Intermission => {
+                let seconds = wave_state.remaining_intermission_secs().ceil().max(0.0);
+                *timer_text = Text::new(format!("Next wave in: {:.0}s", seconds));
+            }
+            WavePhase::Spawning => {
+                *timer_text = Text::new("Wave in progress".to_string());
+            }
         }
     }
 }

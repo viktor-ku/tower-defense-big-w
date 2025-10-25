@@ -19,6 +19,7 @@ fn main() {
     let tunables = Tunables::default();
     App::new()
         .insert_resource(tunables.clone())
+        .insert_resource(WaveState::new(&tunables))
         .add_plugins((DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
@@ -53,7 +54,12 @@ fn main() {
         .add_message::<AppExit>()
         .add_systems(
             Startup,
-            (setup, spawn_village_health_bar, spawn_resource_counters),
+            (
+                setup,
+                spawn_village_health_bar,
+                spawn_resource_counters,
+                spawn_wave_hud,
+            ),
         )
         .add_systems(Update, handle_menu_input.run_if(in_state(GameState::Menu)))
         .add_systems(
@@ -62,6 +68,10 @@ fn main() {
         )
         .add_systems(Update, player_movement.run_if(in_state(GameState::Playing)))
         .add_systems(Update, tower_building.run_if(in_state(GameState::Playing)))
+        .add_systems(
+            Update,
+            wave_progression.run_if(in_state(GameState::Playing)),
+        )
         .add_systems(Update, enemy_spawning.run_if(in_state(GameState::Playing)))
         .add_systems(Update, enemy_movement.run_if(in_state(GameState::Playing)))
         .add_systems(Update, tower_shooting.run_if(in_state(GameState::Playing)))
@@ -82,6 +92,7 @@ fn main() {
             (
                 village_health_hud,
                 update_resource_counters,
+                update_wave_hud,
                 manage_collect_bar_ui,
             )
                 .run_if(in_state(GameState::Playing)),
