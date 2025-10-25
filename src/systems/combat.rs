@@ -13,10 +13,10 @@ const TOWER_RANGE: f32 = 45.0;
 const TOWER_WIDTH: f32 = 1.2;
 const TOWER_HEIGHT: f32 = 3.2;
 const TOWER_DEPTH: f32 = 1.2;
-const HEALTH_BAR_WIDTH: f32 = 1.8;
-const HEALTH_BAR_HEIGHT: f32 = 0.18;
-const HEALTH_BAR_FILL_HEIGHT: f32 = 0.12;
-const HEALTH_BAR_OFFSET_Y: f32 = TOWER_HEIGHT + 0.6;
+const HEALTH_BAR_WIDTH: f32 = 3.0;
+const HEALTH_BAR_HEIGHT: f32 = 0.28;
+const HEALTH_BAR_FILL_HEIGHT: f32 = 0.2;
+const HEALTH_BAR_OFFSET_Y: f32 = TOWER_HEIGHT + 0.8;
 
 #[derive(Resource, Default)]
 pub struct EnemyHealthBarAssets {
@@ -463,9 +463,9 @@ pub fn tower_spawn_effect_system(
 
 pub fn update_enemy_health_bars(
     enemy_query: Query<&Enemy>,
-    mut fill_query: Query<(&EnemyHealthBarFill, &mut Transform)>,
+    mut fill_query: Query<(&mut EnemyHealthBarFill, &mut Transform)>,
 ) {
-    for (fill, mut transform) in fill_query.iter_mut() {
+    for (mut fill, mut transform) in fill_query.iter_mut() {
         if let Ok(enemy) = enemy_query.get(fill.owner) {
             let ratio = if enemy.max_health > 0 {
                 enemy.health as f32 / enemy.max_health as f32
@@ -474,9 +474,12 @@ pub fn update_enemy_health_bars(
             }
             .clamp(0.0, 1.0);
 
-            let width = fill.max_width * ratio;
-            transform.scale = Vec3::new(width.max(0.0), HEALTH_BAR_FILL_HEIGHT, 1.0);
-            transform.translation.x = -fill.max_width * 0.5 + width * 0.5;
+            if (ratio - fill.last_ratio).abs() > 0.001 {
+                fill.last_ratio = ratio;
+                let width = fill.max_width * ratio;
+                transform.scale = Vec3::new(width.max(0.0), HEALTH_BAR_FILL_HEIGHT, 1.0);
+                transform.translation.x = -fill.max_width * 0.5 + width * 0.5;
+            }
         }
     }
 }
@@ -611,6 +614,7 @@ pub fn enemy_spawning(
                             EnemyHealthBarFill {
                                 max_width: HEALTH_BAR_WIDTH,
                                 owner: enemy_entity,
+                                last_ratio: 1.0,
                             },
                         ));
                     });

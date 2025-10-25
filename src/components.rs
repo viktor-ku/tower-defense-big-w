@@ -53,6 +53,7 @@ pub struct EnemyHealthBarRoot;
 pub struct EnemyHealthBarFill {
     pub max_width: f32,
     pub owner: Entity,
+    pub last_ratio: f32,
 }
 
 #[derive(Component)]
