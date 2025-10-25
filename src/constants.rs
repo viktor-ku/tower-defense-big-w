@@ -11,8 +11,8 @@ pub const C_CAMERA_OFFSET_Z: f32 = 50.0;
 pub const C_LIGHT_ILLUMINANCE: f32 = 10000.0;
 
 // World
-pub const C_GROUND_SIZE: f32 = 1400.0;
-pub const C_TOWN_SIZE: f32 = 1000.0;
+pub const C_GROUND_SIZE: f32 = 1000.0;
+pub const C_TOWN_SIZE: f32 = 500.0;
 pub const C_WALL_THICKNESS: f32 = 6.0;
 pub const C_WALL_HEIGHT: f32 = 6.0;
 pub const C_GATE_WIDTH: f32 = 20.0;
@@ -54,17 +54,17 @@ pub const C_HEALTH_BAR_FILL_HEIGHT: f32 = 0.2;
 pub const C_HEALTH_BAR_OFFSET_Y: f32 = C_TOWER_HEIGHT + 0.8;
 
 // Resources placement
-pub const C_TREES_COUNT: u32 = 120;
+pub const C_TREES_COUNT: u32 = 80;
 pub const C_TREE_WOOD_MIN: u32 = 15;
 pub const C_TREE_WOOD_MAX: u32 = 35;
 pub const C_TREE_SIZE: (f32, f32, f32) = (1.2, 3.0, 1.2);
-pub const C_TREE_DISTANCE_MIN: f32 = 80.0;
-pub const C_TREE_DISTANCE_MAX: f32 = 480.0; // inside walls
+pub const C_TREE_DISTANCE_MIN: f32 = 60.0;
+pub const C_TREE_DISTANCE_MAX: f32 = 210.0; // inside walls
 
-pub const C_ROCKS_COUNT: u32 = 60;
+pub const C_ROCKS_COUNT: u32 = 40;
 pub const C_ROCK_SIZE: (f32, f32, f32) = (0.8, 0.6, 0.8);
-pub const C_ROCK_DISTANCE_MIN: f32 = 70.0;
-pub const C_ROCK_DISTANCE_MAX: f32 = 450.0; // inside walls
+pub const C_ROCK_DISTANCE_MIN: f32 = 55.0;
+pub const C_ROCK_DISTANCE_MAX: f32 = 190.0; // inside walls
 
 /// Tunable values that control the game. Insert this as a Bevy resource to tweak gameplay,
 /// visuals, and pacing without touching system code. Values are read at runtime by systems.

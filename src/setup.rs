@@ -406,12 +406,18 @@ pub fn setup(
         TownCenter,
     ));
 
+    // Keep track of occupied spots to avoid overlap between trees and rocks
+    let mut occupied_spots: Vec<(f32, f32, f32)> = Vec::new(); // (x, z, radius)
+
     // Spawn trees around the map (inside walls, avoid square and road corridor)
     let half = tunables.town_size / 2.0;
     for i in 0..tunables.trees_count {
         let angle = (i as f32 / 15.0) * 2.0 * std::f32::consts::PI;
+        // Allow spawning anywhere on the map (use ground size as radius)
+        let max_tree_radius =
+            (tunables.ground_size * 0.5 - 20.0).max(tunables.tree_distance_min + 1.0);
         let distance = tunables.tree_distance_min
-            + rand::random::<f32>() * (tunables.tree_distance_max - tunables.tree_distance_min);
+            + rand::random::<f32>() * (max_tree_radius - tunables.tree_distance_min);
         let x = angle.cos() * distance;
         let y = angle.sin() * distance; // z coordinate
 
@@ -423,6 +429,21 @@ pub fn setup(
 
         // Keep road corridor from east gate clear
         if x >= 0.0 && x <= half && y.abs() <= tunables.road_width * 1.8 {
+            continue;
+        }
+
+        // Prevent overlap with existing objects (trees or rocks)
+        let tree_radius = tunables.tree_size.x.max(tunables.tree_size.z) * 0.6;
+        let mut overlaps = false;
+        for (ox, oz, or) in &occupied_spots {
+            let dx = x - *ox;
+            let dz = y - *oz;
+            if (dx * dx + dz * dz).sqrt() < (tree_radius + *or) {
+                overlaps = true;
+                break;
+            }
+        }
+        if overlaps {
             continue;
         }
 
@@ -442,6 +463,7 @@ pub fn setup(
             ..default()
         });
 
+        occupied_spots.push((x, y, tree_radius));
         commands.spawn((
             Mesh3d(tree_mesh),
             MeshMaterial3d(tree_mat),
@@ -457,8 +479,11 @@ pub fn setup(
     // Spawn some rock resources (inside walls, avoid square and road corridor)
     for i in 0..tunables.rocks_count {
         let angle = (i as f32 / 8.0) * 2.0 * std::f32::consts::PI;
+        // Allow spawning anywhere on the map (use ground size as radius)
+        let max_rock_radius =
+            (tunables.ground_size * 0.5 - 20.0).max(tunables.rock_distance_min + 1.0);
         let distance = tunables.rock_distance_min
-            + rand::random::<f32>() * (tunables.rock_distance_max - tunables.rock_distance_min);
+            + rand::random::<f32>() * (max_rock_radius - tunables.rock_distance_min);
         let x = angle.cos() * distance;
         let y = angle.sin() * distance; // z coordinate
 
@@ -470,6 +495,21 @@ pub fn setup(
 
         // Keep road corridor from east gate clear
         if x >= 0.0 && x <= half && y.abs() <= tunables.road_width * 1.8 {
+            continue;
+        }
+
+        // Prevent overlap with existing objects (trees and previously placed rocks)
+        let rock_radius = tunables.rock_size.x.max(tunables.rock_size.z) * 0.6;
+        let mut overlaps = false;
+        for (ox, oz, or) in &occupied_spots {
+            let dx = x - *ox;
+            let dz = y - *oz;
+            if (dx * dx + dz * dz).sqrt() < (rock_radius + *or) {
+                overlaps = true;
+                break;
+            }
+        }
+        if overlaps {
             continue;
         }
 
@@ -485,6 +525,7 @@ pub fn setup(
             ..default()
         });
 
+        occupied_spots.push((x, y, rock_radius));
         commands.spawn((
             Mesh3d(rock_mesh),
             MeshMaterial3d(rock_mat),
