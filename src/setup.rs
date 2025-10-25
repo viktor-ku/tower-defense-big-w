@@ -1,8 +1,8 @@
+use crate::constants::Tunables;
 use crate::{
     components::*,
     systems::{CameraSettings, EnemyHealthBarAssets},
 };
-use crate::constants::Tunables;
 use bevy::prelude::*;
 
 /// Road pattern types used for procedural road generation.
@@ -221,8 +221,12 @@ pub fn setup(
         Transform::from_xyz(10.0, 20.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 
-    let ground_mesh = meshes
-        .add(Plane3d::default().mesh().size(tunables.ground_size, tunables.ground_size).build());
+    let ground_mesh = meshes.add(
+        Plane3d::default()
+            .mesh()
+            .size(tunables.ground_size, tunables.ground_size)
+            .build(),
+    );
     let ground_mat = materials.add(StandardMaterial {
         base_color: tunables.ground_color,
         perceptual_roughness: 0.9,
@@ -236,7 +240,94 @@ pub fn setup(
         Transform::IDENTITY,
     ));
 
-    // Roads: four curvy strips leading to village center, distinct dark material
+    // Perimeter walls (visual, thick, not walkable)
+    let wall_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.55, 0.55, 0.56),
+        perceptual_roughness: 1.0,
+        metallic: 0.0,
+        ..default()
+    });
+
+    let half = tunables.town_size / 2.0;
+    let h2 = tunables.wall_height / 2.0;
+
+    // North wall (X-aligned at z = -half)
+    let north_wall = meshes.add(Cuboid::new(
+        tunables.town_size,
+        tunables.wall_height,
+        tunables.wall_thickness,
+    ));
+    commands.spawn((
+        Mesh3d(north_wall),
+        MeshMaterial3d(wall_mat.clone()),
+        Transform::from_xyz(0.0, h2, -half),
+        Wall,
+    ));
+
+    // South wall (X-aligned at z = +half)
+    let south_wall = meshes.add(Cuboid::new(
+        tunables.town_size,
+        tunables.wall_height,
+        tunables.wall_thickness,
+    ));
+    commands.spawn((
+        Mesh3d(south_wall),
+        MeshMaterial3d(wall_mat.clone()),
+        Transform::from_xyz(0.0, h2, half),
+        Wall,
+    ));
+
+    // West wall (Z-aligned at x = -half)
+    let west_wall = meshes.add(Cuboid::new(
+        tunables.wall_thickness,
+        tunables.wall_height,
+        tunables.town_size,
+    ));
+    commands.spawn((
+        Mesh3d(west_wall),
+        MeshMaterial3d(wall_mat.clone()),
+        Transform::from_xyz(-half, h2, 0.0),
+        Wall,
+    ));
+
+    // East wall with gate opening centered at z=0
+    let segment_len = (tunables.town_size - tunables.gate_width) / 2.0;
+
+    // Top (positive Z) segment
+    let east_top = meshes.add(Cuboid::new(
+        tunables.wall_thickness,
+        tunables.wall_height,
+        segment_len,
+    ));
+    commands.spawn((
+        Mesh3d(east_top),
+        MeshMaterial3d(wall_mat.clone()),
+        Transform::from_xyz(half, h2, tunables.gate_width / 2.0 + segment_len / 2.0),
+        Wall,
+    ));
+
+    // Bottom (negative Z) segment
+    let east_bottom = meshes.add(Cuboid::new(
+        tunables.wall_thickness,
+        tunables.wall_height,
+        segment_len,
+    ));
+    commands.spawn((
+        Mesh3d(east_bottom),
+        MeshMaterial3d(wall_mat.clone()),
+        Transform::from_xyz(half, h2, -(tunables.gate_width / 2.0 + segment_len / 2.0)),
+        Wall,
+    ));
+
+    // Town square pavement material
+    let square_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.35, 0.35, 0.38),
+        perceptual_roughness: 1.0,
+        metallic: 0.0,
+        ..default()
+    });
+
+    // Roads: single strip from east gate to village center, distinct dark material
     let road_mat = materials.add(StandardMaterial {
         base_color: Color::srgb(0.15, 0.15, 0.15),
         perceptual_roughness: 1.0,
@@ -245,62 +336,23 @@ pub fn setup(
     });
 
     let road_width = tunables.road_width;
+    let half = tunables.town_size / 2.0;
 
-    // Generate random road patterns for each direction
-    let mut all_roads = Vec::new();
-
-    // Roads connect directly to village center (no town square)
-
-    // North road (from z=-distance to village center)
-    let north = generate_and_spawn_road(
+    // Single east road from the gate opening to village center
+    let east_road = generate_and_spawn_road(
         &mut commands,
         &mut meshes,
         road_mat.clone(),
-        Vec3::new(0.0, 0.0, -tunables.road_endpoint_distance),
-        Vec3::new(0.0, 0.0, 0.0), // Direct to village center
+        Vec3::new(half, 0.0, 0.0),
+        Vec3::new(0.0, 0.0, 0.0),
         road_width,
     )
     .unwrap();
-    all_roads.push(north);
-
-    // South road (from z=+distance to village center)
-    let south = generate_and_spawn_road(
-        &mut commands,
-        &mut meshes,
-        road_mat.clone(),
-        Vec3::new(0.0, 0.0, tunables.road_endpoint_distance),
-        Vec3::new(0.0, 0.0, 0.0), // Direct to village center
-        road_width,
-    )
-    .unwrap();
-    all_roads.push(south);
-
-    // West road (from x=-distance to village center)
-    let west = generate_and_spawn_road(
-        &mut commands,
-        &mut meshes,
-        road_mat.clone(),
-        Vec3::new(-tunables.road_endpoint_distance, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, 0.0), // Direct to village center
-        road_width,
-    )
-    .unwrap();
-    all_roads.push(west);
-
-    // East road (from x=+distance to village center)
-    let east = generate_and_spawn_road(
-        &mut commands,
-        &mut meshes,
-        road_mat.clone(),
-        Vec3::new(tunables.road_endpoint_distance, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, 0.0), // Direct to village center
-        road_width,
-    )
-    .unwrap();
-    all_roads.push(east);
 
     // Save roads for path following
-    commands.insert_resource(RoadPaths { roads: all_roads });
+    commands.insert_resource(RoadPaths {
+        roads: vec![east_road],
+    });
 
     // 3D player box (larger and more visible)
     let player_mesh = meshes.add(Cuboid::new(2.0, 4.0, 2.0));
@@ -320,7 +372,21 @@ pub fn setup(
         ))
         .id();
 
-    // Spawn village (center) - Big purple block for visibility
+    // Town square pavement under the center
+    let square_mesh = meshes.add(
+        Plane3d::default()
+            .mesh()
+            .size(tunables.square_size, tunables.square_size)
+            .build(),
+    );
+    commands.spawn((
+        Mesh3d(square_mesh),
+        MeshMaterial3d(square_mat),
+        Transform::from_xyz(0.0, 0.012, 0.0),
+        TownSquare,
+    ));
+
+    // Spawn village (center) - Big purple block for visibility; marks TownCenter
     let village_mesh = meshes.add(Cuboid::new(8.0, 6.0, 8.0)); // Big block
     let village_mat = materials.add(StandardMaterial {
         base_color: Color::srgb(0.8, 0.2, 0.8), // Bright purple
@@ -333,16 +399,32 @@ pub fn setup(
         Mesh3d(village_mesh),
         MeshMaterial3d(village_mat),
         Transform::from_xyz(0.0, 3.0, 0.0), // Elevated so it's visible
-        Village { health: tunables.village_health, max_health: tunables.village_health },
+        Village {
+            health: tunables.village_health,
+            max_health: tunables.village_health,
+        },
+        TownCenter,
     ));
 
-    // Spawn trees around the map
+    // Spawn trees around the map (inside walls, avoid square and road corridor)
+    let half = tunables.town_size / 2.0;
     for i in 0..tunables.trees_count {
         let angle = (i as f32 / 15.0) * 2.0 * std::f32::consts::PI;
         let distance = tunables.tree_distance_min
             + rand::random::<f32>() * (tunables.tree_distance_max - tunables.tree_distance_min);
         let x = angle.cos() * distance;
-        let y = angle.sin() * distance;
+        let y = angle.sin() * distance; // z coordinate
+
+        // Exclude town square vicinity
+        let square_half = tunables.square_size / 2.0 + 8.0;
+        if x.abs() <= square_half && y.abs() <= square_half {
+            continue;
+        }
+
+        // Keep road corridor from east gate clear
+        if x >= 0.0 && x <= half && y.abs() <= tunables.road_width * 1.8 {
+            continue;
+        }
 
         // Random wood amount per tree
         let wood_span = (tunables.tree_wood_max - tunables.tree_wood_min + 1).max(1);
@@ -372,13 +454,24 @@ pub fn setup(
         ));
     }
 
-    // Spawn some rock resources
+    // Spawn some rock resources (inside walls, avoid square and road corridor)
     for i in 0..tunables.rocks_count {
         let angle = (i as f32 / 8.0) * 2.0 * std::f32::consts::PI;
         let distance = tunables.rock_distance_min
             + rand::random::<f32>() * (tunables.rock_distance_max - tunables.rock_distance_min);
         let x = angle.cos() * distance;
-        let y = angle.sin() * distance;
+        let y = angle.sin() * distance; // z coordinate
+
+        // Exclude town square vicinity
+        let square_half = tunables.square_size / 2.0 + 8.0;
+        if x.abs() <= square_half && y.abs() <= square_half {
+            continue;
+        }
+
+        // Keep road corridor from east gate clear
+        if x >= 0.0 && x <= half && y.abs() <= tunables.road_width * 1.8 {
+            continue;
+        }
 
         let rock_mesh = meshes.add(Cuboid::new(
             tunables.rock_size.x,

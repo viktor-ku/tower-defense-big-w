@@ -93,3 +93,16 @@ pub struct CurrentCollectProgress {
     pub target: Option<Entity>,
     pub progress: f32,
 }
+
+// Town markers
+#[derive(Component)]
+pub struct TownCenter;
+
+#[derive(Component)]
+pub struct TownSquare;
+
+#[derive(Component)]
+pub struct Wall;
+
+#[derive(Component)]
+pub struct Gate;

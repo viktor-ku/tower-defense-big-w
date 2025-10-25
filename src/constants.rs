@@ -11,7 +11,12 @@ pub const C_CAMERA_OFFSET_Z: f32 = 50.0;
 pub const C_LIGHT_ILLUMINANCE: f32 = 10000.0;
 
 // World
-pub const C_GROUND_SIZE: f32 = 200.0;
+pub const C_GROUND_SIZE: f32 = 1400.0;
+pub const C_TOWN_SIZE: f32 = 1000.0;
+pub const C_WALL_THICKNESS: f32 = 6.0;
+pub const C_WALL_HEIGHT: f32 = 6.0;
+pub const C_GATE_WIDTH: f32 = 20.0;
+pub const C_SQUARE_SIZE: f32 = 80.0;
 pub const C_GROUND_COLOR_SRGB: (f32, f32, f32) = (0.2, 0.35, 0.2);
 pub const C_ROAD_WIDTH: f32 = 6.0;
 pub const C_ROAD_ENDPOINT_DISTANCE: f32 = 100.0;
@@ -25,6 +30,7 @@ pub const C_VILLAGE_COLLISION_RADIUS: f32 = 5.0;
 
 // Enemies
 pub const C_ENEMY_SPAWN_INTERVAL_SECS: f32 = 3.0;
+// Will be overridden in Tunables::default to C_TOWN_SIZE/2 + 100.0
 pub const C_ENEMY_SPAWN_RING_DISTANCE: f32 = 200.0;
 pub const C_ENEMY_DEFAULT_HEALTH: u32 = 50;
 pub const C_ENEMY_RANDOM_SPEED_MIN: f32 = 10.0;
@@ -48,22 +54,24 @@ pub const C_HEALTH_BAR_FILL_HEIGHT: f32 = 0.2;
 pub const C_HEALTH_BAR_OFFSET_Y: f32 = C_TOWER_HEIGHT + 0.8;
 
 // Resources placement
-pub const C_TREES_COUNT: u32 = 15;
+pub const C_TREES_COUNT: u32 = 120;
 pub const C_TREE_WOOD_MIN: u32 = 15;
 pub const C_TREE_WOOD_MAX: u32 = 35;
 pub const C_TREE_SIZE: (f32, f32, f32) = (1.2, 3.0, 1.2);
-pub const C_TREE_DISTANCE_MIN: f32 = 60.0;
-pub const C_TREE_DISTANCE_MAX: f32 = 140.0; // 60 + rand * 80
+pub const C_TREE_DISTANCE_MIN: f32 = 80.0;
+pub const C_TREE_DISTANCE_MAX: f32 = 480.0; // inside walls
 
-pub const C_ROCKS_COUNT: u32 = 8;
+pub const C_ROCKS_COUNT: u32 = 60;
 pub const C_ROCK_SIZE: (f32, f32, f32) = (0.8, 0.6, 0.8);
-pub const C_ROCK_DISTANCE_MIN: f32 = 50.0;
-pub const C_ROCK_DISTANCE_MAX: f32 = 110.0; // 50 + rand * 60
+pub const C_ROCK_DISTANCE_MIN: f32 = 70.0;
+pub const C_ROCK_DISTANCE_MAX: f32 = 450.0; // inside walls
 
 /// Tunable values that control the game. Insert this as a Bevy resource to tweak gameplay,
 /// visuals, and pacing without touching system code. Values are read at runtime by systems.
 #[derive(Resource, Clone)]
 pub struct Tunables {
+    /// Overall town square dimension (town_size x town_size)
+    pub town_size: f32,
     /// Title of the primary window. Changing this requires a restart/run.
     pub window_title: &'static str,
     /// Window resolution in pixels (width, height). Changing this requires a restart/run.
@@ -82,6 +90,15 @@ pub struct Tunables {
     pub road_width: f32,
     /// Distance from the center where roads start/end.
     pub road_endpoint_distance: f32,
+
+    /// Perimeter wall thickness (X or Z depending on orientation).
+    pub wall_thickness: f32,
+    /// Perimeter wall height.
+    pub wall_height: f32,
+    /// Gate opening width on the east wall.
+    pub gate_width: f32,
+    /// Town square pavement size around the center.
+    pub square_size: f32,
 
     /// Player movement speed in units/second.
     pub player_speed: f32,
@@ -154,6 +171,7 @@ pub struct Tunables {
 impl Default for Tunables {
     fn default() -> Self {
         Tunables {
+            town_size: C_TOWN_SIZE,
             // App/window
             window_title: C_WINDOW_TITLE,
             window_resolution: C_WINDOW_RESOLUTION,
@@ -171,6 +189,10 @@ impl Default for Tunables {
             ),
             road_width: C_ROAD_WIDTH,
             road_endpoint_distance: C_ROAD_ENDPOINT_DISTANCE,
+            wall_thickness: C_WALL_THICKNESS,
+            wall_height: C_WALL_HEIGHT,
+            gate_width: C_GATE_WIDTH,
+            square_size: C_SQUARE_SIZE,
 
             // Player
             player_speed: C_PLAYER_SPEED,
@@ -181,7 +203,7 @@ impl Default for Tunables {
 
             // Enemies
             enemy_spawn_interval_secs: C_ENEMY_SPAWN_INTERVAL_SECS,
-            enemy_spawn_ring_distance: C_ENEMY_SPAWN_RING_DISTANCE,
+            enemy_spawn_ring_distance: C_TOWN_SIZE / 2.0 + 100.0,
             enemy_default_health: C_ENEMY_DEFAULT_HEALTH,
             enemy_random_speed_min: C_ENEMY_RANDOM_SPEED_MIN,
             enemy_random_speed_max: C_ENEMY_RANDOM_SPEED_MAX,
