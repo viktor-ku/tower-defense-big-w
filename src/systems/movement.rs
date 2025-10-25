@@ -1,6 +1,6 @@
 use crate::components::*;
 use crate::constants::Tunables;
-use crate::systems::combat::projectiles::EnemyPreExplosion;
+use crate::systems::combat::projectiles::{EnemyFadeOut, EnemyPreExplosion};
 use bevy::input::keyboard::Key;
 use bevy::prelude::*;
 
@@ -56,7 +56,7 @@ pub fn enemy_movement(
     mut commands: Commands,
     mut enemy_query: Query<
         (Entity, &mut Transform, &Enemy, Option<&mut PathFollower>),
-        Without<EnemyPreExplosion>,
+        (Without<EnemyPreExplosion>, Without<EnemyFadeOut>),
     >,
     mut village_query: Query<&mut Village>,
     roads: Option<Res<RoadPaths>>,

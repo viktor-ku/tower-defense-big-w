@@ -14,7 +14,14 @@ pub fn tower_shooting(
     time: Res<Time>,
     mut commands: Commands,
     mut tower_query: Query<(&Transform, &mut Tower)>,
-    enemy_pos: Query<(&Transform, Entity), (With<Enemy>, Without<EnemyPreExplosion>)>,
+    enemy_pos: Query<
+        (&Transform, Entity),
+        (
+            With<Enemy>,
+            Without<EnemyPreExplosion>,
+            Without<EnemyFadeOut>,
+        ),
+    >,
     tunables: Res<Tunables>,
     mut vfx_assets: ResMut<CombatVfxAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -121,7 +128,14 @@ pub fn projectile_system(
     time: Res<Time>,
     mut commands: Commands,
     mut projectile_query: Query<(Entity, &mut Projectile, &mut Transform), Without<Enemy>>,
-    enemy_pose_query: Query<&GlobalTransform, (With<Enemy>, Without<EnemyPreExplosion>)>,
+    enemy_pose_query: Query<
+        &GlobalTransform,
+        (
+            With<Enemy>,
+            Without<EnemyPreExplosion>,
+            Without<EnemyFadeOut>,
+        ),
+    >,
     mut enemy_hit_query: Query<
         (
             &mut Enemy,
@@ -239,19 +253,24 @@ fn handle_projectile_hit(
         let lethal_hit = remaining_health == 0;
 
         if lethal_hit {
-            if let Some(mat) = standard_materials.get_mut(&mat_handle) {
-                mat.base_color = Color::srgba(0.9, 1.0, 0.9, 1.0);
-            }
+            // Stop any hit flash and start a fade-out instead of pre-explosion blink
             commands.entity(enemy_entity).remove::<EnemyHitFlash>();
-            start_enemy_pre_explosion(
-                commands,
-                enemy_entity,
-                mat_handle,
+
+            if let Some(mat) = standard_materials.get_mut(&mat_handle) {
+                mat.alpha_mode = AlphaMode::Blend;
+                let base = original_color.to_srgba();
+                mat.base_color = Color::srgba(base.red, base.green, base.blue, 1.0);
+            }
+
+            commands.entity(enemy_entity).insert(EnemyFadeOut {
+                timer: Timer::from_seconds(
+                    tunables.enemy_pre_explosion_duration_secs,
+                    TimerMode::Once,
+                ),
+                material: mat_handle,
                 original_color,
-                impact_point,
-                standard_materials,
-                tunables,
-            );
+                death_position: impact_point,
+            });
         } else {
             if let Some(mut flash) = flash_opt {
                 flash
@@ -273,28 +292,7 @@ fn handle_projectile_hit(
     }
 }
 
-fn start_enemy_pre_explosion(
-    commands: &mut Commands,
-    enemy_entity: Entity,
-    material_handle: Handle<StandardMaterial>,
-    original_color: Color,
-    explosion_origin: Vec3,
-    standard_materials: &mut Assets<StandardMaterial>,
-    tunables: &Tunables,
-) {
-    if let Some(mat) = standard_materials.get_mut(&material_handle) {
-        mat.base_color = Color::srgba(0.35, 0.9, 0.35, 1.0);
-    }
-
-    commands.entity(enemy_entity).insert(EnemyPreExplosion {
-        timer: Timer::from_seconds(tunables.enemy_pre_explosion_duration_secs, TimerMode::Once),
-        original_color,
-        material: material_handle,
-        flashes: tunables.enemy_pre_explosion_flashes,
-        last_flash_state: true,
-        explosion_origin,
-    });
-}
+// Pre-explosion blink removed; replaced with fade-out
 
 fn spawn_impact_flash(
     commands: &mut Commands,
@@ -323,33 +321,7 @@ fn spawn_impact_flash(
     ));
 }
 
-fn spawn_explosion_effect(
-    commands: &mut Commands,
-    vfx_assets: &mut CombatVfxAssets,
-    meshes: &mut Assets<Mesh>,
-    explosion_materials: &mut Assets<ExplosionMaterial>,
-    origin: Vec3,
-    tunables: &Tunables,
-) {
-    let mesh = vfx_assets.explosion_mesh(meshes);
-    let material =
-        explosion_materials.add(ExplosionMaterial::new(Color::srgba(1.0, 0.8, 0.45, 0.95)));
-    commands.spawn((
-        Mesh3d(mesh),
-        MeshMaterial3d(material.clone()),
-        Transform {
-            translation: Vec3::new(origin.x, origin.y + 0.05, origin.z),
-            scale: Vec3::splat(0.6),
-            ..Default::default()
-        },
-        GlobalTransform::default(),
-        Visibility::default(),
-        ExplosionEffect {
-            timer: Timer::from_seconds(tunables.explosion_effect_duration_secs, TimerMode::Once),
-            material,
-        },
-    ));
-}
+// Explosion effect spawner removed; we no longer spawn explosion VFX on enemy death
 
 pub fn damage_dealt_spawn_text_system(
     mut commands: Commands,
@@ -418,6 +390,14 @@ pub(crate) struct EnemyPreExplosion {
     flashes: f32,
     last_flash_state: bool,
     explosion_origin: Vec3,
+}
+
+#[derive(Component)]
+pub(crate) struct EnemyFadeOut {
+    timer: Timer,
+    material: Handle<StandardMaterial>,
+    original_color: Color,
+    death_position: Vec3,
 }
 
 pub fn impact_effect_system(
@@ -529,12 +509,8 @@ pub fn enemy_pre_explosion_system(
     mut commands: Commands,
     mut pre_explosions: Query<(Entity, &mut EnemyPreExplosion)>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut vfx_assets: ResMut<CombatVfxAssets>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
     children_query: Query<&Children>,
     mut enemy_killed_events: MessageWriter<EnemyKilled>,
-    tunables: Res<Tunables>,
 ) {
     for (entity, mut pre) in pre_explosions.iter_mut() {
         pre.timer.tick(time.delta());
@@ -559,19 +535,39 @@ pub fn enemy_pre_explosion_system(
                 mat.base_color = pre.original_color;
             }
 
-            spawn_explosion_effect(
-                &mut commands,
-                &mut vfx_assets,
-                &mut meshes,
-                &mut explosion_materials,
-                pre.explosion_origin,
-                &tunables,
-            );
-
             enemy_killed_events.write(EnemyKilled {
                 position: pre.explosion_origin,
             });
 
+            despawn_entity_recursive(&mut commands, entity, &children_query);
+        }
+    }
+}
+
+pub fn enemy_fade_out_system(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut fading: Query<(Entity, &mut EnemyFadeOut)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    children_query: Query<&Children>,
+    mut enemy_killed_events: MessageWriter<EnemyKilled>,
+) {
+    for (entity, mut fade) in fading.iter_mut() {
+        fade.timer.tick(time.delta());
+        let duration = fade.timer.duration().as_secs_f32().max(f32::EPSILON);
+        let progress = (fade.timer.elapsed().as_secs_f32() / duration).clamp(0.0, 1.0);
+
+        if let Some(mat) = materials.get_mut(&fade.material) {
+            let c = fade.original_color.to_srgba();
+            let alpha = 1.0 - progress;
+            mat.base_color = Color::srgba(c.red, c.green, c.blue, alpha);
+            mat.alpha_mode = AlphaMode::Blend;
+        }
+
+        if fade.timer.just_finished() {
+            enemy_killed_events.write(EnemyKilled {
+                position: fade.death_position,
+            });
             despawn_entity_recursive(&mut commands, entity, &children_query);
         }
     }

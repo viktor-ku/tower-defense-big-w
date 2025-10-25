@@ -107,6 +107,7 @@ fn main() {
             (
                 projectile_system,
                 damage_dealt_spawn_text_system,
+                enemy_fade_out_system,
                 enemy_pre_explosion_system,
                 impact_effect_system,
                 explosion_effect_system,
