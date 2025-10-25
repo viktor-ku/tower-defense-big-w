@@ -2,6 +2,7 @@ use crate::{
     components::*,
     systems::{CameraSettings, EnemyHealthBarAssets},
 };
+use crate::constants::Tunables;
 use bevy::prelude::*;
 
 /// Road pattern types used for procedural road generation.
@@ -192,31 +193,38 @@ pub fn setup(
     _asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    tunables: Res<Tunables>,
 ) {
     // Insert global camera settings resource (easy to tweak)
     commands.insert_resource(CameraSettings {
-        offset: Vec3::new(0.0, 80.0, 50.0), // Further away: height 80, distance 50
+        offset: tunables.camera_offset,
     });
     commands.insert_resource(EnemyHealthBarAssets::default());
 
     commands.spawn((
         Camera3d::default(),
         // Initial camera pose will be overridden by camera_system every frame based on settings
-        Transform::from_xyz(0.0, 80.0, 50.0).looking_at(Vec3::ZERO, Vec3::Y),
+        Transform::from_xyz(
+            tunables.camera_offset.x,
+            tunables.camera_offset.y,
+            tunables.camera_offset.z,
+        )
+        .looking_at(Vec3::ZERO, Vec3::Y),
     ));
 
     commands.spawn((
         DirectionalLight {
             shadows_enabled: true,
-            illuminance: 10000.0,
+            illuminance: tunables.light_illuminance,
             ..default()
         },
         Transform::from_xyz(10.0, 20.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
 
-    let ground_mesh = meshes.add(Plane3d::default().mesh().size(200.0, 200.0).build());
+    let ground_mesh = meshes
+        .add(Plane3d::default().mesh().size(tunables.ground_size, tunables.ground_size).build());
     let ground_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.2, 0.35, 0.2),
+        base_color: tunables.ground_color,
         perceptual_roughness: 0.9,
         metallic: 0.0,
         ..default()
@@ -236,55 +244,55 @@ pub fn setup(
         ..default()
     });
 
-    let road_width = 6.0; // narrower roads
+    let road_width = tunables.road_width;
 
     // Generate random road patterns for each direction
     let mut all_roads = Vec::new();
 
     // Roads connect directly to village center (no town square)
 
-    // North road (from z=-100 to village center)
+    // North road (from z=-distance to village center)
     let north = generate_and_spawn_road(
         &mut commands,
         &mut meshes,
         road_mat.clone(),
-        Vec3::new(0.0, 0.0, -100.0),
+        Vec3::new(0.0, 0.0, -tunables.road_endpoint_distance),
         Vec3::new(0.0, 0.0, 0.0), // Direct to village center
         road_width,
     )
     .unwrap();
     all_roads.push(north);
 
-    // South road (from z=100 to village center)
+    // South road (from z=+distance to village center)
     let south = generate_and_spawn_road(
         &mut commands,
         &mut meshes,
         road_mat.clone(),
-        Vec3::new(0.0, 0.0, 100.0),
+        Vec3::new(0.0, 0.0, tunables.road_endpoint_distance),
         Vec3::new(0.0, 0.0, 0.0), // Direct to village center
         road_width,
     )
     .unwrap();
     all_roads.push(south);
 
-    // West road (from x=-100 to village center)
+    // West road (from x=-distance to village center)
     let west = generate_and_spawn_road(
         &mut commands,
         &mut meshes,
         road_mat.clone(),
-        Vec3::new(-100.0, 0.0, 0.0),
+        Vec3::new(-tunables.road_endpoint_distance, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 0.0), // Direct to village center
         road_width,
     )
     .unwrap();
     all_roads.push(west);
 
-    // East road (from x=100 to village center)
+    // East road (from x=+distance to village center)
     let east = generate_and_spawn_road(
         &mut commands,
         &mut meshes,
         road_mat.clone(),
-        Vec3::new(100.0, 0.0, 0.0),
+        Vec3::new(tunables.road_endpoint_distance, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 0.0), // Direct to village center
         road_width,
     )
@@ -325,23 +333,26 @@ pub fn setup(
         Mesh3d(village_mesh),
         MeshMaterial3d(village_mat),
         Transform::from_xyz(0.0, 3.0, 0.0), // Elevated so it's visible
-        Village {
-            health: 100,
-            max_health: 100,
-        },
+        Village { health: tunables.village_health, max_health: tunables.village_health },
     ));
 
     // Spawn trees around the map
-    for i in 0..15 {
+    for i in 0..tunables.trees_count {
         let angle = (i as f32 / 15.0) * 2.0 * std::f32::consts::PI;
-        let distance = 60.0 + rand::random::<f32>() * 80.0;
+        let distance = tunables.tree_distance_min
+            + rand::random::<f32>() * (tunables.tree_distance_max - tunables.tree_distance_min);
         let x = angle.cos() * distance;
         let y = angle.sin() * distance;
 
         // Random wood amount per tree
-        let wood_amount = 15 + rand::random::<u32>() % 20; // 15-35 wood per tree
+        let wood_span = (tunables.tree_wood_max - tunables.tree_wood_min + 1).max(1);
+        let wood_amount = tunables.tree_wood_min + rand::random::<u32>() % wood_span;
 
-        let tree_mesh = meshes.add(Cuboid::new(1.2, 3.0, 1.2));
+        let tree_mesh = meshes.add(Cuboid::new(
+            tunables.tree_size.x,
+            tunables.tree_size.y,
+            tunables.tree_size.z,
+        ));
         let tree_mat = materials.add(StandardMaterial {
             base_color: Color::srgb(0.2, 0.6, 0.2), // Green for trees
             perceptual_roughness: 0.8,
@@ -362,13 +373,18 @@ pub fn setup(
     }
 
     // Spawn some rock resources
-    for i in 0..8 {
+    for i in 0..tunables.rocks_count {
         let angle = (i as f32 / 8.0) * 2.0 * std::f32::consts::PI;
-        let distance = 50.0 + rand::random::<f32>() * 60.0;
+        let distance = tunables.rock_distance_min
+            + rand::random::<f32>() * (tunables.rock_distance_max - tunables.rock_distance_min);
         let x = angle.cos() * distance;
         let y = angle.sin() * distance;
 
-        let rock_mesh = meshes.add(Cuboid::new(0.8, 0.6, 0.8));
+        let rock_mesh = meshes.add(Cuboid::new(
+            tunables.rock_size.x,
+            tunables.rock_size.y,
+            tunables.rock_size.z,
+        ));
         let rock_mat = materials.add(StandardMaterial {
             base_color: Color::srgb(0.5, 0.5, 0.5),
             perceptual_roughness: 0.9,

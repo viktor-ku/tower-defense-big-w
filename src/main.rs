@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+mod constants;
 
 mod components;
 mod events;
@@ -6,17 +7,19 @@ mod setup;
 mod systems;
 
 use components::*;
+use constants::Tunables;
 use events::*;
 use setup::*;
 use systems::*;
 
 fn main() {
+    let tunables = Tunables::default();
     App::new()
         .add_plugins((DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
-                    title: "Village Defender v0.1".into(),
-                    resolution: (1920, 1080).into(),
+                    title: tunables.window_title.into(),
+                    resolution: (tunables.window_resolution.0, tunables.window_resolution.1).into(),
                     ..default()
                 }),
                 exit_condition: bevy::window::ExitCondition::OnPrimaryClosed,
@@ -33,6 +36,7 @@ fn main() {
         .add_systems(Update, bevy::window::exit_on_all_closed)
         .init_state::<GameState>()
         .insert_state(GameState::Playing)
+        .insert_resource(tunables.clone())
         .insert_resource(CurrentCollectProgress::default())
         .insert_resource(CollectUiState::default())
         .add_message::<ResourceCollected>()

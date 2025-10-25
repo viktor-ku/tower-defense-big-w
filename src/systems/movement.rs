@@ -1,4 +1,5 @@
 use crate::components::*;
+use crate::constants::Tunables;
 use bevy::prelude::*;
 
 /// Moves the player using WASD/arrow keys at a fixed speed.
@@ -6,6 +7,7 @@ pub fn player_movement(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut player_query: Query<&mut Transform, (With<Player>, With<IsoPlayer>)>,
+    tunables: Res<Tunables>,
 ) {
     if let Ok(mut transform) = player_query.single_mut() {
         let mut direction = Vec3::ZERO;
@@ -25,7 +27,7 @@ pub fn player_movement(
 
         if direction.length() > 0.0 {
             direction = direction.normalize();
-            transform.translation += direction * 80.0 * time.delta_secs();
+            transform.translation += direction * tunables.player_speed * time.delta_secs();
 
             // Debug: Log player position every few seconds
             static mut LAST_LOG: f32 = 0.0;
@@ -47,9 +49,10 @@ pub fn enemy_movement(
     mut enemy_query: Query<(Entity, &mut Transform, &Enemy, Option<&mut PathFollower>)>,
     mut village_query: Query<&mut Village>,
     roads: Option<Res<RoadPaths>>,
+    tunables: Res<Tunables>,
 ) {
-    // Village block is 8x8 units, so collision radius should be about 4-5 units
-    const VILLAGE_COLLISION_RADIUS: f32 = 5.0;
+    // Collision radius for village impact
+    let village_collision_radius = tunables.village_collision_radius;
 
     for (entity, mut transform, enemy, follower_opt) in enemy_query.iter_mut() {
         if let (Some(roads), Some(mut follower)) = (&roads, follower_opt) {
@@ -81,7 +84,7 @@ pub fn enemy_movement(
 
         // Check if enemy actually hit the village block (much more precise collision)
         if Vec2::new(transform.translation.x, transform.translation.z).length()
-            < VILLAGE_COLLISION_RADIUS
+            < village_collision_radius
         {
             if let Ok(mut village) = village_query.single_mut() {
                 village.health = village.health.saturating_sub(10);

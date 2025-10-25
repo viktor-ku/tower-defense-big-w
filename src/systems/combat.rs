@@ -1,5 +1,6 @@
 use crate::components::*;
 use crate::events::*;
+use crate::constants::Tunables;
 use bevy::asset::RenderAssetUsages;
 use bevy::math::primitives::Rectangle;
 use bevy::pbr::MeshMaterial3d;
@@ -8,15 +9,7 @@ use bevy::render::render_resource::PrimitiveTopology;
 use bevy::time::TimerMode;
 use std::f32::consts::TAU;
 
-const RING_INNER_RATIO: f32 = 0.92;
-const TOWER_RANGE: f32 = 45.0;
-const TOWER_WIDTH: f32 = 1.2;
-const TOWER_HEIGHT: f32 = 3.2;
-const TOWER_DEPTH: f32 = 1.2;
-const HEALTH_BAR_WIDTH: f32 = 3.0;
-const HEALTH_BAR_HEIGHT: f32 = 0.28;
-const HEALTH_BAR_FILL_HEIGHT: f32 = 0.2;
-const HEALTH_BAR_OFFSET_Y: f32 = TOWER_HEIGHT + 0.8;
+// constants moved to Tunables
 
 #[derive(Resource, Default)]
 pub struct EnemyHealthBarAssets {
@@ -66,9 +59,7 @@ impl EnemyHealthBarAssets {
             .clone()
     }
 }
-const MAX_BUILD_DISTANCE: f32 = 100.0;
-const MAX_BUILD_DISTANCE_SQ: f32 = MAX_BUILD_DISTANCE * MAX_BUILD_DISTANCE;
-const TOWER_SPAWN_EFFECT_DURATION: f32 = 0.45;
+// moved to Tunables
 
 fn cursor_to_ground(
     camera: &Camera,
@@ -107,6 +98,7 @@ pub fn tower_building(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut ghost_state: Local<Option<TowerGhostData>>,
+    tunables: Res<Tunables>,
 ) {
     let building_mode_active = building_mode_query.iter().any(|mode| mode.is_active);
 
@@ -146,15 +138,17 @@ pub fn tower_building(
     let mut offset = world_point - player_pos;
     offset.y = 0.0;
     let distance_sq = offset.length_squared();
-    let in_range = distance_sq <= MAX_BUILD_DISTANCE_SQ;
-    if distance_sq > MAX_BUILD_DISTANCE_SQ && distance_sq > 0.0 {
-        offset = offset.normalize() * MAX_BUILD_DISTANCE;
+    let max_build_distance_sq = tunables.max_build_distance * tunables.max_build_distance;
+    let in_range = distance_sq <= max_build_distance_sq;
+    if distance_sq > max_build_distance_sq && distance_sq > 0.0 {
+        offset = offset.normalize() * tunables.max_build_distance;
     }
     let placement_pos = player_pos + offset;
 
     // Spawn or update ghost preview
-    let state = ghost_state
-        .get_or_insert_with(|| spawn_tower_ghost(&mut commands, &mut meshes, &mut materials));
+    let state = ghost_state.get_or_insert_with(|| {
+        spawn_tower_ghost(&mut commands, &mut meshes, &mut materials, &tunables)
+    });
 
     let mut ghost_query = transforms.p1();
     if let Ok(mut transform) = ghost_query.get_mut(state.root) {
@@ -163,13 +157,7 @@ pub fn tower_building(
     update_ghost_visuals(state, in_range, &mut materials);
 
     if in_range && mouse_input.just_pressed(MouseButton::Left) {
-        place_tower(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            placement_pos,
-            &mut tower_events,
-        );
+        place_tower(&mut commands, &mut meshes, &mut materials, placement_pos, &mut tower_events, &tunables);
     }
 }
 
@@ -186,9 +174,18 @@ fn spawn_tower_ghost(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
+    tunables: &Tunables,
 ) -> TowerGhostData {
-    let tower_mesh = meshes.add(Cuboid::new(TOWER_WIDTH, TOWER_HEIGHT, TOWER_DEPTH));
-    let range_mesh = meshes.add(build_ring_mesh(TOWER_RANGE, RING_INNER_RATIO, 96));
+    let tower_mesh = meshes.add(Cuboid::new(
+        tunables.tower_width,
+        tunables.tower_height,
+        tunables.tower_depth,
+    ));
+    let range_mesh = meshes.add(build_ring_mesh(
+        tunables.tower_range,
+        tunables.ring_inner_ratio,
+        96,
+    ));
 
     let tower_material = materials.add(StandardMaterial {
         base_color: Color::srgba(0.35, 0.35, 0.35, 0.4),
@@ -217,7 +214,7 @@ fn spawn_tower_ghost(
                 .spawn((
                     Mesh3d(tower_mesh.clone()),
                     MeshMaterial3d(tower_material.clone()),
-                    Transform::from_translation(Vec3::new(0.0, TOWER_HEIGHT * 0.5, 0.0)),
+                    Transform::from_translation(Vec3::new(0.0, tunables.tower_height * 0.5, 0.0)),
                     GlobalTransform::default(),
                 ))
                 .id(),
@@ -343,8 +340,13 @@ fn place_tower(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
     tower_events: &mut MessageWriter<TowerBuilt>,
+    tunables: &Tunables,
 ) {
-    let mesh = meshes.add(Cuboid::new(TOWER_WIDTH, TOWER_HEIGHT, TOWER_DEPTH));
+    let mesh = meshes.add(Cuboid::new(
+        tunables.tower_width,
+        tunables.tower_height,
+        tunables.tower_depth,
+    ));
     let mat = materials.add(StandardMaterial {
         base_color: Color::srgb(0.35, 0.35, 0.35),
         perceptual_roughness: 0.8,
@@ -355,17 +357,17 @@ fn place_tower(
     commands.spawn((
         Mesh3d(mesh),
         MeshMaterial3d(mat),
-        Transform::from_translation(Vec3::new(position.x, TOWER_HEIGHT * 0.5, position.z)),
+        Transform::from_translation(Vec3::new(position.x, tunables.tower_height * 0.5, position.z)),
         Tower {
-            range: TOWER_RANGE,
-            damage: 25,
+            range: tunables.tower_range,
+            damage: tunables.tower_damage,
             last_shot: 0.0,
         },
     ));
 
     tower_events.write(TowerBuilt { position });
 
-    spawn_tower_spawn_effect(commands, meshes, materials, position);
+    spawn_tower_spawn_effect(commands, meshes, materials, position, tunables);
 }
 
 fn clear_ghost(
@@ -397,8 +399,9 @@ fn spawn_tower_spawn_effect(
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
+    tunables: &Tunables,
 ) {
-    let mesh_handle = meshes.add(build_ring_mesh(TOWER_RANGE, 0.6, 72));
+    let mesh_handle = meshes.add(build_ring_mesh(tunables.tower_range, tunables.ring_inner_ratio, 72));
     let base_color = [0.9, 0.95, 0.6];
     let material = materials.add(StandardMaterial {
         base_color: Color::srgba(base_color[0], base_color[1], base_color[2], 0.7),
@@ -419,7 +422,7 @@ fn spawn_tower_spawn_effect(
         GlobalTransform::default(),
         Visibility::default(),
         TowerSpawnEffect {
-            timer: Timer::from_seconds(TOWER_SPAWN_EFFECT_DURATION, TimerMode::Once),
+            timer: Timer::from_seconds(tunables.tower_spawn_effect_duration_secs, TimerMode::Once),
             material,
             mesh: mesh_handle,
             base_rgb: base_color,
@@ -477,7 +480,8 @@ pub fn update_enemy_health_bars(
             if (ratio - fill.last_ratio).abs() > 0.001 {
                 fill.last_ratio = ratio;
                 let width = fill.max_width * ratio;
-                transform.scale = Vec3::new(width.max(0.0), HEALTH_BAR_FILL_HEIGHT, 1.0);
+                // height will be set at spawn time; keep Y scale constant here
+                transform.scale = Vec3::new(width.max(0.0), transform.scale.y, 1.0);
                 transform.translation.x = -fill.max_width * 0.5 + width * 0.5;
             }
         }
@@ -512,11 +516,12 @@ pub fn enemy_spawning(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut health_bar_assets: ResMut<EnemyHealthBarAssets>,
     roads: Option<Res<RoadPaths>>,
+    tunables: Res<Tunables>,
 ) {
     static mut LAST_SPAWN: f32 = 0.0;
     unsafe {
         LAST_SPAWN += time.delta_secs();
-        if LAST_SPAWN >= 3.0 {
+        if LAST_SPAWN >= tunables.enemy_spawn_interval_secs {
             LAST_SPAWN = 0.0;
 
             let (spawn_pos, _road_index_for_follower) = if let Some(roads) = &roads {
@@ -531,7 +536,7 @@ pub fn enemy_spawning(
                     (Vec3::new(wp.x, 0.0, wp.z), Some(ri))
                 } else {
                     let angle = rand::random::<f32>() * 2.0 * std::f32::consts::PI;
-                    let distance = 200.0;
+                    let distance = tunables.enemy_spawn_ring_distance;
                     (
                         Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance),
                         None,
@@ -539,7 +544,7 @@ pub fn enemy_spawning(
                 }
             } else {
                 let angle = rand::random::<f32>() * 2.0 * std::f32::consts::PI;
-                let distance = 200.0;
+                let distance = tunables.enemy_spawn_ring_distance;
                 (
                     Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance),
                     None,
@@ -553,8 +558,10 @@ pub fn enemy_spawning(
                 metallic: 0.0,
                 ..default()
             });
-            // Random speed between 10.0 and 25.0 for variety (slower on average)
-            let random_speed = 10.0 + rand::random::<f32>() * 15.0;
+            // Random speed in configured range
+            let random_speed = tunables.enemy_random_speed_min
+                + rand::random::<f32>()
+                    * (tunables.enemy_random_speed_max - tunables.enemy_random_speed_min);
 
             let enemy_entity = commands
                 .spawn((
@@ -562,8 +569,8 @@ pub fn enemy_spawning(
                     MeshMaterial3d(e_mat),
                     Transform::from_translation(Vec3::new(spawn_pos.x, 0.8, spawn_pos.z)),
                     Enemy {
-                        health: 50,
-                        max_health: 50,
+                        health: tunables.enemy_default_health,
+                        max_health: tunables.enemy_default_health,
                         speed: random_speed,
                     },
                     match _road_index_for_follower {
@@ -587,7 +594,7 @@ pub fn enemy_spawning(
                 parent
                     .spawn((
                         EnemyHealthBarRoot,
-                        Transform::from_translation(Vec3::new(0.0, HEALTH_BAR_OFFSET_Y, 0.0)),
+                        Transform::from_translation(Vec3::new(0.0, tunables.health_bar_offset_y, 0.0)),
                         GlobalTransform::default(),
                         Visibility::default(),
                         InheritedVisibility::default(),
@@ -598,7 +605,11 @@ pub fn enemy_spawning(
                             MeshMaterial3d(background_mat.clone()),
                             Transform {
                                 translation: Vec3::ZERO,
-                                scale: Vec3::new(HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, 1.0),
+                                scale: Vec3::new(
+                                    tunables.health_bar_width,
+                                    tunables.health_bar_height,
+                                    1.0,
+                                ),
                                 ..default()
                             },
                         ));
@@ -608,11 +619,15 @@ pub fn enemy_spawning(
                             MeshMaterial3d(fill_mat),
                             Transform {
                                 translation: Vec3::new(0.0, 0.0, 0.001),
-                                scale: Vec3::new(HEALTH_BAR_WIDTH, HEALTH_BAR_FILL_HEIGHT, 1.0),
+                                scale: Vec3::new(
+                                    tunables.health_bar_width,
+                                    tunables.health_bar_fill_height,
+                                    1.0,
+                                ),
                                 ..default()
                             },
                             EnemyHealthBarFill {
-                                max_width: HEALTH_BAR_WIDTH,
+                                max_width: tunables.health_bar_width,
                                 owner: enemy_entity,
                                 last_ratio: 1.0,
                             },
@@ -635,11 +650,12 @@ pub fn tower_shooting(
     enemy_pos: Query<(&Transform, Entity), With<Enemy>>,
     mut enemy_mut: Query<&mut Enemy>,
     mut enemy_killed_events: MessageWriter<EnemyKilled>,
+    tunables: Res<Tunables>,
 ) {
     for (tower_transform, mut tower) in tower_query.iter_mut() {
         tower.last_shot += time.delta_secs();
 
-        if tower.last_shot >= 1.0 {
+        if tower.last_shot >= tunables.tower_fire_interval_secs {
             // Find closest enemy in range
             let mut closest_enemy: Option<(Vec3, Entity)> = None;
             let mut closest_distance = f32::MAX;
