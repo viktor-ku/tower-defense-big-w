@@ -72,6 +72,15 @@ fn main() {
             )
                 .run_if(in_state(GameState::Playing)),
         )
+        .add_systems(
+            Update,
+            (
+                tower_spawn_effect_system,
+                face_enemy_health_bars,
+                update_enemy_health_bars,
+            )
+                .run_if(in_state(GameState::Playing)),
+        )
         // Tree collection system
         .add_systems(Update, hold_to_collect.run_if(in_state(GameState::Playing)))
         // Window close handling - use force exit for immediate termination

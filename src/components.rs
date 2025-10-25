@@ -42,7 +42,17 @@ pub struct TowerGhost;
 #[derive(Component)]
 pub struct Enemy {
     pub health: u32,
+    pub max_health: u32,
     pub speed: f32,
+}
+
+#[derive(Component)]
+pub struct EnemyHealthBarRoot;
+
+#[derive(Component)]
+pub struct EnemyHealthBarFill {
+    pub max_width: f32,
+    pub owner: Entity,
 }
 
 #[derive(Component)]

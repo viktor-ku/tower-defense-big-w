@@ -1,4 +1,7 @@
-use crate::{components::*, systems::CameraSettings};
+use crate::{
+    components::*,
+    systems::{CameraSettings, EnemyHealthBarAssets},
+};
 use bevy::prelude::*;
 
 /// Road pattern types used for procedural road generation.
@@ -194,6 +197,7 @@ pub fn setup(
     commands.insert_resource(CameraSettings {
         offset: Vec3::new(0.0, 80.0, 50.0), // Further away: height 80, distance 50
     });
+    commands.insert_resource(EnemyHealthBarAssets::default());
 
     commands.spawn((
         Camera3d::default(),

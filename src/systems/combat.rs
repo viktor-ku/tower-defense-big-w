@@ -1,6 +1,7 @@
 use crate::components::*;
 use crate::events::*;
 use bevy::asset::RenderAssetUsages;
+use bevy::math::primitives::Rectangle;
 use bevy::pbr::MeshMaterial3d;
 use bevy::prelude::*;
 use bevy::render::render_resource::PrimitiveTopology;
@@ -12,6 +13,59 @@ const TOWER_RANGE: f32 = 45.0;
 const TOWER_WIDTH: f32 = 1.2;
 const TOWER_HEIGHT: f32 = 3.2;
 const TOWER_DEPTH: f32 = 1.2;
+const HEALTH_BAR_WIDTH: f32 = 1.8;
+const HEALTH_BAR_HEIGHT: f32 = 0.18;
+const HEALTH_BAR_FILL_HEIGHT: f32 = 0.12;
+const HEALTH_BAR_OFFSET_Y: f32 = TOWER_HEIGHT + 0.6;
+
+#[derive(Resource, Default)]
+pub struct EnemyHealthBarAssets {
+    quad_mesh: Option<Handle<Mesh>>,
+    background_material: Option<Handle<StandardMaterial>>,
+    fill_material: Option<Handle<StandardMaterial>>,
+}
+
+impl EnemyHealthBarAssets {
+    fn mesh(&mut self, meshes: &mut Assets<Mesh>) -> Handle<Mesh> {
+        self.quad_mesh
+            .get_or_insert_with(|| meshes.add(build_quad_mesh()))
+            .clone()
+    }
+
+    fn background_material(
+        &mut self,
+        materials: &mut Assets<StandardMaterial>,
+    ) -> Handle<StandardMaterial> {
+        self.background_material
+            .get_or_insert_with(|| {
+                materials.add(StandardMaterial {
+                    base_color: Color::srgba(0.05, 0.05, 0.05, 0.7),
+                    alpha_mode: AlphaMode::Blend,
+                    unlit: true,
+                    cull_mode: None,
+                    ..default()
+                })
+            })
+            .clone()
+    }
+
+    fn fill_material(
+        &mut self,
+        materials: &mut Assets<StandardMaterial>,
+    ) -> Handle<StandardMaterial> {
+        self.fill_material
+            .get_or_insert_with(|| {
+                materials.add(StandardMaterial {
+                    base_color: Color::srgba(0.2, 0.85, 0.2, 0.9),
+                    alpha_mode: AlphaMode::Blend,
+                    unlit: true,
+                    cull_mode: None,
+                    ..default()
+                })
+            })
+            .clone()
+    }
+}
 const MAX_BUILD_DISTANCE: f32 = 100.0;
 const MAX_BUILD_DISTANCE_SQ: f32 = MAX_BUILD_DISTANCE * MAX_BUILD_DISTANCE;
 const TOWER_SPAWN_EFFECT_DURATION: f32 = 0.45;
@@ -254,6 +308,10 @@ fn build_ring_mesh(outer_radius: f32, inner_ratio: f32, segments: usize) -> Mesh
     mesh
 }
 
+fn build_quad_mesh() -> Mesh {
+    Mesh::from(Rectangle::new(1.0, 1.0))
+}
+
 fn update_ghost_visuals(
     data: &TowerGhostData,
     valid: bool,
@@ -403,6 +461,45 @@ pub fn tower_spawn_effect_system(
     }
 }
 
+pub fn update_enemy_health_bars(
+    enemy_query: Query<&Enemy>,
+    mut fill_query: Query<(&EnemyHealthBarFill, &mut Transform)>,
+) {
+    for (fill, mut transform) in fill_query.iter_mut() {
+        if let Ok(enemy) = enemy_query.get(fill.owner) {
+            let ratio = if enemy.max_health > 0 {
+                enemy.health as f32 / enemy.max_health as f32
+            } else {
+                0.0
+            }
+            .clamp(0.0, 1.0);
+
+            let width = fill.max_width * ratio;
+            transform.scale = Vec3::new(width.max(0.0), HEALTH_BAR_FILL_HEIGHT, 1.0);
+            transform.translation.x = -fill.max_width * 0.5 + width * 0.5;
+        }
+    }
+}
+
+pub fn face_enemy_health_bars(
+    camera_query: Query<&GlobalTransform, With<Camera3d>>,
+    mut bars: Query<(&mut Transform, &GlobalTransform), With<EnemyHealthBarRoot>>,
+) {
+    let Ok(camera_tf) = camera_query.single() else {
+        return;
+    };
+    let cam_pos = camera_tf.translation();
+
+    for (mut transform, global) in bars.iter_mut() {
+        let bar_pos = global.translation();
+        let dir = Vec3::new(cam_pos.x - bar_pos.x, 0.0, cam_pos.z - bar_pos.z);
+        if dir.length_squared() > f32::EPSILON {
+            let yaw = dir.x.atan2(dir.z);
+            transform.rotation = Quat::from_rotation_y(yaw);
+        }
+    }
+}
+
 /// Spawns enemies at intervals on road entrances or at a ring around the map.
 pub fn enemy_spawning(
     mut commands: Commands,
@@ -410,6 +507,7 @@ pub fn enemy_spawning(
     mut enemy_events: MessageWriter<EnemySpawned>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut health_bar_assets: ResMut<EnemyHealthBarAssets>,
     roads: Option<Res<RoadPaths>>,
 ) {
     static mut LAST_SPAWN: f32 = 0.0;
@@ -455,26 +553,69 @@ pub fn enemy_spawning(
             // Random speed between 10.0 and 25.0 for variety (slower on average)
             let random_speed = 10.0 + rand::random::<f32>() * 15.0;
 
-            commands.spawn((
-                Mesh3d(e_mesh),
-                MeshMaterial3d(e_mat),
-                Transform::from_translation(Vec3::new(spawn_pos.x, 0.8, spawn_pos.z)),
-                Enemy {
-                    health: 50,
-                    speed: random_speed,
-                },
-                // Attach PathFollower to follow the chosen road
-                match _road_index_for_follower {
-                    Some(ri) => PathFollower {
-                        road_index: ri,
-                        next_index: 1,
+            let enemy_entity = commands
+                .spawn((
+                    Mesh3d(e_mesh),
+                    MeshMaterial3d(e_mat),
+                    Transform::from_translation(Vec3::new(spawn_pos.x, 0.8, spawn_pos.z)),
+                    Enemy {
+                        health: 50,
+                        max_health: 50,
+                        speed: random_speed,
                     },
-                    None => PathFollower {
-                        road_index: 0,
-                        next_index: 0,
+                    match _road_index_for_follower {
+                        Some(ri) => PathFollower {
+                            road_index: ri,
+                            next_index: 1,
+                        },
+                        None => PathFollower {
+                            road_index: 0,
+                            next_index: 0,
+                        },
                     },
-                },
-            ));
+                ))
+                .id();
+
+            let quad_mesh = health_bar_assets.mesh(&mut meshes);
+            let background_mat = health_bar_assets.background_material(&mut materials);
+            let fill_mat = health_bar_assets.fill_material(&mut materials);
+
+            commands.entity(enemy_entity).with_children(|parent| {
+                parent
+                    .spawn((
+                        EnemyHealthBarRoot,
+                        Transform::from_translation(Vec3::new(0.0, HEALTH_BAR_OFFSET_Y, 0.0)),
+                        GlobalTransform::default(),
+                        Visibility::default(),
+                        InheritedVisibility::default(),
+                    ))
+                    .with_children(|bar| {
+                        bar.spawn((
+                            Mesh3d(quad_mesh.clone()),
+                            MeshMaterial3d(background_mat.clone()),
+                            Transform {
+                                translation: Vec3::ZERO,
+                                scale: Vec3::new(HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, 1.0),
+                                ..default()
+                            },
+                        ));
+
+                        bar.spawn((
+                            Mesh3d(quad_mesh.clone()),
+                            MeshMaterial3d(fill_mat),
+                            Transform {
+                                translation: Vec3::new(0.0, 0.0, 0.001),
+                                scale: Vec3::new(HEALTH_BAR_WIDTH, HEALTH_BAR_FILL_HEIGHT, 1.0),
+                                ..default()
+                            },
+                            EnemyHealthBarFill {
+                                max_width: HEALTH_BAR_WIDTH,
+                                owner: enemy_entity,
+                            },
+                        ));
+                    });
+            });
+
             enemy_events.write(EnemySpawned {
                 position: spawn_pos,
             });
