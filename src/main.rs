@@ -96,9 +96,15 @@ fn main() {
                 enemy_pre_explosion_system,
                 impact_effect_system,
                 explosion_effect_system,
-                damage_number_system,
                 enemy_flash_system,
             )
+                .run_if(in_state(GameState::Playing)),
+        )
+        // Position floating damage numbers after transforms have propagated
+        .add_systems(
+            PostUpdate,
+            damage_number_system
+                .after(camera_system)
                 .run_if(in_state(GameState::Playing)),
         )
         // Observers for gameplay events (logging)

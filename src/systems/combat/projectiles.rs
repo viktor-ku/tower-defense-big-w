@@ -118,7 +118,7 @@ pub fn projectile_system(
     time: Res<Time>,
     mut commands: Commands,
     mut projectile_query: Query<(Entity, &mut Projectile, &mut Transform), Without<Enemy>>,
-    enemy_pose_query: Query<&Transform, (With<Enemy>, Without<EnemyPreExplosion>)>,
+    enemy_pose_query: Query<&GlobalTransform, (With<Enemy>, Without<EnemyPreExplosion>)>,
     mut enemy_hit_query: Query<
         (
             &mut Enemy,
@@ -148,8 +148,9 @@ pub fn projectile_system(
 
         let (target_position, target_alive) = match enemy_pose_query.get(projectile.target) {
             Ok(tf) => {
-                projectile.last_known_target_pos = tf.translation;
-                (tf.translation, true)
+                let world_pos = tf.translation();
+                projectile.last_known_target_pos = world_pos;
+                (world_pos, true)
             }
             Err(_) => (projectile.last_known_target_pos, false),
         };
@@ -498,8 +499,9 @@ pub fn damage_number_system(
 
         if let Ok(screen_pos) = camera.world_to_viewport(camera_transform, number.world_position) {
             *visibility = Visibility::Visible;
-            let logical_pos = screen_pos / scale_factor;
             let half = 12.0;
+            // Convert to logical UI coordinates: top-left origin
+            let logical_pos = screen_pos / scale_factor;
             node.left = Val::Px(logical_pos.x - half);
             node.top = Val::Px(logical_height - logical_pos.y - half);
         } else {
@@ -619,5 +621,3 @@ pub fn enemy_flash_system(
         }
     }
 }
-
-
