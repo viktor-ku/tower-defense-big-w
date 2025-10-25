@@ -1,6 +1,7 @@
 use super::assets::EnemyHealthBarAssets;
 use crate::components::{
-    Enemy, EnemyHealthBarFill, EnemyHealthBarRoot, PathFollower, RoadPaths, WavePhase, WaveState,
+    Enemy, EnemyHealthBarFill, EnemyHealthBarRoot, EnemyKind, PathFollower, RoadPaths, WavePhase,
+    WaveState,
 };
 use crate::constants::Tunables;
 use crate::events::EnemySpawned;
@@ -43,55 +44,67 @@ pub fn enemy_spawning(
     if wave_state.spawn_timer.just_finished() {
         let (spawn_pos, road_index) = select_spawn_point(&roads, &tunables);
 
-        let e_mesh = meshes.add(Cuboid::new(0.9, 1.6, 0.9));
-        let e_mat = materials.add(StandardMaterial {
-            base_color: Color::srgb(0.9, 0.1, 0.1),
-            perceptual_roughness: 0.7,
-            metallic: 0.0,
-            ..default()
-        });
-        // Fixed enemy stats: same speed and health for all enemies
-        let enemy_speed = 20.0;
-        let enemy_health = 60;
+        // Determine which enemy to spawn next
+        if let Some(kind) = wave_state.spawn_queue.pop_front() {
+            let (hp, dmg, spd, size) = kind.stats();
+            let half_h = size * 0.5;
+            let color = match kind {
+                EnemyKind::Minion => Color::srgb(0.9, 0.1, 0.1),
+                EnemyKind::Zombie => Color::srgb(0.2, 0.8, 0.2),
+                EnemyKind::Boss => Color::srgb(0.6, 0.1, 0.8),
+            };
 
-        let enemy_entity = commands
-            .spawn((
-                Mesh3d(e_mesh),
-                MeshMaterial3d(e_mat),
-                Transform::from_translation(Vec3::new(spawn_pos.x, 0.8, spawn_pos.z)),
-                Visibility::default(),
-                InheritedVisibility::default(),
-                Enemy {
-                    health: enemy_health,
-                    max_health: enemy_health,
-                    speed: enemy_speed,
-                },
-                match road_index {
-                    Some(ri) => PathFollower {
-                        road_index: ri,
-                        next_index: 1,
+            let e_mesh = meshes.add(Cuboid::new(size, size, size));
+            let e_mat = materials.add(StandardMaterial {
+                base_color: color,
+                perceptual_roughness: 0.7,
+                metallic: 0.0,
+                ..default()
+            });
+
+            let enemy_entity = commands
+                .spawn((
+                    Mesh3d(e_mesh),
+                    MeshMaterial3d(e_mat),
+                    Transform::from_translation(Vec3::new(spawn_pos.x, half_h, spawn_pos.z)),
+                    Visibility::default(),
+                    InheritedVisibility::default(),
+                    Enemy {
+                        health: hp,
+                        max_health: hp,
+                        speed: spd,
+                        damage: dmg,
+                        kind,
+                        visual_height: size,
                     },
-                    None => PathFollower {
-                        road_index: 0,
-                        next_index: 0,
+                    match road_index {
+                        Some(ri) => PathFollower {
+                            road_index: ri,
+                            next_index: 1,
+                        },
+                        None => PathFollower {
+                            road_index: 0,
+                            next_index: 0,
+                        },
                     },
-                },
-            ))
-            .id();
+                ))
+                .id();
 
-        attach_health_bar(
-            &mut commands,
-            enemy_entity,
-            &mut meshes,
-            &mut materials,
-            &mut health_bar_assets,
-            &tunables,
-        );
+            attach_health_bar(
+                &mut commands,
+                enemy_entity,
+                &mut meshes,
+                &mut materials,
+                &mut health_bar_assets,
+                &tunables,
+                size,
+            );
 
-        enemy_events.write(EnemySpawned {
-            position: spawn_pos,
-        });
-        wave_state.enemies_spawned += 1;
+            enemy_events.write(EnemySpawned {
+                position: spawn_pos,
+            });
+            wave_state.enemies_spawned += 1;
+        }
     }
 }
 
@@ -125,6 +138,7 @@ fn attach_health_bar(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     health_bar_assets: &mut ResMut<EnemyHealthBarAssets>,
     tunables: &Tunables,
+    base_height: f32,
 ) {
     let quad_mesh = health_bar_assets.mesh(meshes);
     let background_mat = health_bar_assets.background_material(materials);
@@ -134,7 +148,11 @@ fn attach_health_bar(
         parent
             .spawn((
                 EnemyHealthBarRoot,
-                Transform::from_translation(Vec3::new(0.0, tunables.health_bar_offset_y, 0.0)),
+                Transform::from_translation(Vec3::new(
+                    0.0,
+                    base_height + tunables.health_bar_offset_y,
+                    0.0,
+                )),
                 GlobalTransform::default(),
                 Visibility::default(),
                 InheritedVisibility::default(),

@@ -27,7 +27,9 @@ pub fn handle_game_input(
     if keyboard_input.just_pressed(Key::Character("b".into())) {
         for mut building_mode in building_mode_query.iter_mut() {
             building_mode.is_active = !building_mode.is_active;
-            info!("Building mode: {}", building_mode.is_active);
+            if cfg!(debug_assertions) {
+                info!("Building mode: {}", building_mode.is_active);
+            }
         }
         // Clear selection so the drawer prompts again when entering build mode
         selection.choice = None;

@@ -43,7 +43,9 @@ pub fn player_movement(
             // Debug: Log player position every few seconds without unsafe statics
             *log_accumulator += time.delta_secs();
             if *log_accumulator > 2.0 {
-                info!("Player position: {:?}", transform.translation);
+                if cfg!(debug_assertions) {
+                    info!("Player position: {:?}", transform.translation);
+                }
                 *log_accumulator = 0.0;
             }
         }
@@ -98,19 +100,23 @@ pub fn enemy_movement(
             < village_collision_radius
         {
             if let Ok(mut village) = village_query.single_mut() {
-                village.health = village.health.saturating_sub(10);
-                info!(
-                    "Village hit! Health remaining: {}/{}",
-                    village.health, village.max_health
-                );
+                village.health = village.health.saturating_sub(enemy.damage);
+                if cfg!(debug_assertions) {
+                    info!(
+                        "Village hit! Health remaining: {}/{}",
+                        village.health, village.max_health
+                    );
+                }
 
                 // Reset village health when destroyed (for easier testing)
                 if village.health == 0 {
                     village.health = village.max_health;
-                    info!(
-                        "Village destroyed! Resetting health to {}",
-                        village.max_health
-                    );
+                    if cfg!(debug_assertions) {
+                        info!(
+                            "Village destroyed! Resetting health to {}",
+                            village.max_health
+                        );
+                    }
                 }
             }
             // Despawn enemy when it actually hits the village

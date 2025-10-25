@@ -5,22 +5,30 @@ use bevy::prelude::*;
 // Observer-based logging for gameplay events (Bevy 0.17)
 pub fn on_resource_collected(trigger: On<ResourceCollected>) {
     let e = trigger.event();
-    info!("Resource collected: {:?} x{}", e.kind, e.amount);
+    if cfg!(debug_assertions) {
+        info!("Resource collected: {:?} x{}", e.kind, e.amount);
+    }
 }
 
 pub fn on_tower_built(trigger: On<TowerBuilt>) {
     let e = trigger.event();
-    info!("Tower built at: {:?}", e.position);
+    if cfg!(debug_assertions) {
+        info!("Tower built at: {:?}", e.position);
+    }
 }
 
 pub fn on_enemy_spawned(trigger: On<EnemySpawned>) {
     let e = trigger.event();
-    info!("Enemy spawned at: {:?}", e.position);
+    if cfg!(debug_assertions) {
+        info!("Enemy spawned at: {:?}", e.position);
+    }
 }
 
 pub fn on_enemy_killed(trigger: On<EnemyKilled>) {
     let e = trigger.event();
-    info!("Enemy killed at: {:?}", e.position);
+    if cfg!(debug_assertions) {
+        info!("Enemy killed at: {:?}", e.position);
+    }
 }
 
 /// Updates the persistent HUD health bar for the village.
@@ -326,7 +334,9 @@ pub fn manage_collect_bar_ui(
 
     // If target changed, despawn old UI and spawn new one
     if progress.target != state.target {
-        if let Some(e) = state.bar_entity.take() && let Ok(mut ec) = commands.get_entity(e) {
+        if let Some(e) = state.bar_entity.take()
+            && let Ok(mut ec) = commands.get_entity(e)
+        {
             ec.despawn();
         }
         state.target = progress.target;
@@ -367,16 +377,16 @@ pub fn manage_collect_bar_ui(
     {
         let world_pos = target_tf.translation() + Vec3::Y * 2.5;
         if let Ok(mut screen) = camera.world_to_viewport(cam_tf, world_pos) {
-                // Center the bar above the target
-                screen.y = window.height() - screen.y;
-                if let Ok(mut node) = root_q.get_mut(root_e) {
-                    node.left = Val::Px(screen.x - 60.0);
-                    node.top = Val::Px(screen.y - 20.0);
-                }
-                if let Ok(mut fill) = fill_q.single_mut() {
-                    let px = (progress.progress.clamp(0.0, 1.0)) * 120.0;
-                    fill.width = Val::Px(px);
-                }
+            // Center the bar above the target
+            screen.y = window.height() - screen.y;
+            if let Ok(mut node) = root_q.get_mut(root_e) {
+                node.left = Val::Px(screen.x - 60.0);
+                node.top = Val::Px(screen.y - 20.0);
+            }
+            if let Ok(mut fill) = fill_q.single_mut() {
+                let px = (progress.progress.clamp(0.0, 1.0)) * 120.0;
+                fill.width = Val::Px(px);
+            }
         }
     }
 }
@@ -495,7 +505,10 @@ pub fn manage_tower_selection_drawer(
             })
             .id();
         selection.drawer_root = Some(root);
-    } else if !need_drawer && has_drawer && let Some(root) = selection.drawer_root.take() {
+    } else if !need_drawer
+        && has_drawer
+        && let Some(root) = selection.drawer_root.take()
+    {
         // Only despawn if the root is still alive
         if drawer_root_alive.get(root).is_ok() {
             despawn_entity_recursive(&mut commands, root, &children_q);
