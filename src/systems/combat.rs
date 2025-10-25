@@ -109,7 +109,6 @@ pub(crate) struct ImpactEffect {
 #[derive(Component)]
 pub(crate) struct DamageNumber {
     timer: Timer,
-    velocity: Vec3,
     world_position: Vec3,
 }
 
@@ -1126,14 +1125,11 @@ fn spawn_explosion_effect(
 }
 
 fn spawn_damage_number(commands: &mut Commands, tunables: &Tunables, damage: u32, point: Vec3) {
-    let mut world_position = point + Vec3::Y * tunables.damage_number_spawn_height;
-    let horizontal_jitter = (rand::random::<f32>() - 0.5) * 0.6;
-    world_position += Vec3::new(horizontal_jitter, 0.0, 0.0);
+    let world_position = point + Vec3::new(0.0, tunables.damage_number_spawn_height, 0.0);
 
     commands.spawn((
         DamageNumber {
             timer: Timer::from_seconds(tunables.damage_number_lifetime_secs, TimerMode::Once),
-            velocity: Vec3::new(0.0, tunables.damage_number_float_speed, 0.0),
             world_position,
         },
         Node {
@@ -1148,6 +1144,7 @@ fn spawn_damage_number(commands: &mut Commands, tunables: &Tunables, damage: u32
             ..default()
         },
         TextColor(Color::srgba(1.0, 0.9, 0.55, 1.0)),
+        Visibility::default(),
     ));
 }
 
@@ -1218,7 +1215,13 @@ pub fn damage_number_system(
     mut commands: Commands,
     windows: Query<&Window>,
     cam_q: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    mut numbers: Query<(Entity, &mut DamageNumber, &mut Node, &mut TextColor)>,
+    mut numbers: Query<(
+        Entity,
+        &mut DamageNumber,
+        &mut Node,
+        &mut TextColor,
+        &mut Visibility,
+    )>,
 ) {
     let Ok(window) = windows.single() else {
         return;
@@ -1227,26 +1230,28 @@ pub fn damage_number_system(
         return;
     };
 
-    for (entity, mut number, mut node, mut color) in numbers.iter_mut() {
+    let scale_factor = window.resolution.scale_factor();
+    let logical_height = window.resolution.height();
+
+    for (entity, mut number, mut node, mut color, mut visibility) in numbers.iter_mut() {
         number.timer.tick(time.delta());
-        let velocity = number.velocity;
-        number.world_position += velocity * time.delta_secs();
 
         match camera.world_to_viewport(camera_transform, number.world_position) {
-            Ok(mut screen_pos) => {
-                screen_pos.y = window.height() - screen_pos.y;
-                node.left = Val::Px(screen_pos.x - 10.0);
-                node.top = Val::Px(screen_pos.y - 16.0);
+            Ok(screen_pos) => {
+                *visibility = Visibility::Visible;
+                let logical_pos = screen_pos / scale_factor;
+                let half = 12.0;
+                node.left = Val::Px(logical_pos.x - half);
+                node.top = Val::Px(logical_height - logical_pos.y - half);
             }
             Err(_) => {
-                commands.entity(entity).despawn();
-                continue;
+                *visibility = Visibility::Hidden;
             }
         }
 
         let duration = number.timer.duration().as_secs_f32().max(f32::EPSILON);
         let ratio = (number.timer.elapsed().as_secs_f32() / duration).clamp(0.0, 1.0);
-        let alpha = (1.0 - ratio).powf(1.8);
+        let alpha = (1.0 - ratio).powf(1.4);
         color.0 = color.0.with_alpha(alpha);
 
         if number.timer.just_finished() {

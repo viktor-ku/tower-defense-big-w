@@ -13,12 +13,12 @@ pub const C_LIGHT_ILLUMINANCE: f32 = 10000.0;
 // World
 pub const C_GROUND_SIZE: f32 = 1000.0;
 pub const C_TOWN_SIZE: f32 = 500.0;
-pub const C_WALL_THICKNESS: f32 = 6.0;
-pub const C_WALL_HEIGHT: f32 = 6.0;
+pub const C_WALL_THICKNESS: f32 = 4.0;
+pub const C_WALL_HEIGHT: f32 = 8.0;
 pub const C_GATE_WIDTH: f32 = 20.0;
-pub const C_SQUARE_SIZE: f32 = 80.0;
-pub const C_GROUND_COLOR_SRGB: (f32, f32, f32) = (0.2, 0.35, 0.2);
-pub const C_ROAD_WIDTH: f32 = 6.0;
+pub const C_SQUARE_SIZE: f32 = 60.0;
+pub const C_GROUND_COLOR_SRGB: (f32, f32, f32) = (0.2, 0.3, 0.2);
+pub const C_ROAD_WIDTH: f32 = 5.0;
 pub const C_ROAD_ENDPOINT_DISTANCE: f32 = 100.0;
 // Chunking & world seed
 pub const C_WORLD_SEED: u64 = 0xC0FFEE_u64;
@@ -32,42 +32,42 @@ pub const C_CHUNKS_UNLOADS_PER_FRAME: usize = 4;
 pub const C_PLAYER_SPEED: f32 = 80.0;
 
 // Village/base
-pub const C_VILLAGE_HEALTH: u32 = 100;
-pub const C_VILLAGE_COLLISION_RADIUS: f32 = 5.0;
+pub const C_VILLAGE_HEALTH: u32 = 200;
+pub const C_VILLAGE_COLLISION_RADIUS: f32 = 8.0;
 
 // Enemies
-pub const C_ENEMY_SPAWN_INTERVAL_SECS: f32 = 3.0;
-pub const C_ENEMY_DEFAULT_HEALTH: u32 = 50;
-pub const C_ENEMY_RANDOM_SPEED_MIN: f32 = 10.0;
-pub const C_ENEMY_RANDOM_SPEED_MAX: f32 = 25.0;
+pub const C_ENEMY_SPAWN_INTERVAL_SECS: f32 = 1.0;
+pub const C_ENEMY_DEFAULT_HEALTH: u32 = 60;
+pub const C_ENEMY_RANDOM_SPEED_MIN: f32 = 20.0;
+pub const C_ENEMY_RANDOM_SPEED_MAX: f32 = 22.0;
 
 // Waves
 pub const C_WAVE_INITIAL_DELAY_SECS: f32 = 30.0;
-pub const C_WAVE_INTERMISSION_SECS: f32 = 15.0;
+pub const C_WAVE_INTERMISSION_SECS: f32 = 10.0;
 pub const C_WAVE_BASE_ENEMY_COUNT: u32 = 6;
 pub const C_WAVE_ENEMY_INCREMENT: u32 = 2;
 pub const C_WAVE_HEALTH_BONUS_PER_TIER: u32 = 15;
 
 // Towers
-pub const C_TOWER_RANGE: f32 = 45.0;
+pub const C_TOWER_RANGE: f32 = 30.0;
 pub const C_TOWER_WIDTH: f32 = 1.2;
 pub const C_TOWER_HEIGHT: f32 = 3.2;
 pub const C_TOWER_DEPTH: f32 = 1.2;
-pub const C_TOWER_DAMAGE: u32 = 25;
+pub const C_TOWER_DAMAGE: u32 = 20;
 pub const C_TOWER_COST_WOOD: u32 = 5;
 pub const C_TOWER_COST_ROCK: u32 = 1;
-pub const C_TOWER_FIRE_INTERVAL_SECS: f32 = 1.0;
-pub const C_TOWER_SPAWN_EFFECT_DURATION_SECS: f32 = 0.45;
-pub const C_PROJECTILE_SPEED: f32 = 65.0;
-pub const C_PROJECTILE_HIT_RADIUS: f32 = 1.2;
-pub const C_PROJECTILE_LIFETIME_SECS: f32 = 3.0;
-pub const C_MAX_BUILD_DISTANCE: f32 = 100.0;
+pub const C_TOWER_FIRE_INTERVAL_SECS: f32 = 1.5;
+pub const C_TOWER_SPAWN_EFFECT_DURATION_SECS: f32 = 0.3;
+pub const C_PROJECTILE_SPEED: f32 = 80.0;
+pub const C_PROJECTILE_HIT_RADIUS: f32 = 1.4;
+pub const C_PROJECTILE_LIFETIME_SECS: f32 = 5.0;
+pub const C_MAX_BUILD_DISTANCE: f32 = 50.0;
 pub const C_RING_INNER_RATIO: f32 = 0.92;
-pub const C_IMPACT_EFFECT_DURATION_SECS: f32 = 0.4;
-pub const C_DAMAGE_NUMBER_LIFETIME_SECS: f32 = 0.9;
-pub const C_DAMAGE_NUMBER_FLOAT_SPEED: f32 = 4.5;
-pub const C_DAMAGE_NUMBER_SPAWN_HEIGHT: f32 = 1.35;
-pub const C_DAMAGE_NUMBER_FONT_SIZE: f32 = 30.0;
+pub const C_IMPACT_EFFECT_DURATION_SECS: f32 = 0.2;
+pub const C_DAMAGE_NUMBER_LIFETIME_SECS: f32 = 0.3;
+pub const C_DAMAGE_NUMBER_FLOAT_SPEED: f32 = 0.1;
+pub const C_DAMAGE_NUMBER_SPAWN_HEIGHT: f32 = 0.0;
+pub const C_DAMAGE_NUMBER_FONT_SIZE: f32 = 16.0;
 pub const C_ENEMY_FLASH_DURATION_SECS: f32 = 0.22;
 pub const C_ENEMY_PRE_EXPLOSION_DURATION_SECS: f32 = 0.6;
 pub const C_ENEMY_PRE_EXPLOSION_FLASHES: f32 = 8.0;
@@ -75,23 +75,23 @@ pub const C_EXPLOSION_EFFECT_DURATION_SECS: f32 = 0.8;
 pub const C_EXPLOSION_EFFECT_MAX_SCALE: f32 = 3.0;
 
 // Health bars (world-space over enemies)
-pub const C_HEALTH_BAR_WIDTH: f32 = 3.0;
-pub const C_HEALTH_BAR_HEIGHT: f32 = 0.28;
-pub const C_HEALTH_BAR_FILL_HEIGHT: f32 = 0.2;
-pub const C_HEALTH_BAR_OFFSET_Y: f32 = C_TOWER_HEIGHT + 0.8;
+pub const C_HEALTH_BAR_WIDTH: f32 = 4.0;
+pub const C_HEALTH_BAR_HEIGHT: f32 = 0.5;
+pub const C_HEALTH_BAR_FILL_HEIGHT: f32 = 0.4;
+pub const C_HEALTH_BAR_OFFSET_Y: f32 = C_TOWER_HEIGHT + 1.0;
 
 // Resources placement
-pub const C_TREES_COUNT: u32 = 80;
-pub const C_TREE_WOOD_MIN: u32 = 15;
-pub const C_TREE_WOOD_MAX: u32 = 35;
-pub const C_TREE_SIZE: (f32, f32, f32) = (1.2, 3.0, 1.2);
-pub const C_TREE_DISTANCE_MIN: f32 = 60.0;
-pub const C_TREE_DISTANCE_MAX: f32 = 210.0; // inside walls
+pub const C_TREES_COUNT: u32 = 100;
+pub const C_TREE_WOOD_MIN: u32 = 20;
+pub const C_TREE_WOOD_MAX: u32 = 60;
+pub const C_TREE_SIZE: (f32, f32, f32) = (1.4, 3.2, 1.4);
+pub const C_TREE_DISTANCE_MIN: f32 = 30.0;
+pub const C_TREE_DISTANCE_MAX: f32 = 90.0; // inside walls
 
-pub const C_ROCKS_COUNT: u32 = 40;
-pub const C_ROCK_SIZE: (f32, f32, f32) = (0.8, 0.6, 0.8);
-pub const C_ROCK_DISTANCE_MIN: f32 = 55.0;
-pub const C_ROCK_DISTANCE_MAX: f32 = 190.0; // inside walls
+pub const C_ROCKS_COUNT: u32 = 50;
+pub const C_ROCK_SIZE: (f32, f32, f32) = (1.0, 0.8, 1.0);
+pub const C_ROCK_DISTANCE_MIN: f32 = 30.0;
+pub const C_ROCK_DISTANCE_MAX: f32 = 100.0; // inside walls
 
 /// Tunable values that control the game. Insert this as a Bevy resource to tweak gameplay,
 /// visuals, and pacing without touching system code. Values are read at runtime by systems.
