@@ -106,3 +106,7 @@ pub struct Wall;
 
 #[derive(Component)]
 pub struct Gate;
+
+// Chunking: marker for a chunk root entity
+#[derive(Component, Debug, Clone, Copy)]
+pub struct ChunkRoot;

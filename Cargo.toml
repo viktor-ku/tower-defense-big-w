@@ -11,7 +11,6 @@ version = "=0.17.2"
 features = [
     "bevy_dev_tools",
     "bevy_ui_debug",
-    "detailed_trace",
     "experimental_bevy_ui_widgets",
     "flac",
     "jpeg",

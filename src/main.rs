@@ -18,6 +18,7 @@ use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 fn main() {
     let tunables = Tunables::default();
     App::new()
+        .insert_resource(tunables.clone())
         .add_plugins((DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
@@ -34,6 +35,7 @@ fn main() {
                 filter: "wgpu=error,bevy_render=error".into(),
                 ..default()
             }),))
+        .add_plugins(ChunkPlugin)
         .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(FrameTimeGraphPlugin)
         // Add explicit exit handling
@@ -41,7 +43,6 @@ fn main() {
         .add_systems(Update, bevy::window::exit_on_all_closed)
         .init_state::<GameState>()
         .insert_state(GameState::Playing)
-        .insert_resource(tunables.clone())
         .insert_resource(CurrentCollectProgress::default())
         .insert_resource(CollectUiState::default())
         .add_message::<ResourceCollected>()

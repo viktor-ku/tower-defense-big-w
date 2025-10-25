@@ -20,6 +20,13 @@ pub const C_SQUARE_SIZE: f32 = 80.0;
 pub const C_GROUND_COLOR_SRGB: (f32, f32, f32) = (0.2, 0.35, 0.2);
 pub const C_ROAD_WIDTH: f32 = 6.0;
 pub const C_ROAD_ENDPOINT_DISTANCE: f32 = 100.0;
+// Chunking & world seed
+pub const C_WORLD_SEED: u64 = 0xC0FFEE_u64;
+pub const C_CHUNK_SIZE: f32 = 1024.0;
+pub const C_CHUNKS_ACTIVE_RADIUS: i32 = 2; // 5x5 around player
+pub const C_CHUNKS_HYSTERESIS: i32 = 1; // keep buffer to avoid thrashing
+pub const C_CHUNKS_LOADS_PER_FRAME: usize = 2;
+pub const C_CHUNKS_UNLOADS_PER_FRAME: usize = 4;
 
 // Player
 pub const C_PLAYER_SPEED: f32 = 80.0;
@@ -30,8 +37,6 @@ pub const C_VILLAGE_COLLISION_RADIUS: f32 = 5.0;
 
 // Enemies
 pub const C_ENEMY_SPAWN_INTERVAL_SECS: f32 = 3.0;
-// Will be overridden in Tunables::default to C_TOWN_SIZE/2 + 100.0
-pub const C_ENEMY_SPAWN_RING_DISTANCE: f32 = 200.0;
 pub const C_ENEMY_DEFAULT_HEALTH: u32 = 50;
 pub const C_ENEMY_RANDOM_SPEED_MIN: f32 = 10.0;
 pub const C_ENEMY_RANDOM_SPEED_MAX: f32 = 25.0;
@@ -92,6 +97,19 @@ pub struct Tunables {
     pub road_width: f32,
     /// Distance from the center where roads start/end.
     pub road_endpoint_distance: f32,
+
+    /// Deterministic world seed for procedural content.
+    pub world_seed: u64,
+    /// Size of a single world chunk (square on XZ plane).
+    pub chunk_size: f32,
+    /// Active chunk radius around player (Manhattan/Chebyshev based on impl).
+    pub chunks_active_radius: i32,
+    /// Hysteresis to delay unloading for nearby chunks.
+    pub chunks_hysteresis: i32,
+    /// Max chunks to load per frame.
+    pub chunks_loads_per_frame: usize,
+    /// Max chunks to unload per frame.
+    pub chunks_unloads_per_frame: usize,
 
     /// Perimeter wall thickness (X or Z depending on orientation).
     pub wall_thickness: f32,
@@ -195,6 +213,12 @@ impl Default for Tunables {
             ),
             road_width: C_ROAD_WIDTH,
             road_endpoint_distance: C_ROAD_ENDPOINT_DISTANCE,
+            world_seed: C_WORLD_SEED,
+            chunk_size: C_CHUNK_SIZE,
+            chunks_active_radius: C_CHUNKS_ACTIVE_RADIUS,
+            chunks_hysteresis: C_CHUNKS_HYSTERESIS,
+            chunks_loads_per_frame: C_CHUNKS_LOADS_PER_FRAME,
+            chunks_unloads_per_frame: C_CHUNKS_UNLOADS_PER_FRAME,
             wall_thickness: C_WALL_THICKNESS,
             wall_height: C_WALL_HEIGHT,
             gate_width: C_GATE_WIDTH,
