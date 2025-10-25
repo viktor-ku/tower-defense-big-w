@@ -50,15 +50,9 @@ pub fn enemy_spawning(
             metallic: 0.0,
             ..default()
         });
-        // Random speed in configured range
-        let random_speed = tunables.enemy_random_speed_min
-            + rand::random::<f32>()
-                * (tunables.enemy_random_speed_max - tunables.enemy_random_speed_min);
-        let difficulty_tier = wave_state.current_wave / 5;
-        let mut enemy_health = tunables.enemy_default_health;
-        if difficulty_tier > 0 {
-            enemy_health += difficulty_tier * tunables.wave_health_bonus_per_tier;
-        }
+        // Fixed enemy stats: same speed and health for all enemies
+        let enemy_speed = 20.0;
+        let enemy_health = 60;
 
         let enemy_entity = commands
             .spawn((
@@ -70,7 +64,7 @@ pub fn enemy_spawning(
                 Enemy {
                     health: enemy_health,
                     max_health: enemy_health,
-                    speed: random_speed,
+                    speed: enemy_speed,
                 },
                 match road_index {
                     Some(ri) => PathFollower {
@@ -105,7 +99,9 @@ fn select_spawn_point(
     roads: &Option<Res<RoadPaths>>,
     tunables: &Tunables,
 ) -> (Vec3, Option<usize>) {
-    if let Some(roads) = roads && !roads.roads.is_empty() {
+    if let Some(roads) = roads
+        && !roads.roads.is_empty()
+    {
         let mut ri = (rand::random::<f32>() * roads.roads.len() as f32).floor() as usize;
         if ri >= roads.roads.len() {
             ri = roads.roads.len() - 1;
@@ -221,5 +217,3 @@ pub fn face_enemy_health_bars(
         }
     }
 }
-
-
