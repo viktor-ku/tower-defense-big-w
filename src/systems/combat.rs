@@ -8,6 +8,10 @@ use bevy::time::TimerMode;
 use std::f32::consts::TAU;
 
 const RING_INNER_RATIO: f32 = 0.92;
+const TOWER_RANGE: f32 = 45.0;
+const TOWER_WIDTH: f32 = 1.2;
+const TOWER_HEIGHT: f32 = 3.2;
+const TOWER_DEPTH: f32 = 1.2;
 const MAX_BUILD_DISTANCE: f32 = 100.0;
 const MAX_BUILD_DISTANCE_SQ: f32 = MAX_BUILD_DISTANCE * MAX_BUILD_DISTANCE;
 const TOWER_SPAWN_EFFECT_DURATION: f32 = 0.45;
@@ -129,8 +133,8 @@ fn spawn_tower_ghost(
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
 ) -> TowerGhostData {
-    let tower_mesh = meshes.add(Cuboid::new(1.2, 2.5, 1.2));
-    let range_mesh = meshes.add(build_ring_mesh(80.0, RING_INNER_RATIO, 96));
+    let tower_mesh = meshes.add(Cuboid::new(TOWER_WIDTH, TOWER_HEIGHT, TOWER_DEPTH));
+    let range_mesh = meshes.add(build_ring_mesh(TOWER_RANGE, RING_INNER_RATIO, 96));
 
     let tower_material = materials.add(StandardMaterial {
         base_color: Color::srgba(0.35, 0.35, 0.35, 0.4),
@@ -159,7 +163,7 @@ fn spawn_tower_ghost(
                 .spawn((
                     Mesh3d(tower_mesh.clone()),
                     MeshMaterial3d(tower_material.clone()),
-                    Transform::from_translation(Vec3::new(0.0, 1.25, 0.0)),
+                    Transform::from_translation(Vec3::new(0.0, TOWER_HEIGHT * 0.5, 0.0)),
                     GlobalTransform::default(),
                 ))
                 .id(),
@@ -282,7 +286,7 @@ fn place_tower(
     position: Vec3,
     tower_events: &mut MessageWriter<TowerBuilt>,
 ) {
-    let mesh = meshes.add(Cuboid::new(1.2, 2.5, 1.2));
+    let mesh = meshes.add(Cuboid::new(TOWER_WIDTH, TOWER_HEIGHT, TOWER_DEPTH));
     let mat = materials.add(StandardMaterial {
         base_color: Color::srgb(0.35, 0.35, 0.35),
         perceptual_roughness: 0.8,
@@ -293,9 +297,9 @@ fn place_tower(
     commands.spawn((
         Mesh3d(mesh),
         MeshMaterial3d(mat),
-        Transform::from_translation(Vec3::new(position.x, 1.25, position.z)),
+        Transform::from_translation(Vec3::new(position.x, TOWER_HEIGHT * 0.5, position.z)),
         Tower {
-            range: 80.0,
+            range: TOWER_RANGE,
             damage: 25,
             last_shot: 0.0,
         },
@@ -336,7 +340,7 @@ fn spawn_tower_spawn_effect(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
 ) {
-    let mesh_handle = meshes.add(build_ring_mesh(80.0, 0.6, 72));
+    let mesh_handle = meshes.add(build_ring_mesh(TOWER_RANGE, 0.6, 72));
     let base_color = [0.9, 0.95, 0.6];
     let material = materials.add(StandardMaterial {
         base_color: Color::srgba(base_color[0], base_color[1], base_color[2], 0.7),
