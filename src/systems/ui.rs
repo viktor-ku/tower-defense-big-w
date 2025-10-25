@@ -380,3 +380,164 @@ pub fn manage_collect_bar_ui(
         }
     }
 }
+
+// =====================
+// Tower selection drawer
+// =====================
+
+#[derive(Component)]
+pub struct TowerDrawerRoot;
+
+#[derive(Component)]
+pub struct TowerChoiceButton {
+    pub kind: TowerKind,
+}
+
+/// Spawns a right-side drawer prompting the player to choose a tower when in build mode
+/// and no selection is currently chosen. Despawns it otherwise.
+pub fn manage_tower_selection_drawer(
+    mut commands: Commands,
+    building_mode_q: Query<&BuildingMode>,
+    mut selection: ResMut<TowerBuildSelection>,
+    children_q: Query<&Children>,
+    drawer_root_alive: Query<(), With<TowerDrawerRoot>>,
+) {
+    let building = building_mode_q.iter().any(|b| b.is_active);
+
+    let need_drawer = building && selection.choice.is_none();
+    let has_drawer = selection.drawer_root.is_some();
+
+    if need_drawer && !has_drawer {
+        // Spawn drawer root on the right side
+        let root = commands
+            .spawn((
+                TowerDrawerRoot,
+                Node {
+                    position_type: PositionType::Absolute,
+                    right: Val::Px(0.0),
+                    top: Val::Px(120.0),
+                    width: Val::Px(360.0),
+                    height: Val::Auto,
+                    padding: UiRect::all(Val::Px(14.0)),
+                    border: UiRect::all(Val::Px(2.0)),
+                    row_gap: Val::Px(10.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                BackgroundColor(Color::srgba(0.06, 0.07, 0.10, 0.96)),
+                BorderColor::all(Color::srgba(0.75, 0.75, 0.85, 0.45)),
+            ))
+            .with_children(|parent| {
+                parent.spawn((
+                    Text::new("Choose a tower"),
+                    TextFont {
+                        font_size: 30.0,
+                        ..default()
+                    },
+                    TextColor(Color::srgba(0.92, 0.92, 0.98, 1.0)),
+                ));
+
+                // Bow button
+                parent
+                    .spawn((
+                        Button,
+                        TowerChoiceButton {
+                            kind: TowerKind::Bow,
+                        },
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Auto,
+                            padding: UiRect::all(Val::Px(10.0)),
+                            border: UiRect::all(Val::Px(1.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgba(0.14, 0.16, 0.22, 0.9)),
+                        BorderColor::all(Color::srgba(0.65, 0.70, 0.85, 0.35)),
+                    ))
+                    .with_children(|p| {
+                        p.spawn((
+                            Text::new("Bow tower\nFires quickly but does little damage"),
+                            TextFont {
+                                font_size: 20.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgba(0.9, 0.92, 0.98, 1.0)),
+                        ));
+                    });
+
+                // Crossbow button
+                parent
+                    .spawn((
+                        Button,
+                        TowerChoiceButton {
+                            kind: TowerKind::Crossbow,
+                        },
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Auto,
+                            padding: UiRect::all(Val::Px(10.0)),
+                            border: UiRect::all(Val::Px(1.0)),
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgba(0.14, 0.16, 0.22, 0.9)),
+                        BorderColor::all(Color::srgba(0.65, 0.70, 0.85, 0.35)),
+                    ))
+                    .with_children(|p| {
+                        p.spawn((
+                            Text::new("Crossbow tower\nFires slowly but does lots of damage"),
+                            TextFont {
+                                font_size: 20.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgba(0.9, 0.92, 0.98, 1.0)),
+                        ));
+                    });
+            })
+            .id();
+        selection.drawer_root = Some(root);
+    } else if !need_drawer && has_drawer {
+        if let Some(root) = selection.drawer_root.take() {
+            // Only despawn if the root is still alive
+            if drawer_root_alive.get(root).is_ok() {
+                despawn_entity_recursive(&mut commands, root, &children_q);
+            }
+        }
+    }
+}
+
+/// Handles button presses in the tower selection drawer.
+pub fn handle_tower_selection_buttons(
+    mut commands: Commands,
+    mut selection: ResMut<TowerBuildSelection>,
+    mut interactions: Query<
+        (&Interaction, &TowerChoiceButton),
+        (Changed<Interaction>, With<Button>),
+    >,
+    children_q: Query<&Children>,
+) {
+    for (interaction, button) in &mut interactions {
+        if matches!(*interaction, Interaction::Pressed) {
+            selection.choice = Some(button.kind);
+            if let Some(root) = selection.drawer_root.take() {
+                despawn_entity_recursive(&mut commands, root, &children_q);
+            }
+        }
+    }
+}
+
+fn despawn_entity_recursive(
+    commands: &mut Commands,
+    root: Entity,
+    children_query: &Query<&Children>,
+) {
+    let mut stack = Vec::new();
+    stack.push(root);
+    while let Some(entity) = stack.pop() {
+        if let Ok(children) = children_query.get(entity) {
+            for child in children.iter() {
+                stack.push(child);
+            }
+        }
+        commands.entity(entity).despawn();
+    }
+}

@@ -1,4 +1,4 @@
-use crate::components::{BuildingMode, Player, Tower, TowerGhost};
+use crate::components::{BuildingMode, Player, Tower, TowerBuildSelection, TowerGhost, TowerKind};
 use crate::constants::Tunables;
 use crate::events::TowerBuilt;
 use bevy::asset::RenderAssetUsages;
@@ -25,11 +25,18 @@ pub fn tower_building(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut ghost_state: Local<Option<TowerGhostData>>,
+    mut selection: ResMut<TowerBuildSelection>,
     tunables: Res<Tunables>,
 ) {
     let building_mode_active = building_mode_query.iter().any(|mode| mode.is_active);
 
     if !building_mode_active {
+        clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
+        return;
+    }
+
+    // Require a tower kind to be selected before preview/placement.
+    if selection.choice.is_none() {
         clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
         return;
     }
@@ -72,9 +79,23 @@ pub fn tower_building(
     }
     let placement_pos = player_pos + offset;
 
+    // Determine preview size from selected kind
+    let preview_size: (f32, f32, f32) = match selection.choice.unwrap_or(TowerKind::Bow) {
+        // Bow: smaller (absolute size)
+        TowerKind::Bow => (1.02, 2.72, 1.02),
+        // Crossbow: bigger (absolute size)
+        TowerKind::Crossbow => (1.38, 3.68, 1.38),
+    };
+
     // Spawn or update ghost preview
     let state = ghost_state.get_or_insert_with(|| {
-        spawn_tower_ghost(&mut commands, &mut meshes, &mut materials, &tunables)
+        spawn_tower_ghost(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            &tunables,
+            preview_size,
+        )
     });
 
     let mut ghost_query = transforms.p1();
@@ -97,14 +118,44 @@ pub fn tower_building(
             player.wood = player.wood.saturating_sub(tunables.tower_cost_wood);
             player.rock = player.rock.saturating_sub(tunables.tower_cost_rock);
         }
+        // Determine tower stats from selected kind
+        let (damage, fire_interval_secs, projectile_speed, size, color) =
+            match selection.choice.unwrap_or(TowerKind::Bow) {
+                // Bow: smaller and blue (absolute size); slower projectiles
+                TowerKind::Bow => (
+                    12,
+                    0.7,
+                    60.0,
+                    (1.02, 2.72, 1.02),
+                    Color::srgb(0.35, 0.45, 0.95),
+                ),
+                // Crossbow: bigger and purple (absolute size); much faster projectiles
+                TowerKind::Crossbow => (
+                    35,
+                    2.4,
+                    140.0,
+                    (1.38, 3.68, 1.38),
+                    Color::srgb(0.62, 0.36, 0.86),
+                ),
+            };
+
         place_tower(
             &mut commands,
             &mut meshes,
             &mut materials,
             placement_pos,
             &mut tower_events,
+            damage,
+            fire_interval_secs,
+            projectile_speed,
+            size,
+            color,
             &tunables,
         );
+
+        // Force re-choose next time
+        selection.choice = None;
+        clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
     }
 }
 
@@ -144,12 +195,9 @@ fn spawn_tower_ghost(
     meshes: &mut ResMut<Assets<Mesh>>,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     tunables: &Tunables,
+    size: (f32, f32, f32),
 ) -> TowerGhostData {
-    let tower_mesh = meshes.add(Cuboid::new(
-        tunables.tower_width,
-        tunables.tower_height,
-        tunables.tower_depth,
-    ));
+    let tower_mesh = meshes.add(Cuboid::new(size.0, size.1, size.2));
     let range_mesh = meshes.add(build_ring_mesh(
         tunables.tower_range,
         tunables.ring_inner_ratio,
@@ -189,7 +237,7 @@ fn spawn_tower_ghost(
                 .spawn((
                     Mesh3d(tower_mesh.clone()),
                     MeshMaterial3d(tower_material.clone()),
-                    Transform::from_translation(Vec3::new(0.0, tunables.tower_height * 0.5, 0.0)),
+                    Transform::from_translation(Vec3::new(0.0, size.1 * 0.5, 0.0)),
                     GlobalTransform::default(),
                     Visibility::default(),
                     InheritedVisibility::default(),
@@ -314,15 +362,16 @@ fn place_tower(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     position: Vec3,
     tower_events: &mut MessageWriter<TowerBuilt>,
+    damage: u32,
+    fire_interval_secs: f32,
+    projectile_speed: f32,
+    size: (f32, f32, f32),
+    color: Color,
     tunables: &Tunables,
 ) {
-    let mesh = meshes.add(Cuboid::new(
-        tunables.tower_width,
-        tunables.tower_height,
-        tunables.tower_depth,
-    ));
+    let mesh = meshes.add(Cuboid::new(size.0, size.1, size.2));
     let mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.35, 0.35, 0.35),
+        base_color: color,
         perceptual_roughness: 0.8,
         metallic: 0.0,
         ..default()
@@ -331,16 +380,15 @@ fn place_tower(
     commands.spawn((
         Mesh3d(mesh),
         MeshMaterial3d(mat),
-        Transform::from_translation(Vec3::new(
-            position.x,
-            tunables.tower_height * 0.5,
-            position.z,
-        )),
+        Transform::from_translation(Vec3::new(position.x, size.1 * 0.5, position.z)),
         Visibility::default(),
         InheritedVisibility::default(),
         Tower {
             range: tunables.tower_range,
-            damage: tunables.tower_damage,
+            damage,
+            fire_interval_secs,
+            height: size.1,
+            projectile_speed,
             last_shot: 0.0,
         },
     ));
@@ -447,5 +495,3 @@ pub fn tower_spawn_effect_system(
         }
     }
 }
-
-

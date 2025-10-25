@@ -18,6 +18,7 @@ pub fn handle_game_input(
     keyboard_input: Res<ButtonInput<Key>>,
     mut next_state: ResMut<NextState<GameState>>,
     mut building_mode_query: Query<&mut BuildingMode>,
+    mut selection: ResMut<TowerBuildSelection>,
 ) {
     if keyboard_input.just_pressed(Key::Escape) {
         next_state.set(GameState::Menu);
@@ -28,5 +29,7 @@ pub fn handle_game_input(
             building_mode.is_active = !building_mode.is_active;
             info!("Building mode: {}", building_mode.is_active);
         }
+        // Clear selection so the drawer prompts again when entering build mode
+        selection.choice = None;
     }
 }

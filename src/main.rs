@@ -56,6 +56,7 @@ fn main() {
         .insert_state(GameState::Playing)
         .insert_resource(CurrentCollectProgress::default())
         .insert_resource(CollectUiState::default())
+        .insert_resource(TowerBuildSelection::default())
         .add_message::<ResourceCollected>()
         .add_message::<TowerBuilt>()
         .add_message::<EnemySpawned>()
@@ -79,6 +80,15 @@ fn main() {
         )
         .add_systems(Update, player_movement.run_if(in_state(GameState::Playing)))
         .add_systems(Update, tower_building.run_if(in_state(GameState::Playing)))
+        // Tower selection drawer UI
+        .add_systems(
+            Update,
+            (
+                manage_tower_selection_drawer,
+                handle_tower_selection_buttons,
+            )
+                .run_if(in_state(GameState::Playing)),
+        )
         .add_systems(
             Update,
             wave_progression.run_if(in_state(GameState::Playing)),

@@ -22,7 +22,7 @@ pub fn tower_shooting(
     for (tower_transform, mut tower) in tower_query.iter_mut() {
         tower.last_shot += time.delta_secs();
 
-        if tower.last_shot >= tunables.tower_fire_interval_secs {
+        if tower.last_shot >= tower.fire_interval_secs {
             // Find closest enemy in range
             let mut closest_enemy: Option<(Vec3, Entity)> = None;
             let mut closest_distance = f32::MAX;
@@ -49,6 +49,8 @@ pub fn tower_shooting(
                     enemy_entity,
                     &tunables,
                     tower.damage,
+                    tower.height,
+                    tower.projectile_speed,
                 );
                 tower.last_shot = 0.0;
             }
@@ -63,7 +65,6 @@ pub(crate) struct Projectile {
     damage: u32,
     last_known_target_pos: Vec3,
     lifetime: Timer,
-    
 }
 
 fn spawn_projectile(
@@ -76,10 +77,12 @@ fn spawn_projectile(
     target_entity: Entity,
     tunables: &Tunables,
     damage: u32,
+    tower_height: f32,
+    projectile_speed: f32,
 ) {
     let spawn_pos = Vec3::new(
         tower_position.x,
-        tower_position.y + tunables.tower_height * 0.35,
+        tower_position.y + tower_height * 0.35,
         tower_position.z,
     );
     let mut direction = (target_position - spawn_pos).normalize_or_zero();
@@ -103,7 +106,7 @@ fn spawn_projectile(
         Visibility::default(),
         Projectile {
             target: target_entity,
-            speed: tunables.projectile_speed,
+            speed: projectile_speed,
             damage,
             last_known_target_pos: target_position,
             lifetime: Timer::from_seconds(tunables.projectile_lifetime_secs, TimerMode::Once),

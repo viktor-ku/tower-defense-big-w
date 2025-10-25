@@ -49,13 +49,8 @@ pub const C_WAVE_HEALTH_BONUS_PER_TIER: u32 = 15;
 
 // Towers
 pub const C_TOWER_RANGE: f32 = 30.0;
-pub const C_TOWER_WIDTH: f32 = 1.2;
-pub const C_TOWER_HEIGHT: f32 = 3.2;
-pub const C_TOWER_DEPTH: f32 = 1.2;
-pub const C_TOWER_DAMAGE: u32 = 20;
 pub const C_TOWER_COST_WOOD: u32 = 5;
 pub const C_TOWER_COST_ROCK: u32 = 1;
-pub const C_TOWER_FIRE_INTERVAL_SECS: f32 = 1.5;
 pub const C_TOWER_SPAWN_EFFECT_DURATION_SECS: f32 = 0.3;
 pub const C_PROJECTILE_SPEED: f32 = 80.0;
 pub const C_PROJECTILE_HIT_RADIUS: f32 = 1.4;
@@ -82,7 +77,7 @@ pub const C_PROJECTILE_TRAIL_END_SCALE: f32 = 0.01;
 pub const C_HEALTH_BAR_WIDTH: f32 = 4.0;
 pub const C_HEALTH_BAR_HEIGHT: f32 = 0.5;
 pub const C_HEALTH_BAR_FILL_HEIGHT: f32 = 0.4;
-pub const C_HEALTH_BAR_OFFSET_Y: f32 = C_TOWER_HEIGHT + 1.0;
+pub const C_HEALTH_BAR_OFFSET_Y: f32 = 4.2;
 
 // Resources placement
 pub const C_TREES_COUNT: u32 = 100;
@@ -169,18 +164,11 @@ pub struct Tunables {
 
     /// Tower attack range in world units.
     pub tower_range: f32,
-    /// Tower mesh dimensions (width, height, depth).
-    pub tower_width: f32,
-    pub tower_height: f32,
-    pub tower_depth: f32,
-    /// Damage per shot.
-    pub tower_damage: u32,
+    // Tower mesh dimensions removed; sizes are per-kind
     /// Wood cost to build a tower.
     pub tower_cost_wood: u32,
     /// Rock cost to build a tower.
     pub tower_cost_rock: u32,
-    /// Seconds between tower shots.
-    pub tower_fire_interval_secs: f32,
     /// Seconds for the tower spawn ring effect.
     pub tower_spawn_effect_duration_secs: f32,
     /// Speed of projectiles fired by towers.
@@ -297,13 +285,8 @@ impl Default for Tunables {
 
             // Towers
             tower_range: C_TOWER_RANGE,
-            tower_width: C_TOWER_WIDTH,
-            tower_height: C_TOWER_HEIGHT,
-            tower_depth: C_TOWER_DEPTH,
-            tower_damage: C_TOWER_DAMAGE,
             tower_cost_wood: C_TOWER_COST_WOOD,
             tower_cost_rock: C_TOWER_COST_ROCK,
-            tower_fire_interval_secs: C_TOWER_FIRE_INTERVAL_SECS,
             tower_spawn_effect_duration_secs: C_TOWER_SPAWN_EFFECT_DURATION_SECS,
             projectile_speed: C_PROJECTILE_SPEED,
             projectile_hit_radius: C_PROJECTILE_HIT_RADIUS,
