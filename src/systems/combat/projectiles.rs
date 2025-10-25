@@ -332,6 +332,14 @@ pub fn damage_dealt_spawn_text_system(
     for evt in events.read() {
         if let Ok(tf) = enemy_pose_query.get(evt.enemy) {
             let pos = tf.translation() + Vec3::new(0.0, tunables.damage_number_spawn_height, 0.0);
+            // Choose a small random UI offset to prevent overlap (left/right/top/bottom)
+            let dir = rand::random::<u8>() % 4;
+            let offset_px = match dir {
+                0 => Vec2::new(10.0, 0.0),  // right
+                1 => Vec2::new(-10.0, 0.0), // left
+                2 => Vec2::new(0.0, 10.0),  // down
+                _ => Vec2::new(0.0, -10.0), // up
+            };
             commands.spawn((
                 DamageNumber {
                     timer: Timer::from_seconds(
@@ -339,13 +347,14 @@ pub fn damage_dealt_spawn_text_system(
                         TimerMode::Once,
                     ),
                     world_position: pos,
+                    ui_offset: offset_px,
                 },
                 Text::new(evt.amount.to_string()),
                 TextFont {
                     font_size: tunables.damage_number_font_size,
                     ..default()
                 },
-                TextColor(Color::srgba(1.0, 1.0, 1.0, 0.9)),
+                TextColor(Color::srgba(0.6, 0.6, 0.6, 0.9)),
             ));
         }
     }
@@ -373,6 +382,7 @@ pub(crate) struct ExplosionEffect {
 pub(crate) struct DamageNumber {
     timer: Timer,
     world_position: Vec3,
+    ui_offset: Vec2,
 }
 
 #[derive(Component)]
@@ -486,8 +496,8 @@ pub fn damage_number_system(
 
             // Convert to logical UI coordinates: top-left origin
             let logical_pos = screen_pos / scale_factor;
-            node.left = Val::Px(logical_pos.x - margin);
-            node.top = Val::Px(logical_pos.y - margin);
+            node.left = Val::Px(logical_pos.x - margin + number.ui_offset.x);
+            node.top = Val::Px(logical_pos.y - margin + number.ui_offset.y);
         } else {
             *visibility = Visibility::Hidden;
         }
