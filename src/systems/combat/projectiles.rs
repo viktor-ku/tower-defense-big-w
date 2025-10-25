@@ -17,7 +17,7 @@ pub fn tower_shooting(
     tunables: Res<Tunables>,
     mut vfx_assets: ResMut<CombatVfxAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut projectile_materials: ResMut<Assets<ProjectileMaterial>>,
+    mut standard_materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (tower_transform, mut tower) in tower_query.iter_mut() {
         tower.last_shot += time.delta_secs();
@@ -43,7 +43,7 @@ pub fn tower_shooting(
                     &mut commands,
                     &mut vfx_assets,
                     &mut meshes,
-                    &mut projectile_materials,
+                    &mut standard_materials,
                     tower_transform.translation,
                     enemy_pos_vec,
                     enemy_entity,
@@ -62,15 +62,15 @@ pub(crate) struct Projectile {
     speed: f32,
     damage: u32,
     last_known_target_pos: Vec3,
-    material: Handle<ProjectileMaterial>,
     lifetime: Timer,
+    trail_emit_timer: Timer,
 }
 
 fn spawn_projectile(
     commands: &mut Commands,
     vfx_assets: &mut CombatVfxAssets,
     meshes: &mut Assets<Mesh>,
-    projectile_materials: &mut Assets<ProjectileMaterial>,
+    standard_materials: &mut Assets<StandardMaterial>,
     tower_position: Vec3,
     target_position: Vec3,
     target_entity: Entity,
@@ -88,18 +88,16 @@ fn spawn_projectile(
     }
 
     let mesh = vfx_assets.projectile_mesh(meshes);
-    let material = projectile_materials.add(ProjectileMaterial::new(
-        Color::srgba(1.0, 0.85, 0.45, 0.95),
-        1.15,
-    ));
 
     commands.spawn((
         Mesh3d(mesh),
-        MeshMaterial3d(material.clone()),
+        // Use a solid unlit white StandardMaterial for the main projectile visibility
+        MeshMaterial3d(vfx_assets.projectile_white_material(standard_materials)),
         Transform {
             translation: spawn_pos,
             rotation: Quat::from_rotation_arc(Vec3::Y, direction.normalize_or_zero()),
-            scale: Vec3::splat(0.55),
+            // Elongated scale to resemble an arrow/bolt (Y is forward axis)
+            scale: Vec3::new(0.18, 1.1, 0.18),
         },
         GlobalTransform::default(),
         Visibility::default(),
@@ -108,8 +106,11 @@ fn spawn_projectile(
             speed: tunables.projectile_speed,
             damage,
             last_known_target_pos: target_position,
-            material,
             lifetime: Timer::from_seconds(tunables.projectile_lifetime_secs, TimerMode::Once),
+            trail_emit_timer: Timer::from_seconds(
+                tunables.projectile_trail_emit_interval_secs,
+                TimerMode::Repeating,
+            ),
         },
     ));
 }
@@ -138,12 +139,7 @@ pub fn projectile_system(
     for (entity, mut projectile, mut transform) in projectile_query.iter_mut() {
         projectile.lifetime.tick(time.delta());
         if projectile.lifetime.just_finished() {
-            cleanup_projectile(
-                &mut commands,
-                entity,
-                &projectile.material,
-                &mut projectile_materials,
-            );
+            cleanup_projectile(&mut commands, entity);
             continue;
         }
 
@@ -194,12 +190,7 @@ pub fn projectile_system(
 
             // Old damage number spawn removed; now handled via DamageDealt events
 
-            cleanup_projectile(
-                &mut commands,
-                entity,
-                &projectile.material,
-                &mut projectile_materials,
-            );
+            cleanup_projectile(&mut commands, entity);
             continue;
         }
 
@@ -208,7 +199,57 @@ pub fn projectile_system(
             transform.translation += direction * step;
             transform.rotation = Quat::from_rotation_arc(Vec3::Y, direction);
         }
+
+        // Emit trail points along the path
+        projectile.trail_emit_timer.tick(time.delta());
+        if projectile.trail_emit_timer.just_finished() {
+            spawn_trail_point(
+                &mut commands,
+                &mut vfx_assets,
+                &mut meshes,
+                &mut projectile_materials,
+                transform.translation,
+                &tunables,
+            );
+        }
     }
+}
+
+#[derive(Component)]
+pub(crate) struct ProjectileTrailPoint {
+    timer: Timer,
+    material: Handle<ProjectileMaterial>,
+}
+
+fn spawn_trail_point(
+    commands: &mut Commands,
+    vfx_assets: &mut CombatVfxAssets,
+    meshes: &mut Assets<Mesh>,
+    projectile_materials: &mut Assets<ProjectileMaterial>,
+    position: Vec3,
+    tunables: &Tunables,
+) {
+    let mesh = vfx_assets.projectile_mesh(meshes);
+    let material = projectile_materials.add(ProjectileMaterial::new(
+        Color::srgba(1.0, 1.0, 1.0, 0.9),
+        1.2,
+    ));
+
+    commands.spawn((
+        Mesh3d(mesh),
+        MeshMaterial3d(material.clone()),
+        Transform {
+            translation: position,
+            rotation: Quat::IDENTITY,
+            scale: Vec3::splat(tunables.projectile_trail_start_scale.max(0.0)),
+        },
+        GlobalTransform::default(),
+        Visibility::default(),
+        ProjectileTrailPoint {
+            timer: Timer::from_seconds(tunables.projectile_trail_lifetime_secs, TimerMode::Once),
+            material,
+        },
+    ));
 }
 
 fn handle_projectile_hit(
@@ -381,13 +422,7 @@ pub fn damage_dealt_spawn_text_system(
     }
 }
 
-fn cleanup_projectile(
-    commands: &mut Commands,
-    entity: Entity,
-    material: &Handle<ProjectileMaterial>,
-    projectile_materials: &mut Assets<ProjectileMaterial>,
-) {
-    projectile_materials.remove(material.id());
+fn cleanup_projectile(commands: &mut Commands, entity: Entity) {
     commands.entity(entity).despawn();
 }
 
@@ -473,6 +508,39 @@ pub fn explosion_effect_system(
 
         if effect.timer.just_finished() {
             explosion_materials.remove(effect.material.id());
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+pub fn projectile_trail_system(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut trails: Query<(Entity, &mut ProjectileTrailPoint, &mut Transform)>,
+    mut projectile_materials: ResMut<Assets<ProjectileMaterial>>,
+    tunables: Res<Tunables>,
+) {
+    for (entity, mut trail, mut transform) in trails.iter_mut() {
+        trail.timer.tick(time.delta());
+        let duration = trail.timer.duration().as_secs_f32().max(f32::EPSILON);
+        let progress = (trail.timer.elapsed().as_secs_f32() / duration).clamp(0.0, 1.0);
+
+        // Lerp scale
+        let start = tunables.projectile_trail_start_scale.max(0.0);
+        let end = tunables.projectile_trail_end_scale.max(0.0);
+        let scale = start + (end - start) * progress;
+        transform.scale = Vec3::splat(scale);
+
+        // Fade alpha and glow down over time
+        if let Some(mat) = projectile_materials.get_mut(&trail.material) {
+            let mut color = mat.data.color;
+            color.w = (1.0 - progress).clamp(0.0, 1.0) * 0.9;
+            mat.data.color = color;
+            mat.data.glow = 1.2 * (1.0 - progress * 0.8);
+        }
+
+        if trail.timer.just_finished() {
+            projectile_materials.remove(trail.material.id());
             commands.entity(entity).despawn();
         }
     }

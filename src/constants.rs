@@ -72,6 +72,12 @@ pub const C_ENEMY_PRE_EXPLOSION_FLASHES: f32 = 8.0;
 pub const C_EXPLOSION_EFFECT_DURATION_SECS: f32 = 0.8;
 pub const C_EXPLOSION_EFFECT_MAX_SCALE: f32 = 3.0;
 
+// Projectile trail
+pub const C_PROJECTILE_TRAIL_EMIT_INTERVAL_SECS: f32 = 0.1;
+pub const C_PROJECTILE_TRAIL_LIFETIME_SECS: f32 = 0.5;
+pub const C_PROJECTILE_TRAIL_START_SCALE: f32 = 0.8;
+pub const C_PROJECTILE_TRAIL_END_SCALE: f32 = 0.01;
+
 // Health bars (world-space over enemies)
 pub const C_HEALTH_BAR_WIDTH: f32 = 4.0;
 pub const C_HEALTH_BAR_HEIGHT: f32 = 0.5;
@@ -206,6 +212,15 @@ pub struct Tunables {
     /// Maximum scale of the spawned explosion effect.
     pub explosion_effect_max_scale: f32,
 
+    /// Seconds between trail points emitted by a projectile.
+    pub projectile_trail_emit_interval_secs: f32,
+    /// Lifetime of a single projectile trail point.
+    pub projectile_trail_lifetime_secs: f32,
+    /// Initial scale of projectile trail points.
+    pub projectile_trail_start_scale: f32,
+    /// End scale of projectile trail points.
+    pub projectile_trail_end_scale: f32,
+
     /// Enemy health bar width in world units.
     pub health_bar_width: f32,
     /// Enemy health bar background height in world units.
@@ -304,6 +319,12 @@ impl Default for Tunables {
             enemy_pre_explosion_flashes: C_ENEMY_PRE_EXPLOSION_FLASHES,
             explosion_effect_duration_secs: C_EXPLOSION_EFFECT_DURATION_SECS,
             explosion_effect_max_scale: C_EXPLOSION_EFFECT_MAX_SCALE,
+
+            // Projectile trail
+            projectile_trail_emit_interval_secs: C_PROJECTILE_TRAIL_EMIT_INTERVAL_SECS,
+            projectile_trail_lifetime_secs: C_PROJECTILE_TRAIL_LIFETIME_SECS,
+            projectile_trail_start_scale: C_PROJECTILE_TRAIL_START_SCALE,
+            projectile_trail_end_scale: C_PROJECTILE_TRAIL_END_SCALE,
 
             // Health bars (world-space)
             health_bar_width: C_HEALTH_BAR_WIDTH,

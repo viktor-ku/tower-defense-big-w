@@ -41,7 +41,11 @@ impl Material for ProjectileMaterial {
     }
 
     fn alpha_mode(&self) -> AlphaMode {
-        AlphaMode::Add
+        if self.data.color.w >= 0.999 {
+            AlphaMode::Opaque
+        } else {
+            AlphaMode::Blend
+        }
     }
 }
 
