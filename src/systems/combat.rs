@@ -1,7 +1,7 @@
 use crate::components::*;
 use crate::constants::Tunables;
 use crate::events::*;
-use crate::materials::{ImpactMaterial, ProjectileMaterial};
+use crate::materials::{ExplosionMaterial, ImpactMaterial, ProjectileMaterial};
 use bevy::asset::RenderAssetUsages;
 use bevy::math::primitives::{Circle, Rectangle, Sphere};
 use bevy::pbr::MeshMaterial3d;
@@ -67,6 +67,7 @@ impl EnemyHealthBarAssets {
 pub struct CombatVfxAssets {
     projectile_mesh: Option<Handle<Mesh>>,
     impact_mesh: Option<Handle<Mesh>>,
+    explosion_mesh: Option<Handle<Mesh>>,
 }
 
 impl CombatVfxAssets {
@@ -79,6 +80,12 @@ impl CombatVfxAssets {
     fn impact_mesh(&mut self, meshes: &mut Assets<Mesh>) -> Handle<Mesh> {
         self.impact_mesh
             .get_or_insert_with(|| meshes.add(Mesh::from(Circle::new(0.9))))
+            .clone()
+    }
+
+    fn explosion_mesh(&mut self, meshes: &mut Assets<Mesh>) -> Handle<Mesh> {
+        self.explosion_mesh
+            .get_or_insert_with(|| meshes.add(Mesh::from(Sphere::new(0.6))))
             .clone()
     }
 }
@@ -111,6 +118,22 @@ pub(crate) struct EnemyHitFlash {
     timer: Timer,
     original_color: Color,
     material: Handle<StandardMaterial>,
+}
+
+#[derive(Component)]
+pub(crate) struct ExplosionEffect {
+    timer: Timer,
+    material: Handle<ExplosionMaterial>,
+}
+
+#[derive(Component)]
+pub(crate) struct EnemyPreExplosion {
+    timer: Timer,
+    original_color: Color,
+    material: Handle<StandardMaterial>,
+    flashes: f32,
+    last_flash_state: bool,
+    explosion_origin: Vec3,
 }
 
 fn cursor_to_ground(
@@ -274,7 +297,13 @@ fn spawn_tower_ghost(
     });
 
     let root = commands
-        .spawn((TowerGhost, Transform::default(), GlobalTransform::default()))
+        .spawn((
+            TowerGhost,
+            Transform::default(),
+            GlobalTransform::default(),
+            Visibility::default(),
+            InheritedVisibility::default(),
+        ))
         .id();
 
     let mut tower_child = None;
@@ -288,6 +317,8 @@ fn spawn_tower_ghost(
                     MeshMaterial3d(tower_material.clone()),
                     Transform::from_translation(Vec3::new(0.0, tunables.tower_height * 0.5, 0.0)),
                     GlobalTransform::default(),
+                    Visibility::default(),
+                    InheritedVisibility::default(),
                 ))
                 .id(),
         );
@@ -299,6 +330,7 @@ fn spawn_tower_ghost(
                     Transform::from_translation(Vec3::new(0.0, 0.05, 0.0)),
                     GlobalTransform::default(),
                     Visibility::default(),
+                    InheritedVisibility::default(),
                 ))
                 .id(),
         );
@@ -434,6 +466,8 @@ fn place_tower(
             tunables.tower_height * 0.5,
             position.z,
         )),
+        Visibility::default(),
+        InheritedVisibility::default(),
         Tower {
             range: tunables.tower_range,
             damage: tunables.tower_damage,
@@ -666,6 +700,8 @@ pub fn enemy_spawning(
                 Mesh3d(e_mesh),
                 MeshMaterial3d(e_mat),
                 Transform::from_translation(Vec3::new(spawn_pos.x, 0.8, spawn_pos.z)),
+                Visibility::default(),
+                InheritedVisibility::default(),
                 Enemy {
                     health: enemy_health,
                     max_health: enemy_health,
@@ -745,7 +781,7 @@ pub fn tower_shooting(
     time: Res<Time>,
     mut commands: Commands,
     mut tower_query: Query<(&Transform, &mut Tower)>,
-    enemy_pos: Query<(&Transform, Entity), With<Enemy>>,
+    enemy_pos: Query<(&Transform, Entity), (With<Enemy>, Without<EnemyPreExplosion>)>,
     tunables: Res<Tunables>,
     mut vfx_assets: ResMut<CombatVfxAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -840,22 +876,20 @@ pub fn projectile_system(
     time: Res<Time>,
     mut commands: Commands,
     mut projectile_query: Query<(Entity, &mut Projectile, &mut Transform), Without<Enemy>>,
-    enemy_pose_query: Query<&Transform, (With<Enemy>, Without<Projectile>)>,
-    children_query: Query<&Children>,
+    enemy_pose_query: Query<&Transform, (With<Enemy>, Without<EnemyPreExplosion>)>,
     mut enemy_hit_query: Query<
         (
             &mut Enemy,
             &MeshMaterial3d<StandardMaterial>,
             Option<&mut EnemyHitFlash>,
         ),
-        With<Enemy>,
+        (With<Enemy>, Without<EnemyPreExplosion>),
     >,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut projectile_materials: ResMut<Assets<ProjectileMaterial>>,
     mut impact_materials: ResMut<Assets<ImpactMaterial>>,
     mut vfx_assets: ResMut<CombatVfxAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut enemy_killed_events: MessageWriter<EnemyKilled>,
     tunables: Res<Tunables>,
 ) {
     for (entity, mut projectile, mut transform) in projectile_query.iter_mut() {
@@ -896,9 +930,7 @@ pub fn projectile_system(
                     projectile.damage,
                     impact_point,
                     &mut enemy_hit_query,
-                    &children_query,
                     &mut standard_materials,
-                    &mut enemy_killed_events,
                     &tunables,
                 );
             }
@@ -944,11 +976,9 @@ fn handle_projectile_hit(
             &MeshMaterial3d<StandardMaterial>,
             Option<&mut EnemyHitFlash>,
         ),
-        With<Enemy>,
+        (With<Enemy>, Without<EnemyPreExplosion>),
     >,
-    children_query: &Query<&Children>,
     standard_materials: &mut Assets<StandardMaterial>,
-    enemy_killed_events: &mut MessageWriter<EnemyKilled>,
     tunables: &Tunables,
 ) {
     if let Ok((mut enemy, material_handle, flash_opt)) = enemy_hit_query.get_mut(enemy_entity) {
@@ -962,30 +992,64 @@ fn handle_projectile_hit(
             .map(|mat| mat.base_color)
             .unwrap_or(Color::srgb(0.9, 0.1, 0.1));
 
-        if let Some(mut flash) = flash_opt {
-            flash
-                .timer
-                .set_duration(Duration::from_secs_f32(tunables.enemy_flash_duration_secs));
-            flash.timer.reset();
-        } else {
-            commands.entity(enemy_entity).insert(EnemyHitFlash {
-                timer: Timer::from_seconds(tunables.enemy_flash_duration_secs, TimerMode::Once),
+        let lethal_hit = remaining_health == 0;
+
+        if lethal_hit {
+            if let Some(mat) = standard_materials.get_mut(&mat_handle) {
+                mat.base_color = Color::srgba(0.9, 1.0, 0.9, 1.0);
+            }
+            commands.entity(enemy_entity).remove::<EnemyHitFlash>();
+            start_enemy_pre_explosion(
+                commands,
+                enemy_entity,
+                mat_handle,
                 original_color,
-                material: mat_handle.clone(),
-            });
-        }
+                impact_point,
+                standard_materials,
+                tunables,
+            );
+        } else {
+            if let Some(mut flash) = flash_opt {
+                flash
+                    .timer
+                    .set_duration(Duration::from_secs_f32(tunables.enemy_flash_duration_secs));
+                flash.timer.reset();
+            } else {
+                commands.entity(enemy_entity).insert(EnemyHitFlash {
+                    timer: Timer::from_seconds(tunables.enemy_flash_duration_secs, TimerMode::Once),
+                    original_color,
+                    material: mat_handle.clone(),
+                });
+            }
 
-        if let Some(mat) = standard_materials.get_mut(&mat_handle) {
-            mat.base_color = Color::WHITE;
-        }
-
-        if remaining_health == 0 {
-            despawn_entity_recursive(commands, enemy_entity, children_query);
-            enemy_killed_events.write(EnemyKilled {
-                position: impact_point,
-            });
+            if let Some(mat) = standard_materials.get_mut(&mat_handle) {
+                mat.base_color = Color::WHITE;
+            }
         }
     }
+}
+
+fn start_enemy_pre_explosion(
+    commands: &mut Commands,
+    enemy_entity: Entity,
+    material_handle: Handle<StandardMaterial>,
+    original_color: Color,
+    explosion_origin: Vec3,
+    standard_materials: &mut Assets<StandardMaterial>,
+    tunables: &Tunables,
+) {
+    if let Some(mat) = standard_materials.get_mut(&material_handle) {
+        mat.base_color = Color::srgba(0.35, 0.9, 0.35, 1.0);
+    }
+
+    commands.entity(enemy_entity).insert(EnemyPreExplosion {
+        timer: Timer::from_seconds(tunables.enemy_pre_explosion_duration_secs, TimerMode::Once),
+        original_color,
+        material: material_handle,
+        flashes: tunables.enemy_pre_explosion_flashes,
+        last_flash_state: true,
+        explosion_origin,
+    });
 }
 
 fn despawn_entity_recursive(
@@ -1033,12 +1097,44 @@ fn spawn_impact_flash(
     ));
 }
 
+fn spawn_explosion_effect(
+    commands: &mut Commands,
+    vfx_assets: &mut CombatVfxAssets,
+    meshes: &mut Assets<Mesh>,
+    explosion_materials: &mut Assets<ExplosionMaterial>,
+    origin: Vec3,
+    tunables: &Tunables,
+) {
+    let mesh = vfx_assets.explosion_mesh(meshes);
+    let material =
+        explosion_materials.add(ExplosionMaterial::new(Color::srgba(1.0, 0.8, 0.45, 0.95)));
+    commands.spawn((
+        Mesh3d(mesh),
+        MeshMaterial3d(material.clone()),
+        Transform {
+            translation: Vec3::new(origin.x, origin.y + 0.05, origin.z),
+            scale: Vec3::splat(0.6),
+            ..Default::default()
+        },
+        GlobalTransform::default(),
+        Visibility::default(),
+        ExplosionEffect {
+            timer: Timer::from_seconds(tunables.explosion_effect_duration_secs, TimerMode::Once),
+            material,
+        },
+    ));
+}
+
 fn spawn_damage_number(commands: &mut Commands, tunables: &Tunables, damage: u32, point: Vec3) {
+    let mut world_position = point + Vec3::Y * tunables.damage_number_spawn_height;
+    let horizontal_jitter = (rand::random::<f32>() - 0.5) * 0.6;
+    world_position += Vec3::new(horizontal_jitter, 0.0, 0.0);
+
     commands.spawn((
         DamageNumber {
             timer: Timer::from_seconds(tunables.damage_number_lifetime_secs, TimerMode::Once),
             velocity: Vec3::new(0.0, tunables.damage_number_float_speed, 0.0),
-            world_position: point + Vec3::Y * tunables.damage_number_spawn_height,
+            world_position,
         },
         Node {
             position_type: PositionType::Absolute,
@@ -1088,6 +1184,35 @@ pub fn impact_effect_system(
     }
 }
 
+pub fn explosion_effect_system(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut effects: Query<(Entity, &mut ExplosionEffect, &mut Transform)>,
+    mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
+    tunables: Res<Tunables>,
+) {
+    let base_scale = 0.6;
+    for (entity, mut effect, mut transform) in effects.iter_mut() {
+        effect.timer.tick(time.delta());
+        let duration = effect.timer.duration().as_secs_f32().max(f32::EPSILON);
+        let progress = (effect.timer.elapsed().as_secs_f32() / duration).clamp(0.0, 1.0);
+        let eased = progress.powf(0.7);
+        let target_scale =
+            base_scale + eased * (tunables.explosion_effect_max_scale - base_scale).max(0.0);
+        transform.scale = Vec3::splat(target_scale);
+
+        if let Some(mat) = explosion_materials.get_mut(&effect.material) {
+            mat.data.progress = progress;
+            mat.data.glow = 1.4 - progress * 0.8;
+        }
+
+        if effect.timer.just_finished() {
+            explosion_materials.remove(effect.material.id());
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
 pub fn damage_number_system(
     time: Res<Time>,
     mut commands: Commands,
@@ -1110,8 +1235,8 @@ pub fn damage_number_system(
         match camera.world_to_viewport(camera_transform, number.world_position) {
             Ok(mut screen_pos) => {
                 screen_pos.y = window.height() - screen_pos.y;
-                node.left = Val::Px(screen_pos.x - 12.0);
-                node.top = Val::Px(screen_pos.y - 24.0);
+                node.left = Val::Px(screen_pos.x - 10.0);
+                node.top = Val::Px(screen_pos.y - 16.0);
             }
             Err(_) => {
                 commands.entity(entity).despawn();
@@ -1126,6 +1251,63 @@ pub fn damage_number_system(
 
         if number.timer.just_finished() {
             commands.entity(entity).despawn();
+        }
+    }
+}
+
+pub fn enemy_pre_explosion_system(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut pre_explosions: Query<(Entity, &mut EnemyPreExplosion)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut vfx_assets: ResMut<CombatVfxAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
+    children_query: Query<&Children>,
+    mut enemy_killed_events: MessageWriter<EnemyKilled>,
+    tunables: Res<Tunables>,
+) {
+    for (entity, mut pre) in pre_explosions.iter_mut() {
+        pre.timer.tick(time.delta());
+        let duration = pre.timer.duration().as_secs_f32().max(f32::EPSILON);
+        let progress = (pre.timer.elapsed().as_secs_f32() / duration).clamp(0.0, 1.0);
+        let flash_phase = (progress * pre.flashes).fract();
+        let flash_on = flash_phase < 0.5;
+
+        if flash_on != pre.last_flash_state {
+            if let Some(mat) = materials.get_mut(&pre.material) {
+                if flash_on {
+                    mat.base_color = Color::WHITE;
+                } else {
+                    mat.base_color = Color::srgba(0.35, 0.9, 0.35, 1.0);
+                }
+            }
+            pre.last_flash_state = flash_on;
+        }
+
+        if pre.timer.just_finished() {
+            if commands.get_entity(entity).is_err() {
+                continue;
+            }
+
+            if let Some(mat) = materials.get_mut(&pre.material) {
+                mat.base_color = pre.original_color;
+            }
+
+            spawn_explosion_effect(
+                &mut commands,
+                &mut vfx_assets,
+                &mut meshes,
+                &mut explosion_materials,
+                pre.explosion_origin,
+                &tunables,
+            );
+
+            enemy_killed_events.write(EnemyKilled {
+                position: pre.explosion_origin,
+            });
+
+            despawn_entity_recursive(&mut commands, entity, &children_query);
         }
     }
 }

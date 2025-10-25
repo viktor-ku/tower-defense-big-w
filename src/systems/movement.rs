@@ -1,5 +1,6 @@
 use crate::components::*;
 use crate::constants::Tunables;
+use crate::systems::EnemyPreExplosion;
 use bevy::input::keyboard::Key;
 use bevy::prelude::*;
 
@@ -53,7 +54,10 @@ pub fn player_movement(
 pub fn enemy_movement(
     time: Res<Time>,
     mut commands: Commands,
-    mut enemy_query: Query<(Entity, &mut Transform, &Enemy, Option<&mut PathFollower>)>,
+    mut enemy_query: Query<
+        (Entity, &mut Transform, &Enemy, Option<&mut PathFollower>),
+        Without<EnemyPreExplosion>,
+    >,
     mut village_query: Query<&mut Village>,
     roads: Option<Res<RoadPaths>>,
     tunables: Res<Tunables>,

@@ -43,6 +43,7 @@ fn main() {
         .add_plugins((
             MaterialPlugin::<ProjectileMaterial>::default(),
             MaterialPlugin::<ImpactMaterial>::default(),
+            MaterialPlugin::<ExplosionMaterial>::default(),
         ))
         .add_plugins(ChunkPlugin)
         .add_plugins(FrameTimeDiagnosticsPlugin::default())
@@ -91,7 +92,9 @@ fn main() {
             Update,
             (
                 projectile_system,
+                enemy_pre_explosion_system,
                 impact_effect_system,
+                explosion_effect_system,
                 damage_number_system,
                 enemy_flash_system,
             )

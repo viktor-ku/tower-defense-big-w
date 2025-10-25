@@ -378,9 +378,9 @@ fn spawn_chunk_content(
     let origin = chunk_origin(coord, size);
     let mut rng = StdRng::seed_from_u64(hash_combine(world_seed, coord.x, coord.z));
 
-    // Simple density: moderate per-chunk counts
-    let trees_per_chunk = 20usize;
-    let rocks_per_chunk = 10usize;
+    // Increase resource density using tunables as a guide
+    let trees_per_chunk = (tunables.trees_count / 2).max(30) as usize;
+    let rocks_per_chunk = (tunables.rocks_count / 2).max(12) as usize;
 
     // Trees
     for _ in 0..trees_per_chunk {

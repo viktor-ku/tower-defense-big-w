@@ -66,9 +66,13 @@ pub const C_RING_INNER_RATIO: f32 = 0.92;
 pub const C_IMPACT_EFFECT_DURATION_SECS: f32 = 0.4;
 pub const C_DAMAGE_NUMBER_LIFETIME_SECS: f32 = 0.9;
 pub const C_DAMAGE_NUMBER_FLOAT_SPEED: f32 = 4.5;
-pub const C_DAMAGE_NUMBER_SPAWN_HEIGHT: f32 = 2.6;
+pub const C_DAMAGE_NUMBER_SPAWN_HEIGHT: f32 = 1.35;
 pub const C_DAMAGE_NUMBER_FONT_SIZE: f32 = 30.0;
 pub const C_ENEMY_FLASH_DURATION_SECS: f32 = 0.22;
+pub const C_ENEMY_PRE_EXPLOSION_DURATION_SECS: f32 = 0.6;
+pub const C_ENEMY_PRE_EXPLOSION_FLASHES: f32 = 8.0;
+pub const C_EXPLOSION_EFFECT_DURATION_SECS: f32 = 0.8;
+pub const C_EXPLOSION_EFFECT_MAX_SCALE: f32 = 3.0;
 
 // Health bars (world-space over enemies)
 pub const C_HEALTH_BAR_WIDTH: f32 = 3.0;
@@ -203,6 +207,14 @@ pub struct Tunables {
     pub damage_number_font_size: f32,
     /// Duration of the white flash applied to enemies on hit.
     pub enemy_flash_duration_secs: f32,
+    /// Duration of the pre-explosion warning flash on enemies.
+    pub enemy_pre_explosion_duration_secs: f32,
+    /// Number of flash cycles during the pre-explosion warning.
+    pub enemy_pre_explosion_flashes: f32,
+    /// Duration of the spawned explosion effect.
+    pub explosion_effect_duration_secs: f32,
+    /// Maximum scale of the spawned explosion effect.
+    pub explosion_effect_max_scale: f32,
 
     /// Enemy health bar width in world units.
     pub health_bar_width: f32,
@@ -308,6 +320,10 @@ impl Default for Tunables {
             damage_number_spawn_height: C_DAMAGE_NUMBER_SPAWN_HEIGHT,
             damage_number_font_size: C_DAMAGE_NUMBER_FONT_SIZE,
             enemy_flash_duration_secs: C_ENEMY_FLASH_DURATION_SECS,
+            enemy_pre_explosion_duration_secs: C_ENEMY_PRE_EXPLOSION_DURATION_SECS,
+            enemy_pre_explosion_flashes: C_ENEMY_PRE_EXPLOSION_FLASHES,
+            explosion_effect_duration_secs: C_EXPLOSION_EFFECT_DURATION_SECS,
+            explosion_effect_max_scale: C_EXPLOSION_EFFECT_MAX_SCALE,
 
             // Health bars (world-space)
             health_bar_width: C_HEALTH_BAR_WIDTH,
