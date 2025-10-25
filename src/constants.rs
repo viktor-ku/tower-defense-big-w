@@ -42,6 +42,8 @@ pub const C_TOWER_WIDTH: f32 = 1.2;
 pub const C_TOWER_HEIGHT: f32 = 3.2;
 pub const C_TOWER_DEPTH: f32 = 1.2;
 pub const C_TOWER_DAMAGE: u32 = 25;
+pub const C_TOWER_COST_WOOD: u32 = 5;
+pub const C_TOWER_COST_ROCK: u32 = 1;
 pub const C_TOWER_FIRE_INTERVAL_SECS: f32 = 1.0;
 pub const C_TOWER_SPAWN_EFFECT_DURATION_SECS: f32 = 0.45;
 pub const C_MAX_BUILD_DISTANCE: f32 = 100.0;
@@ -127,6 +129,10 @@ pub struct Tunables {
     pub tower_depth: f32,
     /// Damage per shot.
     pub tower_damage: u32,
+    /// Wood cost to build a tower.
+    pub tower_cost_wood: u32,
+    /// Rock cost to build a tower.
+    pub tower_cost_rock: u32,
     /// Seconds between tower shots.
     pub tower_fire_interval_secs: f32,
     /// Seconds for the tower spawn ring effect.
@@ -214,6 +220,8 @@ impl Default for Tunables {
             tower_height: C_TOWER_HEIGHT,
             tower_depth: C_TOWER_DEPTH,
             tower_damage: C_TOWER_DAMAGE,
+            tower_cost_wood: C_TOWER_COST_WOOD,
+            tower_cost_rock: C_TOWER_COST_ROCK,
             tower_fire_interval_secs: C_TOWER_FIRE_INTERVAL_SECS,
             tower_spawn_effect_duration_secs: C_TOWER_SPAWN_EFFECT_DURATION_SECS,
             max_build_distance: C_MAX_BUILD_DISTANCE,

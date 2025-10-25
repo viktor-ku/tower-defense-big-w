@@ -1,6 +1,6 @@
 use crate::components::*;
-use crate::events::*;
 use crate::constants::Tunables;
+use crate::events::*;
 use bevy::asset::RenderAssetUsages;
 use bevy::math::primitives::Rectangle;
 use bevy::pbr::MeshMaterial3d;
@@ -93,6 +93,7 @@ pub fn tower_building(
         Query<&Transform, (With<Player>, Without<Tower>)>,
         Query<&mut Transform, With<TowerGhost>>,
     )>,
+    mut player_res_query: Query<&mut Player, With<Player>>,
     building_mode_query: Query<&BuildingMode>,
     mut tower_events: MessageWriter<TowerBuilt>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -154,10 +155,29 @@ pub fn tower_building(
     if let Ok(mut transform) = ghost_query.get_mut(state.root) {
         transform.translation = placement_pos;
     }
-    update_ghost_visuals(state, in_range, &mut materials);
+    // Check affordability
+    let mut affordable = false;
+    if let Ok(player) = player_res_query.single_mut() {
+        affordable =
+            player.wood >= tunables.tower_cost_wood && player.rock >= tunables.tower_cost_rock;
+    }
 
-    if in_range && mouse_input.just_pressed(MouseButton::Left) {
-        place_tower(&mut commands, &mut meshes, &mut materials, placement_pos, &mut tower_events, &tunables);
+    update_ghost_visuals(state, in_range && affordable, &mut materials);
+
+    if in_range && affordable && mouse_input.just_pressed(MouseButton::Left) {
+        if let Ok(mut player) = player_res_query.single_mut() {
+            // Deduct resources
+            player.wood = player.wood.saturating_sub(tunables.tower_cost_wood);
+            player.rock = player.rock.saturating_sub(tunables.tower_cost_rock);
+        }
+        place_tower(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            placement_pos,
+            &mut tower_events,
+            &tunables,
+        );
     }
 }
 
@@ -357,7 +377,11 @@ fn place_tower(
     commands.spawn((
         Mesh3d(mesh),
         MeshMaterial3d(mat),
-        Transform::from_translation(Vec3::new(position.x, tunables.tower_height * 0.5, position.z)),
+        Transform::from_translation(Vec3::new(
+            position.x,
+            tunables.tower_height * 0.5,
+            position.z,
+        )),
         Tower {
             range: tunables.tower_range,
             damage: tunables.tower_damage,
@@ -401,7 +425,11 @@ fn spawn_tower_spawn_effect(
     position: Vec3,
     tunables: &Tunables,
 ) {
-    let mesh_handle = meshes.add(build_ring_mesh(tunables.tower_range, tunables.ring_inner_ratio, 72));
+    let mesh_handle = meshes.add(build_ring_mesh(
+        tunables.tower_range,
+        tunables.ring_inner_ratio,
+        72,
+    ));
     let base_color = [0.9, 0.95, 0.6];
     let material = materials.add(StandardMaterial {
         base_color: Color::srgba(base_color[0], base_color[1], base_color[2], 0.7),
@@ -594,7 +622,11 @@ pub fn enemy_spawning(
                 parent
                     .spawn((
                         EnemyHealthBarRoot,
-                        Transform::from_translation(Vec3::new(0.0, tunables.health_bar_offset_y, 0.0)),
+                        Transform::from_translation(Vec3::new(
+                            0.0,
+                            tunables.health_bar_offset_y,
+                            0.0,
+                        )),
                         GlobalTransform::default(),
                         Visibility::default(),
                         InheritedVisibility::default(),
