@@ -1,6 +1,7 @@
 use crate::components::*;
 use crate::events::*;
 use bevy::prelude::*;
+use bevy::input::keyboard::Key;
 
 /// Local state for hold-to-collect interaction.
 /// Tracks which target is being collected and how long E has been held.
@@ -21,7 +22,7 @@ pub struct HoldCollectState {
 /// - On completion, grants resources, emits events, and despawns the target.
 pub fn hold_to_collect(
     time: Res<Time>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+    keyboard_input: Res<ButtonInput<Key>>,
     mut player_query: Query<(&Transform, &mut Player)>,
     harvestables: Query<(Entity, &Transform, &Harvestable)>,
     mut resource_events: MessageWriter<ResourceCollected>,
@@ -57,7 +58,7 @@ pub fn hold_to_collect(
         }
     }
 
-    let is_holding = keyboard_input.pressed(KeyCode::KeyE);
+    let is_holding = keyboard_input.pressed(Key::Character("e".into()));
 
     match (nearest, is_holding) {
         (Some((entity, _target_pos, harvestable)), true) => {

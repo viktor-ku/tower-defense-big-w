@@ -11,6 +11,9 @@ use constants::Tunables;
 use events::*;
 use setup::*;
 use systems::*;
+// Frame time graph (Bevy 0.17 dev tools)
+use bevy::dev_tools::frame_time_graph::FrameTimeGraphPlugin;
+use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 
 fn main() {
     let tunables = Tunables::default();
@@ -31,6 +34,8 @@ fn main() {
                 filter: "wgpu=error,bevy_render=error".into(),
                 ..default()
             }),))
+        .add_plugins(FrameTimeDiagnosticsPlugin::default())
+        .add_plugins(FrameTimeGraphPlugin)
         // Add explicit exit handling
         .add_systems(Update, bevy::window::close_when_requested)
         .add_systems(Update, bevy::window::exit_on_all_closed)
@@ -63,7 +68,11 @@ fn main() {
             Update,
             tower_spawn_effect_system.run_if(in_state(GameState::Playing)),
         )
-        .add_systems(Update, handle_events.run_if(in_state(GameState::Playing)))
+        // Observers for gameplay events (logging)
+        .add_observer(on_resource_collected)
+        .add_observer(on_tower_built)
+        .add_observer(on_enemy_spawned)
+        .add_observer(on_enemy_killed)
         // Camera system
         .add_systems(Update, camera_system.run_if(in_state(GameState::Playing)))
         // HUD systems

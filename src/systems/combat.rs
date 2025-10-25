@@ -8,6 +8,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::PrimitiveTopology;
 use bevy::time::TimerMode;
 use std::f32::consts::TAU;
+use std::time::Duration;
 
 // constants moved to Tunables
 
@@ -545,12 +546,19 @@ pub fn enemy_spawning(
     mut health_bar_assets: ResMut<EnemyHealthBarAssets>,
     roads: Option<Res<RoadPaths>>,
     tunables: Res<Tunables>,
+    mut spawn_timer: Local<Option<Timer>>,
 ) {
-    static mut LAST_SPAWN: f32 = 0.0;
-    unsafe {
-        LAST_SPAWN += time.delta_secs();
-        if LAST_SPAWN >= tunables.enemy_spawn_interval_secs {
-            LAST_SPAWN = 0.0;
+    let timer = spawn_timer.get_or_insert_with(|| {
+        Timer::from_seconds(tunables.enemy_spawn_interval_secs, TimerMode::Repeating)
+    });
+
+    // Keep timer duration synced with tunables
+    if timer.duration() != Duration::from_secs_f32(tunables.enemy_spawn_interval_secs) {
+        timer.set_duration(Duration::from_secs_f32(tunables.enemy_spawn_interval_secs));
+    }
+
+    timer.tick(time.delta());
+    if timer.just_finished() {
 
             let (spawn_pos, _road_index_for_follower) = if let Some(roads) = &roads {
                 if !roads.roads.is_empty() {
@@ -667,10 +675,7 @@ pub fn enemy_spawning(
                     });
             });
 
-            enemy_events.write(EnemySpawned {
-                position: spawn_pos,
-            });
-        }
+            enemy_events.write(EnemySpawned { position: spawn_pos });
     }
 }
 

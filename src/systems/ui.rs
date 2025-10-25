@@ -2,28 +2,25 @@ use crate::components::*;
 use crate::events::*;
 use bevy::prelude::*;
 
-/// Logs gameplay events to the console.
-pub fn handle_events(
-    mut resource_events: MessageReader<ResourceCollected>,
-    mut tower_events: MessageReader<TowerBuilt>,
-    mut enemy_spawned_events: MessageReader<EnemySpawned>,
-    mut enemy_killed_events: MessageReader<EnemyKilled>,
-) {
-    for event in resource_events.read() {
-        info!("Resource collected: {:?} x{}", event.kind, event.amount);
-    }
+// Observer-based logging for gameplay events (Bevy 0.17)
+pub fn on_resource_collected(trigger: On<ResourceCollected>) {
+    let e = trigger.event();
+    info!("Resource collected: {:?} x{}", e.kind, e.amount);
+}
 
-    for event in tower_events.read() {
-        info!("Tower built at: {:?}", event.position);
-    }
+pub fn on_tower_built(trigger: On<TowerBuilt>) {
+    let e = trigger.event();
+    info!("Tower built at: {:?}", e.position);
+}
 
-    for event in enemy_spawned_events.read() {
-        info!("Enemy spawned at: {:?}", event.position);
-    }
+pub fn on_enemy_spawned(trigger: On<EnemySpawned>) {
+    let e = trigger.event();
+    info!("Enemy spawned at: {:?}", e.position);
+}
 
-    for event in enemy_killed_events.read() {
-        info!("Enemy killed at: {:?}", event.position);
-    }
+pub fn on_enemy_killed(trigger: On<EnemyKilled>) {
+    let e = trigger.event();
+    info!("Enemy killed at: {:?}", e.position);
 }
 
 /// Updates the persistent HUD health bar for the village.
@@ -62,6 +59,7 @@ pub fn spawn_village_health_bar(mut commands: Commands) {
                 top: Val::Px(20.0),
                 width: Val::Percent(60.0),
                 height: Val::Px(40.0),
+                border: UiRect::all(Val::Px(2.0)),
                 ..default()
             },
             // White outline

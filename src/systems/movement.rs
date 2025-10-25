@@ -1,27 +1,37 @@
 use crate::components::*;
 use crate::constants::Tunables;
+use bevy::input::keyboard::Key;
 use bevy::prelude::*;
 
 /// Moves the player using WASD/arrow keys at a fixed speed.
 pub fn player_movement(
     time: Res<Time>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+    keyboard_input: Res<ButtonInput<Key>>,
     mut player_query: Query<&mut Transform, (With<Player>, With<IsoPlayer>)>,
     tunables: Res<Tunables>,
+    mut log_accumulator: Local<f32>,
 ) {
     if let Ok(mut transform) = player_query.single_mut() {
         let mut direction = Vec3::ZERO;
 
-        if keyboard_input.pressed(KeyCode::KeyW) || keyboard_input.pressed(KeyCode::ArrowUp) {
+        if keyboard_input.pressed(Key::Character("w".into()))
+            || keyboard_input.pressed(Key::ArrowUp)
+        {
             direction.z -= 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyS) || keyboard_input.pressed(KeyCode::ArrowDown) {
+        if keyboard_input.pressed(Key::Character("s".into()))
+            || keyboard_input.pressed(Key::ArrowDown)
+        {
             direction.z += 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyA) || keyboard_input.pressed(KeyCode::ArrowLeft) {
+        if keyboard_input.pressed(Key::Character("a".into()))
+            || keyboard_input.pressed(Key::ArrowLeft)
+        {
             direction.x -= 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyD) || keyboard_input.pressed(KeyCode::ArrowRight) {
+        if keyboard_input.pressed(Key::Character("d".into()))
+            || keyboard_input.pressed(Key::ArrowRight)
+        {
             direction.x += 1.0;
         }
 
@@ -29,14 +39,11 @@ pub fn player_movement(
             direction = direction.normalize();
             transform.translation += direction * tunables.player_speed * time.delta_secs();
 
-            // Debug: Log player position every few seconds
-            static mut LAST_LOG: f32 = 0.0;
-            unsafe {
-                LAST_LOG += time.delta_secs();
-                if LAST_LOG > 2.0 {
-                    info!("Player position: {:?}", transform.translation);
-                    LAST_LOG = 0.0;
-                }
+            // Debug: Log player position every few seconds without unsafe statics
+            *log_accumulator += time.delta_secs();
+            if *log_accumulator > 2.0 {
+                info!("Player position: {:?}", transform.translation);
+                *log_accumulator = 0.0;
             }
         }
     }
