@@ -12,6 +12,28 @@ const MAX_BUILD_DISTANCE: f32 = 100.0;
 const MAX_BUILD_DISTANCE_SQ: f32 = MAX_BUILD_DISTANCE * MAX_BUILD_DISTANCE;
 const TOWER_SPAWN_EFFECT_DURATION: f32 = 0.45;
 
+fn cursor_to_ground(
+    camera: &Camera,
+    camera_transform: &GlobalTransform,
+    cursor_position: Vec2,
+    ground_y: f32,
+) -> Option<Vec3> {
+    let ray = camera
+        .viewport_to_world(camera_transform, cursor_position)
+        .ok()?;
+    let denom = ray.direction.y;
+    if denom.abs() < f32::EPSILON {
+        return None;
+    }
+    let t = (ground_y - ray.origin.y) / denom;
+    if t < 0.0 {
+        return None;
+    }
+    let mut point = ray.origin + ray.direction * t;
+    point.y = ground_y;
+    Some(point)
+}
+
 /// Places a tower at the mouse cursor when in building mode and within range.
 pub fn tower_building(
     mut commands: Commands,
@@ -46,7 +68,8 @@ pub fn tower_building(
         clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
         return;
     };
-    let Ok(world_position) = camera.viewport_to_world_2d(camera_transform, cursor_position) else {
+    let Some(world_point) = cursor_to_ground(&camera, &camera_transform, cursor_position, 0.0)
+    else {
         clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
         return;
     };
@@ -62,7 +85,8 @@ pub fn tower_building(
         0.0,
         player_transform.translation.z,
     );
-    let mut offset = Vec3::new(world_position.x, 0.0, world_position.y) - player_pos;
+    let mut offset = world_point - player_pos;
+    offset.y = 0.0;
     let distance_sq = offset.length_squared();
     let in_range = distance_sq <= MAX_BUILD_DISTANCE_SQ;
     if distance_sq > MAX_BUILD_DISTANCE_SQ && distance_sq > 0.0 {
