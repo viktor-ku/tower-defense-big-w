@@ -1,10 +1,13 @@
 use crate::components::{Enemy, WavePhase, WaveState};
 use crate::constants::Tunables;
+use bevy::audio::{AudioPlayer, PlaybackMode, PlaybackSettings, Volume};
 use bevy::prelude::*;
 use std::time::Duration;
 
 /// Handles transitioning between wave intermissions and active waves.
 pub fn wave_progression(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
     time: Res<Time>,
     mut wave_state: ResMut<WaveState>,
     tunables: Res<Tunables>,
@@ -27,6 +30,14 @@ pub fn wave_progression(
 
             wave_state.intermission_timer.tick(time.delta());
             if wave_state.intermission_timer.just_finished() {
+                commands.spawn((
+                    AudioPlayer::new(asset_server.load("sounds/round-start.wav")),
+                    PlaybackSettings {
+                        mode: PlaybackMode::Despawn,
+                        volume: Volume::Decibels(-10.0),
+                        ..default()
+                    },
+                ));
                 wave_state.start_next_wave(&tunables);
             }
         }
