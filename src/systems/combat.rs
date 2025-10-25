@@ -1,6 +1,16 @@
 use crate::components::*;
 use crate::events::*;
+use bevy::asset::RenderAssetUsages;
+use bevy::pbr::MeshMaterial3d;
 use bevy::prelude::*;
+use bevy::render::render_resource::PrimitiveTopology;
+use bevy::time::TimerMode;
+use std::f32::consts::TAU;
+
+const RING_INNER_RATIO: f32 = 0.92;
+const MAX_BUILD_DISTANCE: f32 = 100.0;
+const MAX_BUILD_DISTANCE_SQ: f32 = MAX_BUILD_DISTANCE * MAX_BUILD_DISTANCE;
+const TOWER_SPAWN_EFFECT_DURATION: f32 = 0.45;
 
 /// Places a tower at the mouse cursor when in building mode and within range.
 pub fn tower_building(
@@ -8,20 +18,20 @@ pub fn tower_building(
     mouse_input: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
     camera_query: Query<(&Camera, &GlobalTransform)>,
-    player_query: Query<&Transform, (With<Player>, Without<Tower>)>,
+    mut transforms: ParamSet<(
+        Query<&Transform, (With<Player>, Without<Tower>)>,
+        Query<&mut Transform, With<TowerGhost>>,
+    )>,
     building_mode_query: Query<&BuildingMode>,
     mut tower_events: MessageWriter<TowerBuilt>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    mut ghost_state: Local<Option<TowerGhostData>>,
 ) {
-    if !mouse_input.just_pressed(MouseButton::Left) {
-        return;
-    }
+    let building_mode_active = building_mode_query.iter().any(|mode| mode.is_active);
 
-    let Ok(building_mode) = building_mode_query.single() else {
-        return;
-    };
-    if !building_mode.is_active {
+    if !building_mode_active {
+        clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
         return;
     }
 
@@ -32,46 +42,335 @@ pub fn tower_building(
         return;
     };
 
-    if let Some(cursor_position) = window.cursor_position() {
-        if let Ok(world_position) = camera.viewport_to_world_2d(camera_transform, cursor_position) {
-            let Ok(player_transform) = player_query.single() else {
-                return;
-            };
-            let distance = player_transform.translation.distance(Vec3::new(
-                world_position.x,
-                0.0,
-                world_position.y,
-            ));
+    let Some(cursor_position) = window.cursor_position() else {
+        clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
+        return;
+    };
+    let Ok(world_position) = camera.viewport_to_world_2d(camera_transform, cursor_position) else {
+        clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
+        return;
+    };
 
-            if distance < 100.0 {
-                let tower_position = Vec3::new(world_position.x, 0.0, world_position.y);
+    let player_query = transforms.p0();
+    let Some(player_transform) = player_query.iter().next() else {
+        clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
+        return;
+    };
 
-                let t_mesh = meshes.add(Cuboid::new(1.2, 2.5, 1.2));
-                let t_mat = materials.add(StandardMaterial {
-                    base_color: Color::srgb(0.35, 0.35, 0.35),
-                    perceptual_roughness: 0.8,
-                    metallic: 0.0,
-                    ..default()
-                });
-                commands.spawn((
-                    Mesh3d(t_mesh),
-                    MeshMaterial3d(t_mat),
-                    Transform::from_translation(Vec3::new(
-                        tower_position.x,
-                        1.25,
-                        tower_position.y,
-                    )),
-                    Tower {
-                        range: 80.0,
-                        damage: 25,
-                        last_shot: 0.0,
-                    },
-                ));
+    let player_pos = Vec3::new(
+        player_transform.translation.x,
+        0.0,
+        player_transform.translation.z,
+    );
+    let mut offset = Vec3::new(world_position.x, 0.0, world_position.y) - player_pos;
+    let distance_sq = offset.length_squared();
+    let in_range = distance_sq <= MAX_BUILD_DISTANCE_SQ;
+    if distance_sq > MAX_BUILD_DISTANCE_SQ && distance_sq > 0.0 {
+        offset = offset.normalize() * MAX_BUILD_DISTANCE;
+    }
+    let placement_pos = player_pos + offset;
 
-                tower_events.write(TowerBuilt {
-                    position: tower_position,
-                });
-            }
+    // Spawn or update ghost preview
+    let state = ghost_state
+        .get_or_insert_with(|| spawn_tower_ghost(&mut commands, &mut meshes, &mut materials));
+
+    let mut ghost_query = transforms.p1();
+    if let Ok(mut transform) = ghost_query.get_mut(state.root) {
+        transform.translation = placement_pos;
+    }
+    update_ghost_visuals(state, in_range, &mut materials);
+
+    if in_range && mouse_input.just_pressed(MouseButton::Left) {
+        place_tower(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            placement_pos,
+            &mut tower_events,
+        );
+    }
+}
+
+pub struct TowerGhostData {
+    root: Entity,
+    tower_child: Entity,
+    range_child: Entity,
+    tower_material: Handle<StandardMaterial>,
+    ring_material: Handle<StandardMaterial>,
+    ring_mesh: Handle<Mesh>,
+}
+
+fn spawn_tower_ghost(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+) -> TowerGhostData {
+    let tower_mesh = meshes.add(Cuboid::new(1.2, 2.5, 1.2));
+    let range_mesh = meshes.add(build_ring_mesh(80.0, RING_INNER_RATIO, 96));
+
+    let tower_material = materials.add(StandardMaterial {
+        base_color: Color::srgba(0.35, 0.35, 0.35, 0.4),
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        ..default()
+    });
+    let ring_material = materials.add(StandardMaterial {
+        base_color: Color::srgba(0.2, 0.85, 0.2, 0.35),
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        cull_mode: None,
+        ..default()
+    });
+
+    let root = commands
+        .spawn((TowerGhost, Transform::default(), GlobalTransform::default()))
+        .id();
+
+    let mut tower_child = None;
+    let mut range_child = None;
+
+    commands.entity(root).with_children(|parent| {
+        tower_child = Some(
+            parent
+                .spawn((
+                    Mesh3d(tower_mesh.clone()),
+                    MeshMaterial3d(tower_material.clone()),
+                    Transform::from_translation(Vec3::new(0.0, 1.25, 0.0)),
+                    GlobalTransform::default(),
+                ))
+                .id(),
+        );
+        range_child = Some(
+            parent
+                .spawn((
+                    Mesh3d(range_mesh.clone()),
+                    MeshMaterial3d(ring_material.clone()),
+                    Transform::from_translation(Vec3::new(0.0, 0.05, 0.0)),
+                    GlobalTransform::default(),
+                    Visibility::default(),
+                ))
+                .id(),
+        );
+    });
+
+    TowerGhostData {
+        root,
+        tower_child: tower_child.expect("tower ghost mesh child"),
+        range_child: range_child.expect("tower ghost range child"),
+        tower_material,
+        ring_material,
+        ring_mesh: range_mesh,
+    }
+}
+
+fn build_ring_mesh(outer_radius: f32, inner_ratio: f32, segments: usize) -> Mesh {
+    let inner_radius = outer_radius * inner_ratio.clamp(0.0, 0.999);
+
+    let mut positions = Vec::with_capacity(segments * 6);
+    let mut normals = Vec::with_capacity(segments * 6);
+    let mut uvs = Vec::with_capacity(segments * 6);
+
+    for i in 0..segments {
+        let angle = (i as f32 / segments as f32) * TAU;
+        let next_angle = ((i + 1) as f32 / segments as f32) * TAU;
+
+        let cos_a = angle.cos();
+        let sin_a = angle.sin();
+        let cos_b = next_angle.cos();
+        let sin_b = next_angle.sin();
+
+        let outer_a = Vec3::new(outer_radius * cos_a, 0.0, outer_radius * sin_a);
+        let inner_a = Vec3::new(inner_radius * cos_a, 0.0, inner_radius * sin_a);
+        let outer_b = Vec3::new(outer_radius * cos_b, 0.0, outer_radius * sin_b);
+        let inner_b = Vec3::new(inner_radius * cos_b, 0.0, inner_radius * sin_b);
+
+        // triangle 1
+        positions.push([outer_a.x, outer_a.y, outer_a.z]);
+        positions.push([inner_a.x, inner_a.y, inner_a.z]);
+        positions.push([outer_b.x, outer_b.y, outer_b.z]);
+
+        // triangle 2
+        positions.push([outer_b.x, outer_b.y, outer_b.z]);
+        positions.push([inner_a.x, inner_a.y, inner_a.z]);
+        positions.push([inner_b.x, inner_b.y, inner_b.z]);
+
+        normals.extend_from_slice(&[[0.0, 1.0, 0.0]; 6]);
+
+        let uv_outer_a = [0.5 + 0.5 * cos_a, 0.5 + 0.5 * sin_a];
+        let uv_inner_a = [
+            0.5 + 0.5 * inner_ratio * cos_a,
+            0.5 + 0.5 * inner_ratio * sin_a,
+        ];
+        let uv_outer_b = [0.5 + 0.5 * cos_b, 0.5 + 0.5 * sin_b];
+        let uv_inner_b = [
+            0.5 + 0.5 * inner_ratio * cos_b,
+            0.5 + 0.5 * inner_ratio * sin_b,
+        ];
+
+        uvs.push(uv_outer_a);
+        uvs.push(uv_inner_a);
+        uvs.push(uv_outer_b);
+
+        uvs.push(uv_outer_b);
+        uvs.push(uv_inner_a);
+        uvs.push(uv_inner_b);
+    }
+
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh
+}
+
+fn update_ghost_visuals(
+    data: &TowerGhostData,
+    valid: bool,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+) {
+    let (tower_color, ring_color) = if valid {
+        (
+            Color::srgba(0.2, 0.85, 0.2, 0.4),
+            Color::srgba(0.2, 0.85, 0.2, 0.35),
+        )
+    } else {
+        (
+            Color::srgba(0.85, 0.2, 0.2, 0.4),
+            Color::srgba(0.85, 0.2, 0.2, 0.35),
+        )
+    };
+
+    if let Some(material) = materials.get_mut(&data.tower_material) {
+        material.base_color = tower_color;
+    }
+    if let Some(material) = materials.get_mut(&data.ring_material) {
+        material.base_color = ring_color;
+    }
+}
+
+fn place_tower(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    position: Vec3,
+    tower_events: &mut MessageWriter<TowerBuilt>,
+) {
+    let mesh = meshes.add(Cuboid::new(1.2, 2.5, 1.2));
+    let mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.35, 0.35, 0.35),
+        perceptual_roughness: 0.8,
+        metallic: 0.0,
+        ..default()
+    });
+
+    commands.spawn((
+        Mesh3d(mesh),
+        MeshMaterial3d(mat),
+        Transform::from_translation(Vec3::new(position.x, 1.25, position.z)),
+        Tower {
+            range: 80.0,
+            damage: 25,
+            last_shot: 0.0,
+        },
+    ));
+
+    tower_events.write(TowerBuilt { position });
+
+    spawn_tower_spawn_effect(commands, meshes, materials, position);
+}
+
+fn clear_ghost(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    ghost_state: &mut Local<Option<TowerGhostData>>,
+) {
+    if let Some(data) = ghost_state.take() {
+        commands.entity(data.tower_child).despawn();
+        commands.entity(data.range_child).despawn();
+        commands.entity(data.root).despawn();
+        materials.remove(&data.tower_material);
+        materials.remove(&data.ring_material);
+        meshes.remove(&data.ring_mesh);
+    }
+}
+
+#[derive(Component)]
+pub(crate) struct TowerSpawnEffect {
+    timer: Timer,
+    material: Handle<StandardMaterial>,
+    mesh: Handle<Mesh>,
+    base_rgb: [f32; 3],
+}
+
+fn spawn_tower_spawn_effect(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    position: Vec3,
+) {
+    let mesh_handle = meshes.add(build_ring_mesh(80.0, 0.6, 72));
+    let base_color = [0.9, 0.95, 0.6];
+    let material = materials.add(StandardMaterial {
+        base_color: Color::srgba(base_color[0], base_color[1], base_color[2], 0.7),
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        cull_mode: None,
+        ..default()
+    });
+
+    commands.spawn((
+        Mesh3d(mesh_handle.clone()),
+        MeshMaterial3d(material.clone()),
+        Transform {
+            translation: Vec3::new(position.x, 0.05, position.z),
+            scale: Vec3::splat(0.3),
+            ..default()
+        },
+        GlobalTransform::default(),
+        Visibility::default(),
+        TowerSpawnEffect {
+            timer: Timer::from_seconds(TOWER_SPAWN_EFFECT_DURATION, TimerMode::Once),
+            material,
+            mesh: mesh_handle,
+            base_rgb: base_color,
+        },
+    ));
+}
+
+pub fn tower_spawn_effect_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut effects: Query<(Entity, &mut TowerSpawnEffect, &mut Transform)>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    for (entity, mut effect, mut transform) in effects.iter_mut() {
+        effect.timer.tick(time.delta());
+        let duration = effect.timer.duration().as_secs_f32().max(f32::EPSILON);
+        let elapsed = effect.timer.elapsed().as_secs_f32();
+        let t = (elapsed / duration).clamp(0.0, 1.0);
+        let eased = t * t;
+        transform.scale = Vec3::splat(0.3 + eased * 0.9);
+
+        if let Some(mat) = materials.get_mut(&effect.material) {
+            let alpha = (1.0 - t).max(0.0) * 0.7;
+            mat.base_color = Color::srgba(
+                effect.base_rgb[0],
+                effect.base_rgb[1],
+                effect.base_rgb[2],
+                alpha,
+            );
+        }
+
+        if effect.timer.is_finished() {
+            let material_handle = effect.material.clone();
+            commands.entity(entity).despawn();
+            materials.remove(&material_handle);
+            meshes.remove(&effect.mesh);
         }
     }
 }

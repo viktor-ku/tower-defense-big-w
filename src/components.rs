@@ -35,6 +35,10 @@ pub struct Tower {
     pub last_shot: f32,
 }
 
+/// Marker for the in-progress tower preview (ghost).
+#[derive(Component)]
+pub struct TowerGhost;
+
 #[derive(Component)]
 pub struct Enemy {
     pub health: u32,

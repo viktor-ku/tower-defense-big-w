@@ -55,6 +55,10 @@ fn main() {
         .add_systems(Update, enemy_spawning.run_if(in_state(GameState::Playing)))
         .add_systems(Update, enemy_movement.run_if(in_state(GameState::Playing)))
         .add_systems(Update, tower_shooting.run_if(in_state(GameState::Playing)))
+        .add_systems(
+            Update,
+            tower_spawn_effect_system.run_if(in_state(GameState::Playing)),
+        )
         .add_systems(Update, handle_events.run_if(in_state(GameState::Playing)))
         // Camera system
         .add_systems(Update, camera_system.run_if(in_state(GameState::Playing)))
