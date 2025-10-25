@@ -1,14 +1,17 @@
+use bevy::pbr::MaterialPlugin;
 use bevy::prelude::*;
 mod constants;
 
 mod components;
 mod events;
+mod materials;
 mod setup;
 mod systems;
 
 use components::*;
 use constants::Tunables;
 use events::*;
+use materials::*;
 use setup::*;
 use systems::*;
 // Frame time graph (Bevy 0.17 dev tools)
@@ -20,6 +23,7 @@ fn main() {
     App::new()
         .insert_resource(tunables.clone())
         .insert_resource(WaveState::new(&tunables))
+        .insert_resource(CombatVfxAssets::default())
         .add_plugins((DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
@@ -36,6 +40,10 @@ fn main() {
                 filter: "wgpu=error,bevy_render=error".into(),
                 ..default()
             }),))
+        .add_plugins((
+            MaterialPlugin::<ProjectileMaterial>::default(),
+            MaterialPlugin::<ImpactMaterial>::default(),
+        ))
         .add_plugins(ChunkPlugin)
         .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(FrameTimeGraphPlugin)
@@ -78,6 +86,16 @@ fn main() {
         .add_systems(
             Update,
             tower_spawn_effect_system.run_if(in_state(GameState::Playing)),
+        )
+        .add_systems(
+            Update,
+            (
+                projectile_system,
+                impact_effect_system,
+                damage_number_system,
+                enemy_flash_system,
+            )
+                .run_if(in_state(GameState::Playing)),
         )
         // Observers for gameplay events (logging)
         .add_observer(on_resource_collected)

@@ -58,8 +58,17 @@ pub const C_TOWER_COST_WOOD: u32 = 5;
 pub const C_TOWER_COST_ROCK: u32 = 1;
 pub const C_TOWER_FIRE_INTERVAL_SECS: f32 = 1.0;
 pub const C_TOWER_SPAWN_EFFECT_DURATION_SECS: f32 = 0.45;
+pub const C_PROJECTILE_SPEED: f32 = 65.0;
+pub const C_PROJECTILE_HIT_RADIUS: f32 = 1.2;
+pub const C_PROJECTILE_LIFETIME_SECS: f32 = 3.0;
 pub const C_MAX_BUILD_DISTANCE: f32 = 100.0;
 pub const C_RING_INNER_RATIO: f32 = 0.92;
+pub const C_IMPACT_EFFECT_DURATION_SECS: f32 = 0.4;
+pub const C_DAMAGE_NUMBER_LIFETIME_SECS: f32 = 0.9;
+pub const C_DAMAGE_NUMBER_FLOAT_SPEED: f32 = 4.5;
+pub const C_DAMAGE_NUMBER_SPAWN_HEIGHT: f32 = 2.6;
+pub const C_DAMAGE_NUMBER_FONT_SIZE: f32 = 30.0;
+pub const C_ENEMY_FLASH_DURATION_SECS: f32 = 0.22;
 
 // Health bars (world-space over enemies)
 pub const C_HEALTH_BAR_WIDTH: f32 = 3.0;
@@ -172,10 +181,28 @@ pub struct Tunables {
     pub tower_fire_interval_secs: f32,
     /// Seconds for the tower spawn ring effect.
     pub tower_spawn_effect_duration_secs: f32,
+    /// Speed of projectiles fired by towers.
+    pub projectile_speed: f32,
+    /// Radius around the target position considered a hit.
+    pub projectile_hit_radius: f32,
+    /// Maximum projectile lifetime before self-despawn.
+    pub projectile_lifetime_secs: f32,
     /// Maximum distance from the player to place a building.
     pub max_build_distance: f32,
     /// Inner radius ratio for ring meshes (0..1).
     pub ring_inner_ratio: f32,
+    /// Duration of the radial impact flash effect.
+    pub impact_effect_duration_secs: f32,
+    /// Lifetime of floating damage numbers.
+    pub damage_number_lifetime_secs: f32,
+    /// Upward speed (units/s) for floating damage numbers.
+    pub damage_number_float_speed: f32,
+    /// Initial height offset for damage numbers.
+    pub damage_number_spawn_height: f32,
+    /// Font size for damage numbers.
+    pub damage_number_font_size: f32,
+    /// Duration of the white flash applied to enemies on hit.
+    pub enemy_flash_duration_secs: f32,
 
     /// Enemy health bar width in world units.
     pub health_bar_width: f32,
@@ -270,8 +297,17 @@ impl Default for Tunables {
             tower_cost_rock: C_TOWER_COST_ROCK,
             tower_fire_interval_secs: C_TOWER_FIRE_INTERVAL_SECS,
             tower_spawn_effect_duration_secs: C_TOWER_SPAWN_EFFECT_DURATION_SECS,
+            projectile_speed: C_PROJECTILE_SPEED,
+            projectile_hit_radius: C_PROJECTILE_HIT_RADIUS,
+            projectile_lifetime_secs: C_PROJECTILE_LIFETIME_SECS,
             max_build_distance: C_MAX_BUILD_DISTANCE,
             ring_inner_ratio: C_RING_INNER_RATIO,
+            impact_effect_duration_secs: C_IMPACT_EFFECT_DURATION_SECS,
+            damage_number_lifetime_secs: C_DAMAGE_NUMBER_LIFETIME_SECS,
+            damage_number_float_speed: C_DAMAGE_NUMBER_FLOAT_SPEED,
+            damage_number_spawn_height: C_DAMAGE_NUMBER_SPAWN_HEIGHT,
+            damage_number_font_size: C_DAMAGE_NUMBER_FONT_SIZE,
+            enemy_flash_duration_secs: C_ENEMY_FLASH_DURATION_SECS,
 
             // Health bars (world-space)
             health_bar_width: C_HEALTH_BAR_WIDTH,
