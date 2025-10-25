@@ -13,13 +13,13 @@ pub fn camera_system(
     player_query: Query<&Transform, (With<Player>, Without<Camera3d>)>,
     settings: Res<CameraSettings>,
 ) {
-    if let Ok(mut camera_transform) = camera_query.single_mut() {
-        if let Ok(player_transform) = player_query.single() {
+    if let Ok(mut camera_transform) = camera_query.single_mut()
+        && let Ok(player_transform) = player_query.single()
+    {
             // Strict fixed offset
             camera_transform.translation = player_transform.translation + settings.offset;
 
             // Always look at the player
             camera_transform.look_at(player_transform.translation, Vec3::Y);
-        }
     }
 }

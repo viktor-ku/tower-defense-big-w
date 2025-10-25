@@ -9,6 +9,7 @@ use bevy::time::TimerMode;
 use std::time::Duration;
 
 /// Makes towers shoot the closest enemy in range at a fixed fire rate.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn tower_shooting(
     time: Res<Time>,
     mut commands: Commands,
@@ -67,6 +68,7 @@ pub(crate) struct Projectile {
     lifetime: Timer,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn spawn_projectile(
     commands: &mut Commands,
     vfx_assets: &mut CombatVfxAssets,
@@ -114,6 +116,7 @@ fn spawn_projectile(
     ));
 }
 
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn projectile_system(
     time: Res<Time>,
     mut commands: Commands,
@@ -206,6 +209,7 @@ pub fn projectile_system(
 
 // trailing removed
 
+#[allow(clippy::type_complexity)]
 fn handle_projectile_hit(
     commands: &mut Commands,
     enemy_entity: Entity,
@@ -225,7 +229,6 @@ fn handle_projectile_hit(
     if let Ok((mut enemy, material_handle, flash_opt)) = enemy_hit_query.get_mut(enemy_entity) {
         enemy.health = enemy.health.saturating_sub(damage);
         let remaining_health = enemy.health;
-        drop(enemy);
 
         let mat_handle = material_handle.0.clone();
         let original_color = standard_materials
@@ -520,6 +523,7 @@ pub fn damage_number_system(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn enemy_pre_explosion_system(
     time: Res<Time>,
     mut commands: Commands,

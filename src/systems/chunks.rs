@@ -5,16 +5,10 @@ use bevy::prelude::*;
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::collections::{HashMap, HashSet};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct ChunkCoord {
     pub x: i32,
     pub z: i32,
-}
-
-impl Default for ChunkCoord {
-    fn default() -> Self {
-        ChunkCoord { x: 0, z: 0 }
-    }
 }
 
 #[derive(Resource, Clone, Copy)]
@@ -165,6 +159,7 @@ fn track_player_chunk(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn update_chunks(
     mut commands: Commands,
     cfg: Res<ChunkConfig>,
@@ -237,10 +232,8 @@ fn chunk_hud_toggle(
 ) {
     if input.just_pressed(KeyCode::F3) {
         hud.enabled = !hud.enabled;
-        if !hud.enabled {
-            if let Some(root) = hud.root.take() {
-                despawn_recursive(&mut commands, root, &children_q);
-            }
+        if !hud.enabled && let Some(root) = hud.root.take() {
+            despawn_recursive(&mut commands, root, &children_q);
         }
     }
 

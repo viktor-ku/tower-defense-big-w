@@ -254,6 +254,7 @@ pub fn update_resource_counters(
 }
 
 /// Updates the wave counter and intermission timer text.
+#[allow(clippy::type_complexity)]
 pub fn update_wave_hud(
     wave_state: Res<WaveState>,
     mut wave_text_q: Query<(&mut Text, &mut WaveCounterDisplay), With<WaveCounterText>>,
@@ -305,6 +306,7 @@ pub struct CollectUiState {
 }
 
 /// Creates/positions a screen-space progress bar above the active target.
+#[allow(clippy::too_many_arguments)]
 pub fn manage_collect_bar_ui(
     mut commands: Commands,
     mut state: ResMut<CollectUiState>,
@@ -324,10 +326,8 @@ pub fn manage_collect_bar_ui(
 
     // If target changed, despawn old UI and spawn new one
     if progress.target != state.target {
-        if let Some(e) = state.bar_entity.take() {
-            if let Ok(mut ec) = commands.get_entity(e) {
-                ec.despawn();
-            }
+        if let Some(e) = state.bar_entity.take() && let Ok(mut ec) = commands.get_entity(e) {
+            ec.despawn();
         }
         state.target = progress.target;
 
@@ -362,10 +362,11 @@ pub fn manage_collect_bar_ui(
     }
 
     // Update position and fill
-    if let (Some(target), Some(root_e)) = (progress.target, state.bar_entity) {
-        if let Ok(target_tf) = target_tf_q.get(target) {
-            let world_pos = target_tf.translation() + Vec3::Y * 2.5;
-            if let Ok(mut screen) = camera.world_to_viewport(cam_tf, world_pos) {
+    if let (Some(target), Some(root_e)) = (progress.target, state.bar_entity)
+        && let Ok(target_tf) = target_tf_q.get(target)
+    {
+        let world_pos = target_tf.translation() + Vec3::Y * 2.5;
+        if let Ok(mut screen) = camera.world_to_viewport(cam_tf, world_pos) {
                 // Center the bar above the target
                 screen.y = window.height() - screen.y;
                 if let Ok(mut node) = root_q.get_mut(root_e) {
@@ -376,7 +377,6 @@ pub fn manage_collect_bar_ui(
                     let px = (progress.progress.clamp(0.0, 1.0)) * 120.0;
                     fill.width = Val::Px(px);
                 }
-            }
         }
     }
 }
@@ -495,17 +495,16 @@ pub fn manage_tower_selection_drawer(
             })
             .id();
         selection.drawer_root = Some(root);
-    } else if !need_drawer && has_drawer {
-        if let Some(root) = selection.drawer_root.take() {
-            // Only despawn if the root is still alive
-            if drawer_root_alive.get(root).is_ok() {
-                despawn_entity_recursive(&mut commands, root, &children_q);
-            }
+    } else if !need_drawer && has_drawer && let Some(root) = selection.drawer_root.take() {
+        // Only despawn if the root is still alive
+        if drawer_root_alive.get(root).is_ok() {
+            despawn_entity_recursive(&mut commands, root, &children_q);
         }
     }
 }
 
 /// Handles button presses in the tower selection drawer.
+#[allow(clippy::type_complexity)]
 pub fn handle_tower_selection_buttons(
     mut commands: Commands,
     mut selection: ResMut<TowerBuildSelection>,

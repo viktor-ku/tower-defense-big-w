@@ -21,19 +21,7 @@ pub struct ProjectileMaterial {
     pub data: ProjectileMaterialUniform,
 }
 
-impl ProjectileMaterial {
-    pub fn new(color: Color, glow: f32) -> Self {
-        let linear = color.to_linear();
-        let rgba = linear.to_f32_array();
-        ProjectileMaterial {
-            data: ProjectileMaterialUniform {
-                color: Vec4::from_array(rgba),
-                glow,
-                _pad: Vec3::ZERO,
-            },
-        }
-    }
-}
+// No constructor is provided; this material is not currently used directly.
 
 impl Material for ProjectileMaterial {
     fn fragment_shader() -> ShaderRef {

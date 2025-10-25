@@ -10,6 +10,7 @@ use bevy::render::render_resource::PrimitiveTopology;
 use std::f32::consts::TAU;
 
 /// Places a tower at the cursor when in building mode and within range.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn tower_building(
     mut commands: Commands,
     mouse_input: Res<ButtonInput<MouseButton>>,
@@ -52,7 +53,7 @@ pub fn tower_building(
         clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
         return;
     };
-    let Some(world_point) = cursor_to_ground(&camera, &camera_transform, cursor_position, 0.0)
+    let Some(world_point) = cursor_to_ground(camera, camera_transform, cursor_position, 0.0)
     else {
         clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
         return;
@@ -356,6 +357,7 @@ fn update_ghost_visuals(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn place_tower(
     commands: &mut Commands,
     meshes: &mut ResMut<Assets<Mesh>>,

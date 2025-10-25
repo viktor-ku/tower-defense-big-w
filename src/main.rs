@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use bevy::pbr::MaterialPlugin;
 use bevy::prelude::*;
 mod constants;

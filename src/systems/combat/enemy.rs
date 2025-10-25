@@ -11,6 +11,7 @@ use std::f32::consts::PI;
 use std::time::Duration;
 
 /// Spawns enemies at intervals on road entrances or at a fallback ring.
+#[allow(clippy::too_many_arguments)]
 pub fn enemy_spawning(
     mut commands: Commands,
     time: Res<Time>,
@@ -104,15 +105,13 @@ fn select_spawn_point(
     roads: &Option<Res<RoadPaths>>,
     tunables: &Tunables,
 ) -> (Vec3, Option<usize>) {
-    if let Some(roads) = roads {
-        if !roads.roads.is_empty() {
-            let mut ri = (rand::random::<f32>() * roads.roads.len() as f32).floor() as usize;
-            if ri >= roads.roads.len() {
-                ri = roads.roads.len() - 1;
-            }
-            let wp = &roads.roads[ri][0];
-            return (Vec3::new(wp.x, 0.0, wp.z), Some(ri));
+    if let Some(roads) = roads && !roads.roads.is_empty() {
+        let mut ri = (rand::random::<f32>() * roads.roads.len() as f32).floor() as usize;
+        if ri >= roads.roads.len() {
+            ri = roads.roads.len() - 1;
         }
+        let wp = &roads.roads[ri][0];
+        return (Vec3::new(wp.x, 0.0, wp.z), Some(ri));
     }
 
     let angle = rand::random::<f32>() * 2.0 * PI;

@@ -20,6 +20,7 @@ pub struct HoldCollectState {
 /// Behavior:
 /// - Picks the nearest eligible target (tree with wood, rock with amount).
 /// - On completion, grants resources, emits events, and despawns the target.
+#[allow(clippy::too_many_arguments)]
 pub fn hold_to_collect(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<Key>>,
