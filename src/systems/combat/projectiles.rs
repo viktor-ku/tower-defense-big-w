@@ -2,7 +2,7 @@ use super::assets::CombatVfxAssets;
 use crate::components::{Enemy, Tower};
 use crate::constants::Tunables;
 use crate::events::{DamageDealt, EnemyKilled};
-use crate::materials::{ExplosionMaterial, ImpactMaterial, ProjectileMaterial};
+use crate::materials::{ExplosionMaterial, ImpactMaterial};
 use bevy::pbr::MeshMaterial3d;
 use bevy::prelude::*;
 use bevy::time::TimerMode;
@@ -63,7 +63,7 @@ pub(crate) struct Projectile {
     damage: u32,
     last_known_target_pos: Vec3,
     lifetime: Timer,
-    trail_emit_timer: Timer,
+    
 }
 
 fn spawn_projectile(
@@ -96,8 +96,8 @@ fn spawn_projectile(
         Transform {
             translation: spawn_pos,
             rotation: Quat::from_rotation_arc(Vec3::Y, direction.normalize_or_zero()),
-            // Elongated scale to resemble an arrow/bolt (Y is forward axis)
-            scale: Vec3::new(0.18, 1.1, 0.18),
+            // Further elongated to resemble an arrow/bolt (Y is forward axis)
+            scale: Vec3::new(0.12, 2.4, 0.12),
         },
         GlobalTransform::default(),
         Visibility::default(),
@@ -107,10 +107,6 @@ fn spawn_projectile(
             damage,
             last_known_target_pos: target_position,
             lifetime: Timer::from_seconds(tunables.projectile_lifetime_secs, TimerMode::Once),
-            trail_emit_timer: Timer::from_seconds(
-                tunables.projectile_trail_emit_interval_secs,
-                TimerMode::Repeating,
-            ),
         },
     ));
 }
@@ -129,7 +125,6 @@ pub fn projectile_system(
         (With<Enemy>, Without<EnemyPreExplosion>),
     >,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
-    mut projectile_materials: ResMut<Assets<ProjectileMaterial>>,
     mut impact_materials: ResMut<Assets<ImpactMaterial>>,
     mut vfx_assets: ResMut<CombatVfxAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -200,57 +195,13 @@ pub fn projectile_system(
             transform.rotation = Quat::from_rotation_arc(Vec3::Y, direction);
         }
 
-        // Emit trail points along the path
-        projectile.trail_emit_timer.tick(time.delta());
-        if projectile.trail_emit_timer.just_finished() {
-            spawn_trail_point(
-                &mut commands,
-                &mut vfx_assets,
-                &mut meshes,
-                &mut projectile_materials,
-                transform.translation,
-                &tunables,
-            );
-        }
+        // no trailing
     }
 }
 
-#[derive(Component)]
-pub(crate) struct ProjectileTrailPoint {
-    timer: Timer,
-    material: Handle<ProjectileMaterial>,
-}
+// trailing removed
 
-fn spawn_trail_point(
-    commands: &mut Commands,
-    vfx_assets: &mut CombatVfxAssets,
-    meshes: &mut Assets<Mesh>,
-    projectile_materials: &mut Assets<ProjectileMaterial>,
-    position: Vec3,
-    tunables: &Tunables,
-) {
-    let mesh = vfx_assets.projectile_mesh(meshes);
-    let material = projectile_materials.add(ProjectileMaterial::new(
-        Color::srgba(1.0, 1.0, 1.0, 0.9),
-        1.2,
-    ));
-
-    commands.spawn((
-        Mesh3d(mesh),
-        MeshMaterial3d(material.clone()),
-        Transform {
-            translation: position,
-            rotation: Quat::IDENTITY,
-            scale: Vec3::splat(tunables.projectile_trail_start_scale.max(0.0)),
-        },
-        GlobalTransform::default(),
-        Visibility::default(),
-        ProjectileTrailPoint {
-            timer: Timer::from_seconds(tunables.projectile_trail_lifetime_secs, TimerMode::Once),
-            material,
-        },
-    ));
-}
+// trailing removed
 
 fn handle_projectile_hit(
     commands: &mut Commands,
@@ -438,6 +389,8 @@ pub(crate) struct ExplosionEffect {
     material: Handle<ExplosionMaterial>,
 }
 
+// trailing removed
+
 #[derive(Component)]
 pub(crate) struct DamageNumber {
     timer: Timer,
@@ -513,38 +466,7 @@ pub fn explosion_effect_system(
     }
 }
 
-pub fn projectile_trail_system(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut trails: Query<(Entity, &mut ProjectileTrailPoint, &mut Transform)>,
-    mut projectile_materials: ResMut<Assets<ProjectileMaterial>>,
-    tunables: Res<Tunables>,
-) {
-    for (entity, mut trail, mut transform) in trails.iter_mut() {
-        trail.timer.tick(time.delta());
-        let duration = trail.timer.duration().as_secs_f32().max(f32::EPSILON);
-        let progress = (trail.timer.elapsed().as_secs_f32() / duration).clamp(0.0, 1.0);
-
-        // Lerp scale
-        let start = tunables.projectile_trail_start_scale.max(0.0);
-        let end = tunables.projectile_trail_end_scale.max(0.0);
-        let scale = start + (end - start) * progress;
-        transform.scale = Vec3::splat(scale);
-
-        // Fade alpha and glow down over time
-        if let Some(mat) = projectile_materials.get_mut(&trail.material) {
-            let mut color = mat.data.color;
-            color.w = (1.0 - progress).clamp(0.0, 1.0) * 0.9;
-            mat.data.color = color;
-            mat.data.glow = 1.2 * (1.0 - progress * 0.8);
-        }
-
-        if trail.timer.just_finished() {
-            projectile_materials.remove(trail.material.id());
-            commands.entity(entity).despawn();
-        }
-    }
-}
+// trailing removed
 
 pub fn damage_number_system(
     time: Res<Time>,
