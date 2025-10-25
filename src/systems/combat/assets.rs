@@ -68,7 +68,7 @@ impl CombatVfxAssets {
 
     pub fn impact_mesh(&mut self, meshes: &mut Assets<Mesh>) -> Handle<Mesh> {
         self.impact_mesh
-            .get_or_insert_with(|| meshes.add(Mesh::from(Circle::new(0.9))))
+            .get_or_insert_with(|| meshes.add(Mesh::from(Circle::new(0.1))))
             .clone()
     }
 
