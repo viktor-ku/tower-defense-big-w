@@ -60,6 +60,7 @@ fn main() {
         .add_message::<TowerBuilt>()
         .add_message::<EnemySpawned>()
         .add_message::<EnemyKilled>()
+        .add_message::<DamageDealt>()
         .add_message::<bevy::window::WindowCloseRequested>()
         .add_message::<AppExit>()
         .add_systems(
@@ -93,6 +94,7 @@ fn main() {
             Update,
             (
                 projectile_system,
+                damage_dealt_spawn_text_system,
                 enemy_pre_explosion_system,
                 impact_effect_system,
                 explosion_effect_system,

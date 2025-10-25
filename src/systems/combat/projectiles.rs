@@ -1,7 +1,7 @@
 use super::assets::CombatVfxAssets;
 use crate::components::{Enemy, Tower};
 use crate::constants::Tunables;
-use crate::events::EnemyKilled;
+use crate::events::{DamageDealt, EnemyKilled};
 use crate::materials::{ExplosionMaterial, ImpactMaterial, ProjectileMaterial};
 use bevy::pbr::MeshMaterial3d;
 use bevy::prelude::*;
@@ -133,6 +133,7 @@ pub fn projectile_system(
     mut vfx_assets: ResMut<CombatVfxAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
     tunables: Res<Tunables>,
+    mut damage_dealt_events: MessageWriter<DamageDealt>,
 ) {
     for (entity, mut projectile, mut transform) in projectile_query.iter_mut() {
         projectile.lifetime.tick(time.delta());
@@ -176,6 +177,10 @@ pub fn projectile_system(
                     &mut standard_materials,
                     &tunables,
                 );
+                damage_dealt_events.write(DamageDealt {
+                    enemy: projectile.target,
+                    amount: projectile.damage,
+                });
             }
 
             spawn_impact_flash(
@@ -187,9 +192,7 @@ pub fn projectile_system(
                 &tunables,
             );
 
-            if target_alive {
-                spawn_damage_number(&mut commands, &tunables, projectile.damage, impact_point);
-            }
+            // Old damage number spawn removed; now handled via DamageDealt events
 
             cleanup_projectile(
                 &mut commands,
@@ -350,28 +353,32 @@ fn spawn_explosion_effect(
     ));
 }
 
-fn spawn_damage_number(commands: &mut Commands, tunables: &Tunables, damage: u32, point: Vec3) {
-    let world_position = point + Vec3::new(0.0, tunables.damage_number_spawn_height, 0.0);
-
-    commands.spawn((
-        DamageNumber {
-            timer: Timer::from_seconds(tunables.damage_number_lifetime_secs, TimerMode::Once),
-            world_position,
-        },
-        Node {
-            position_type: PositionType::Absolute,
-            left: Val::Px(0.0),
-            top: Val::Px(0.0),
-            ..default()
-        },
-        Text::new(damage.to_string()),
-        TextFont {
-            font_size: tunables.damage_number_font_size,
-            ..default()
-        },
-        TextColor(Color::srgba(1.0, 0.9, 0.55, 1.0)),
-        Visibility::Hidden,
-    ));
+pub fn damage_dealt_spawn_text_system(
+    mut commands: Commands,
+    tunables: Res<Tunables>,
+    mut events: MessageReader<DamageDealt>,
+    enemy_pose_query: Query<&GlobalTransform, With<Enemy>>,
+) {
+    for evt in events.read() {
+        if let Ok(tf) = enemy_pose_query.get(evt.enemy) {
+            let pos = tf.translation() + Vec3::new(0.0, tunables.damage_number_spawn_height, 0.0);
+            commands.spawn((
+                DamageNumber {
+                    timer: Timer::from_seconds(
+                        tunables.damage_number_lifetime_secs,
+                        TimerMode::Once,
+                    ),
+                    world_position: pos,
+                },
+                Text::new(evt.amount.to_string()),
+                TextFont {
+                    font_size: tunables.damage_number_font_size,
+                    ..default()
+                },
+                TextColor(Color::srgba(1.0, 1.0, 1.0, 0.9)),
+            ));
+        }
+    }
 }
 
 fn cleanup_projectile(
@@ -492,18 +499,19 @@ pub fn damage_number_system(
     };
 
     let scale_factor = window.resolution.scale_factor();
-    let logical_height = window.resolution.height();
 
     for (entity, mut number, mut node, mut color, mut visibility) in numbers.iter_mut() {
         number.timer.tick(time.delta());
 
         if let Ok(screen_pos) = camera.world_to_viewport(camera_transform, number.world_position) {
             *visibility = Visibility::Visible;
-            let half = 12.0;
+
+            let margin = 10.0;
+
             // Convert to logical UI coordinates: top-left origin
             let logical_pos = screen_pos / scale_factor;
-            node.left = Val::Px(logical_pos.x - half);
-            node.top = Val::Px(logical_height - logical_pos.y - half);
+            node.left = Val::Px(logical_pos.x - margin);
+            node.top = Val::Px(logical_pos.y - margin);
         } else {
             *visibility = Visibility::Hidden;
         }

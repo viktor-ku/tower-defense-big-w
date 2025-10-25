@@ -14,7 +14,8 @@ pub mod towers;
 pub use assets::{CombatVfxAssets, EnemyHealthBarAssets};
 pub use enemy::{enemy_spawning, face_enemy_health_bars, update_enemy_health_bars};
 pub use projectiles::{
-    damage_number_system, enemy_flash_system, enemy_pre_explosion_system, explosion_effect_system,
-    impact_effect_system, projectile_system, tower_shooting,
+    damage_dealt_spawn_text_system, damage_number_system, enemy_flash_system,
+    enemy_pre_explosion_system, explosion_effect_system, impact_effect_system, projectile_system,
+    tower_shooting,
 };
 pub use towers::{tower_building, tower_spawn_effect_system};
