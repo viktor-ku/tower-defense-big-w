@@ -21,7 +21,16 @@ pub fn handle_game_input(
     mut selection: ResMut<TowerBuildSelection>,
 ) {
     if keyboard_input.just_pressed(Key::Escape) {
-        next_state.set(GameState::Menu);
+        // If the tower drawer is open, Esc should cancel building instead of going to menu
+        if selection.drawer_root.is_some() {
+            for mut building_mode in building_mode_query.iter_mut() {
+                building_mode.is_active = false;
+            }
+            selection.choice = None;
+            return;
+        } else {
+            next_state.set(GameState::Menu);
+        }
     }
 
     if keyboard_input.just_pressed(Key::Character("b".into())) {

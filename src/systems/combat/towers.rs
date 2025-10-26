@@ -36,8 +36,9 @@ pub fn tower_building(
         return;
     }
 
-    // Require a tower kind to be selected before preview/placement.
-    if selection.choice.is_none() {
+    // Allow preview if either a selection is chosen or a hovered choice exists.
+    let preview_kind = selection.choice.or(selection.hovered_choice);
+    if preview_kind.is_none() {
         clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
         return;
     }
@@ -80,7 +81,7 @@ pub fn tower_building(
     let placement_pos = player_pos + offset;
 
     // Determine preview size from selected kind
-    let preview_size: (f32, f32, f32) = match selection.choice.unwrap_or(TowerKind::Bow) {
+    let preview_size: (f32, f32, f32) = match preview_kind.unwrap_or(TowerKind::Bow) {
         // Bow: smaller (absolute size)
         TowerKind::Bow => (1.02, 2.72, 1.02),
         // Crossbow: bigger (absolute size)
@@ -105,7 +106,7 @@ pub fn tower_building(
 
     // Check affordability per selected tower kind (hardcoded requirements)
     let mut affordable = false;
-    let (wood_cost, rock_cost) = match selection.choice.unwrap_or(TowerKind::Bow) {
+    let (wood_cost, rock_cost) = match preview_kind.unwrap_or(TowerKind::Bow) {
         TowerKind::Bow => (3, 1),
         TowerKind::Crossbow => (10, 3),
     };
@@ -115,7 +116,11 @@ pub fn tower_building(
 
     update_ghost_visuals(state, in_range && affordable, &mut materials);
 
-    if in_range && affordable && mouse_input.just_pressed(MouseButton::Left) {
+    if in_range
+        && affordable
+        && mouse_input.just_pressed(MouseButton::Left)
+        && selection.choice.is_some()
+    {
         if let Ok(mut player) = player_res_query.single_mut() {
             // Deduct resources based on selected kind
             player.wood = player.wood.saturating_sub(wood_cost);

@@ -90,6 +90,9 @@ fn main() {
                 handle_tower_selection_buttons,
                 update_tower_option_hover,
                 update_tower_selection_affordability,
+                tower_drawer_shortcuts,
+                tower_drawer_scroll,
+                update_tower_scrollbar_thumb,
             )
                 .run_if(in_state(GameState::Playing)),
         )

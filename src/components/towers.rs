@@ -29,6 +29,8 @@ pub struct TowerGhost;
 #[derive(Resource, Default)]
 pub struct TowerBuildSelection {
     pub choice: Option<TowerKind>,
+    /// Temporarily hovered tower kind for preview while the drawer is open.
+    pub hovered_choice: Option<TowerKind>,
     /// Root UI entity for the drawer (if any), to allow clean despawn.
     pub drawer_root: Option<Entity>,
 }
