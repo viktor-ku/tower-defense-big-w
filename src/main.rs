@@ -88,6 +88,8 @@ fn main() {
             (
                 manage_tower_selection_drawer,
                 handle_tower_selection_buttons,
+                update_tower_option_hover,
+                update_tower_selection_affordability,
             )
                 .run_if(in_state(GameState::Playing)),
         )

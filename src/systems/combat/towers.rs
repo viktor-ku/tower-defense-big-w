@@ -53,8 +53,7 @@ pub fn tower_building(
         clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
         return;
     };
-    let Some(world_point) = cursor_to_ground(camera, camera_transform, cursor_position, 0.0)
-    else {
+    let Some(world_point) = cursor_to_ground(camera, camera_transform, cursor_position, 0.0) else {
         clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
         return;
     };
@@ -104,20 +103,23 @@ pub fn tower_building(
         transform.translation = placement_pos;
     }
 
-    // Check affordability
+    // Check affordability per selected tower kind (hardcoded requirements)
     let mut affordable = false;
+    let (wood_cost, rock_cost) = match selection.choice.unwrap_or(TowerKind::Bow) {
+        TowerKind::Bow => (3, 1),
+        TowerKind::Crossbow => (10, 3),
+    };
     if let Ok(player) = player_res_query.single_mut() {
-        affordable =
-            player.wood >= tunables.tower_cost_wood && player.rock >= tunables.tower_cost_rock;
+        affordable = player.wood >= wood_cost && player.rock >= rock_cost;
     }
 
     update_ghost_visuals(state, in_range && affordable, &mut materials);
 
     if in_range && affordable && mouse_input.just_pressed(MouseButton::Left) {
         if let Ok(mut player) = player_res_query.single_mut() {
-            // Deduct resources
-            player.wood = player.wood.saturating_sub(tunables.tower_cost_wood);
-            player.rock = player.rock.saturating_sub(tunables.tower_cost_rock);
+            // Deduct resources based on selected kind
+            player.wood = player.wood.saturating_sub(wood_cost);
+            player.rock = player.rock.saturating_sub(rock_cost);
         }
         // Determine tower stats from selected kind
         let (damage, fire_interval_secs, projectile_speed, size, color) =

@@ -403,6 +403,11 @@ pub struct TowerChoiceButton {
     pub kind: TowerKind,
 }
 
+#[derive(Component)]
+pub struct TowerOption {
+    pub kind: TowerKind,
+}
+
 /// Spawns a right-side drawer prompting the player to choose a tower when in build mode
 /// and no selection is currently chosen. Despawns it otherwise.
 pub fn manage_tower_selection_drawer(
@@ -411,6 +416,7 @@ pub fn manage_tower_selection_drawer(
     mut selection: ResMut<TowerBuildSelection>,
     children_q: Query<&Children>,
     drawer_root_alive: Query<(), With<TowerDrawerRoot>>,
+    player_q: Query<&Player>,
 ) {
     let building = building_mode_q.iter().any(|b| b.is_active);
 
@@ -419,6 +425,19 @@ pub fn manage_tower_selection_drawer(
 
     if need_drawer && !has_drawer {
         // Spawn drawer root on the right side
+        // Check current resources for affordability
+        let (player_wood, player_rock) = if let Ok(p) = player_q.single() {
+            (p.wood, p.rock)
+        } else {
+            (0, 0)
+        };
+
+        let bow_affordable = player_wood >= 3 && player_rock >= 1;
+        let crossbow_affordable = player_wood >= 10 && player_rock >= 3;
+
+        let normal_text = Color::srgba(0.9, 0.92, 0.98, 1.0);
+        let disabled_text = Color::srgba(0.7, 0.74, 0.82, 0.7);
+
         let root = commands
             .spawn((
                 TowerDrawerRoot,
@@ -447,61 +466,197 @@ pub fn manage_tower_selection_drawer(
                     TextColor(Color::srgba(0.92, 0.92, 0.98, 1.0)),
                 ));
 
-                // Bow button
-                parent
-                    .spawn((
-                        Button,
-                        TowerChoiceButton {
+                // Bow option
+                {
+                    let mut e = parent.spawn((
+                        TowerOption {
                             kind: TowerKind::Bow,
                         },
                         Node {
                             width: Val::Percent(100.0),
                             height: Val::Auto,
-                            padding: UiRect::all(Val::Px(10.0)),
+                            padding: UiRect::all(Val::Px(14.0)),
                             border: UiRect::all(Val::Px(1.0)),
+                            row_gap: Val::Px(4.0),
                             ..default()
                         },
                         BackgroundColor(Color::srgba(0.14, 0.16, 0.22, 0.9)),
                         BorderColor::all(Color::srgba(0.65, 0.70, 0.85, 0.35)),
-                    ))
-                    .with_children(|p| {
-                        p.spawn((
-                            Text::new("Bow tower\nFires quickly but does little damage"),
-                            TextFont {
-                                font_size: 20.0,
-                                ..default()
+                    ));
+                    if bow_affordable {
+                        e.insert((
+                            Button,
+                            TowerChoiceButton {
+                                kind: TowerKind::Bow,
                             },
-                            TextColor(Color::srgba(0.9, 0.92, 0.98, 1.0)),
                         ));
-                    });
+                    }
+                    e.with_children(|p| {
+                        // Row container: icon + text column
+                        p.spawn((Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Auto,
+                            column_gap: Val::Px(10.0),
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::FlexStart,
+                            ..default()
+                        },))
+                            .with_children(|row| {
+                                // Left icon (blue-ish for Bow)
+                                row.spawn((
+                                    Node {
+                                        width: Val::Px(16.0),
+                                        height: Val::Px(16.0),
+                                        ..default()
+                                    },
+                                    BackgroundColor(Color::srgba(0.35, 0.45, 0.95, 1.0)),
+                                ));
 
-                // Crossbow button
-                parent
-                    .spawn((
-                        Button,
-                        TowerChoiceButton {
+                                // Text column
+                                row.spawn((Node {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Auto,
+                                    row_gap: Val::Px(2.0),
+                                    flex_direction: FlexDirection::Column,
+                                    ..default()
+                                },))
+                                    .with_children(|col| {
+                                        col.spawn((
+                                            Text::new("Bow tower"),
+                                            TextFont {
+                                                font_size: 20.0,
+                                                ..default()
+                                            },
+                                            TextColor(if bow_affordable {
+                                                normal_text
+                                            } else {
+                                                disabled_text
+                                            }),
+                                        ));
+                                        col.spawn((
+                                            Text::new("Fires quickly but does little damage"),
+                                            TextFont {
+                                                font_size: 16.0,
+                                                ..default()
+                                            },
+                                            TextColor(if bow_affordable {
+                                                normal_text
+                                            } else {
+                                                disabled_text
+                                            }),
+                                        ));
+                                        col.spawn((
+                                            Text::new("Cost: 3 wood, 1 rock"),
+                                            TextFont {
+                                                font_size: 16.0,
+                                                ..default()
+                                            },
+                                            TextColor(if bow_affordable {
+                                                normal_text
+                                            } else {
+                                                disabled_text
+                                            }),
+                                        ));
+                                    });
+                            });
+                    });
+                }
+
+                // Crossbow option
+                {
+                    let mut e = parent.spawn((
+                        TowerOption {
                             kind: TowerKind::Crossbow,
                         },
                         Node {
                             width: Val::Percent(100.0),
                             height: Val::Auto,
-                            padding: UiRect::all(Val::Px(10.0)),
+                            padding: UiRect::all(Val::Px(14.0)),
                             border: UiRect::all(Val::Px(1.0)),
+                            row_gap: Val::Px(4.0),
                             ..default()
                         },
                         BackgroundColor(Color::srgba(0.14, 0.16, 0.22, 0.9)),
                         BorderColor::all(Color::srgba(0.65, 0.70, 0.85, 0.35)),
-                    ))
-                    .with_children(|p| {
-                        p.spawn((
-                            Text::new("Crossbow tower\nFires slowly but does lots of damage"),
-                            TextFont {
-                                font_size: 20.0,
-                                ..default()
+                    ));
+                    if crossbow_affordable {
+                        e.insert((
+                            Button,
+                            TowerChoiceButton {
+                                kind: TowerKind::Crossbow,
                             },
-                            TextColor(Color::srgba(0.9, 0.92, 0.98, 1.0)),
                         ));
+                    }
+                    e.with_children(|p| {
+                        // Row container: icon + text column
+                        p.spawn((Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Auto,
+                            column_gap: Val::Px(10.0),
+                            flex_direction: FlexDirection::Row,
+                            align_items: AlignItems::FlexStart,
+                            ..default()
+                        },))
+                            .with_children(|row| {
+                                // Left icon (purple for Crossbow)
+                                row.spawn((
+                                    Node {
+                                        width: Val::Px(16.0),
+                                        height: Val::Px(16.0),
+                                        ..default()
+                                    },
+                                    BackgroundColor(Color::srgba(0.62, 0.36, 0.86, 1.0)),
+                                ));
+
+                                // Text column
+                                row.spawn((Node {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Auto,
+                                    row_gap: Val::Px(2.0),
+                                    flex_direction: FlexDirection::Column,
+                                    ..default()
+                                },))
+                                    .with_children(|col| {
+                                        col.spawn((
+                                            Text::new("Crossbow tower"),
+                                            TextFont {
+                                                font_size: 20.0,
+                                                ..default()
+                                            },
+                                            TextColor(if crossbow_affordable {
+                                                normal_text
+                                            } else {
+                                                disabled_text
+                                            }),
+                                        ));
+                                        col.spawn((
+                                            Text::new("Fires slowly but does lots of damage"),
+                                            TextFont {
+                                                font_size: 16.0,
+                                                ..default()
+                                            },
+                                            TextColor(if crossbow_affordable {
+                                                normal_text
+                                            } else {
+                                                disabled_text
+                                            }),
+                                        ));
+                                        col.spawn((
+                                            Text::new("Cost: 10 wood, 3 rock"),
+                                            TextFont {
+                                                font_size: 16.0,
+                                                ..default()
+                                            },
+                                            TextColor(if crossbow_affordable {
+                                                normal_text
+                                            } else {
+                                                disabled_text
+                                            }),
+                                        ));
+                                    });
+                            });
                     });
+                }
             })
             .id();
         selection.drawer_root = Some(root);
@@ -532,6 +687,85 @@ pub fn handle_tower_selection_buttons(
             selection.choice = Some(button.kind);
             if let Some(root) = selection.drawer_root.take() {
                 despawn_entity_recursive(&mut commands, root, &children_q);
+            }
+        }
+    }
+}
+
+/// Live-updates the tower options to reflect the player's current resources.
+pub fn update_tower_selection_affordability(
+    player_q: Query<&Player>,
+    options_q: Query<(Entity, &TowerOption, &Children)>,
+    children_q: Query<&Children>,
+    mut text_colors: Query<&mut TextColor>,
+    mut commands: Commands,
+) {
+    let Ok(player) = player_q.single() else {
+        return;
+    };
+
+    let normal_text = Color::srgba(0.9, 0.92, 0.98, 1.0);
+    let disabled_text = Color::srgba(0.7, 0.74, 0.82, 0.7);
+
+    for (entity, option, children) in options_q.iter() {
+        let (req_wood, req_rock) = match option.kind {
+            TowerKind::Bow => (3, 1),
+            TowerKind::Crossbow => (10, 3),
+        };
+        let affordable = player.wood >= req_wood && player.rock >= req_rock;
+
+        // Toggle clickability
+        if affordable {
+            commands
+                .entity(entity)
+                .insert((Button, TowerChoiceButton { kind: option.kind }));
+        } else {
+            commands
+                .entity(entity)
+                .remove::<Button>()
+                .remove::<TowerChoiceButton>();
+        }
+
+        // Update text colors recursively across descendants
+        let color = if affordable {
+            normal_text
+        } else {
+            disabled_text
+        };
+        let mut stack: Vec<Entity> = Vec::new();
+        for c in children.iter() {
+            stack.push(c);
+        }
+        while let Some(e) = stack.pop() {
+            if let Ok(mut tc) = text_colors.get_mut(e) {
+                *tc = TextColor(color);
+            }
+            if let Ok(grand) = children_q.get(e) {
+                for g in grand.iter() {
+                    stack.push(g);
+                }
+            }
+        }
+    }
+}
+
+/// Subtle hover effect for affordable tower options (only those with `Button`).
+pub fn update_tower_option_hover(
+    mut q: Query<(&Interaction, &mut BackgroundColor), (Changed<Interaction>, With<Button>)>,
+) {
+    for (interaction, mut bg) in q.iter_mut() {
+        match *interaction {
+            Interaction::Hovered => {
+                // Slightly brighten on hover
+                *bg = BackgroundColor(Color::srgba(0.18, 0.20, 0.28, 0.95));
+            }
+            Interaction::Pressed => {
+                // Subtle pressed feedback
+                *bg = BackgroundColor(Color::srgba(0.12, 0.14, 0.20, 0.95));
+            }
+            Interaction::None => {
+                // Return to default card color
+                *bg = BackgroundColor(Color::srgba(0.14, 0.16, 0.22, 0.9));
             }
         }
     }

@@ -45,8 +45,6 @@ pub const C_WAVE_ENEMY_INCREMENT: u32 = 2;
 
 // Towers
 pub const C_TOWER_RANGE: f32 = 30.0;
-pub const C_TOWER_COST_WOOD: u32 = 5;
-pub const C_TOWER_COST_ROCK: u32 = 1;
 pub const C_TOWER_SPAWN_EFFECT_DURATION_SECS: f32 = 0.3;
 pub const C_PROJECTILE_HIT_RADIUS: f32 = 1.4;
 pub const C_PROJECTILE_LIFETIME_SECS: f32 = 5.0;
@@ -148,10 +146,7 @@ pub struct Tunables {
     /// Tower attack range in world units.
     pub tower_range: f32,
     // Tower mesh dimensions removed; sizes are per-kind
-    /// Wood cost to build a tower.
-    pub tower_cost_wood: u32,
-    /// Rock cost to build a tower.
-    pub tower_cost_rock: u32,
+    // Costs are per-tower and hardcoded in systems
     /// Seconds for the tower spawn ring effect.
     pub tower_spawn_effect_duration_secs: f32,
     /// Radius around the target position considered a hit.
@@ -254,8 +249,6 @@ impl Default for Tunables {
 
             // Towers
             tower_range: C_TOWER_RANGE,
-            tower_cost_wood: C_TOWER_COST_WOOD,
-            tower_cost_rock: C_TOWER_COST_ROCK,
             tower_spawn_effect_duration_secs: C_TOWER_SPAWN_EFFECT_DURATION_SECS,
             projectile_hit_radius: C_PROJECTILE_HIT_RADIUS,
             projectile_lifetime_secs: C_PROJECTILE_LIFETIME_SECS,
