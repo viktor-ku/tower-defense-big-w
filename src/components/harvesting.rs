@@ -24,5 +24,3 @@ pub struct CurrentCollectProgress {
     pub target: Option<Entity>,
     pub progress: f32,
 }
-
-

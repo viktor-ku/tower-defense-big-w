@@ -2,7 +2,7 @@ use super::assets::CombatVfxAssets;
 use crate::components::{Enemy, Tower};
 use crate::constants::Tunables;
 use crate::events::{DamageDealt, EnemyKilled};
-use crate::materials::{ExplosionMaterial, ImpactMaterial};
+use crate::materials::ImpactMaterial;
 use bevy::pbr::MeshMaterial3d;
 use bevy::prelude::*;
 use bevy::time::TimerMode;
@@ -14,14 +14,7 @@ pub fn tower_shooting(
     time: Res<Time>,
     mut commands: Commands,
     mut tower_query: Query<(&Transform, &mut Tower)>,
-    enemy_pos: Query<
-        (&Transform, Entity),
-        (
-            With<Enemy>,
-            Without<EnemyPreExplosion>,
-            Without<EnemyFadeOut>,
-        ),
-    >,
+    enemy_pos: Query<(&Transform, Entity), (With<Enemy>, Without<EnemyFadeOut>)>,
     tunables: Res<Tunables>,
     mut vfx_assets: ResMut<CombatVfxAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -128,21 +121,14 @@ pub fn projectile_system(
     time: Res<Time>,
     mut commands: Commands,
     mut projectile_query: Query<(Entity, &mut Projectile, &mut Transform), Without<Enemy>>,
-    enemy_pose_query: Query<
-        &GlobalTransform,
-        (
-            With<Enemy>,
-            Without<EnemyPreExplosion>,
-            Without<EnemyFadeOut>,
-        ),
-    >,
+    enemy_pose_query: Query<&GlobalTransform, (With<Enemy>, Without<EnemyFadeOut>)>,
     mut enemy_hit_query: Query<
         (
             &mut Enemy,
             &MeshMaterial3d<StandardMaterial>,
             Option<&mut EnemyHitFlash>,
         ),
-        (With<Enemy>, Without<EnemyPreExplosion>),
+        With<Enemy>,
     >,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut impact_materials: ResMut<Assets<ImpactMaterial>>,
@@ -235,7 +221,7 @@ fn handle_projectile_hit(
             &MeshMaterial3d<StandardMaterial>,
             Option<&mut EnemyHitFlash>,
         ),
-        (With<Enemy>, Without<EnemyPreExplosion>),
+        With<Enemy>,
     >,
     standard_materials: &mut Assets<StandardMaterial>,
     tunables: &Tunables,
@@ -263,10 +249,7 @@ fn handle_projectile_hit(
             }
 
             commands.entity(enemy_entity).insert(EnemyFadeOut {
-                timer: Timer::from_seconds(
-                    tunables.enemy_pre_explosion_duration_secs,
-                    TimerMode::Once,
-                ),
+                timer: Timer::from_seconds(tunables.enemy_fade_out_duration_secs, TimerMode::Once),
                 material: mat_handle,
                 original_color,
                 death_position: impact_point,
@@ -370,12 +353,6 @@ pub(crate) struct ImpactEffect {
     material: Handle<ImpactMaterial>,
 }
 
-#[derive(Component)]
-pub(crate) struct ExplosionEffect {
-    timer: Timer,
-    material: Handle<ExplosionMaterial>,
-}
-
 // trailing removed
 
 #[derive(Component)]
@@ -392,15 +369,7 @@ pub(crate) struct EnemyHitFlash {
     material: Handle<StandardMaterial>,
 }
 
-#[derive(Component)]
-pub(crate) struct EnemyPreExplosion {
-    timer: Timer,
-    original_color: Color,
-    material: Handle<StandardMaterial>,
-    flashes: f32,
-    last_flash_state: bool,
-    explosion_origin: Vec3,
-}
+// EnemyPreExplosion removed; replaced by EnemyFadeOut
 
 #[derive(Component)]
 pub(crate) struct EnemyFadeOut {
@@ -433,34 +402,7 @@ pub fn impact_effect_system(
     }
 }
 
-pub fn explosion_effect_system(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut effects: Query<(Entity, &mut ExplosionEffect, &mut Transform)>,
-    mut explosion_materials: ResMut<Assets<ExplosionMaterial>>,
-    tunables: Res<Tunables>,
-) {
-    let base_scale = 0.6;
-    for (entity, mut effect, mut transform) in effects.iter_mut() {
-        effect.timer.tick(time.delta());
-        let duration = effect.timer.duration().as_secs_f32().max(f32::EPSILON);
-        let progress = (effect.timer.elapsed().as_secs_f32() / duration).clamp(0.0, 1.0);
-        let eased = progress.powf(0.7);
-        let target_scale =
-            base_scale + eased * (tunables.explosion_effect_max_scale - base_scale).max(0.0);
-        transform.scale = Vec3::splat(target_scale);
-
-        if let Some(mat) = explosion_materials.get_mut(&effect.material) {
-            mat.data.progress = progress;
-            mat.data.glow = 1.4 - progress * 0.8;
-        }
-
-        if effect.timer.just_finished() {
-            explosion_materials.remove(effect.material.id());
-            commands.entity(entity).despawn();
-        }
-    }
-}
+// explosion effect system removed
 
 // trailing removed
 
@@ -514,46 +456,6 @@ pub fn damage_number_system(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn enemy_pre_explosion_system(
-    time: Res<Time>,
-    mut commands: Commands,
-    mut pre_explosions: Query<(Entity, &mut EnemyPreExplosion)>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    children_query: Query<&Children>,
-    mut enemy_killed_events: MessageWriter<EnemyKilled>,
-) {
-    for (entity, mut pre) in pre_explosions.iter_mut() {
-        pre.timer.tick(time.delta());
-        let duration = pre.timer.duration().as_secs_f32().max(f32::EPSILON);
-        let progress = (pre.timer.elapsed().as_secs_f32() / duration).clamp(0.0, 1.0);
-        let flash_phase = (progress * pre.flashes).fract();
-        let flash_on = flash_phase < 0.5;
-
-        if flash_on != pre.last_flash_state {
-            if let Some(mat) = materials.get_mut(&pre.material) {
-                if flash_on {
-                    mat.base_color = Color::WHITE;
-                } else {
-                    mat.base_color = Color::srgba(0.35, 0.9, 0.35, 1.0);
-                }
-            }
-            pre.last_flash_state = flash_on;
-        }
-
-        if pre.timer.just_finished() {
-            if let Some(mat) = materials.get_mut(&pre.material) {
-                mat.base_color = pre.original_color;
-            }
-
-            enemy_killed_events.write(EnemyKilled {
-                position: pre.explosion_origin,
-            });
-
-            despawn_entity_recursive(&mut commands, entity, &children_query);
-        }
-    }
-}
-
 pub fn enemy_fade_out_system(
     time: Res<Time>,
     mut commands: Commands,

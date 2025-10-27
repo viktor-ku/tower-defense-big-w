@@ -22,5 +22,3 @@ pub struct TownSquare;
 
 #[derive(Component)]
 pub struct Wall;
-
-

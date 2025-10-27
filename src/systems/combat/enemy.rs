@@ -74,8 +74,6 @@ pub fn enemy_spawning(
                         max_health: hp,
                         speed: spd,
                         damage: dmg,
-                        kind,
-                        visual_height: size,
                     },
                     match road_index {
                         Some(ri) => PathFollower {

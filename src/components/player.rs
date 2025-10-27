@@ -10,5 +10,3 @@ pub struct Player {
 /// Marker for the 3D player entity used in the world.
 #[derive(Component)]
 pub struct IsoPlayer;
-
-

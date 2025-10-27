@@ -58,8 +58,8 @@ impl WaveState {
         minions = base.saturating_sub(zombies).max(minions);
 
         let mut list: Vec<EnemyKind> = Vec::with_capacity(base);
-        list.extend(std::iter::repeat(EnemyKind::Minion).take(minions));
-        list.extend(std::iter::repeat(EnemyKind::Zombie).take(base - minions));
+        list.extend(std::iter::repeat_n(EnemyKind::Minion, minions));
+        list.extend(std::iter::repeat_n(EnemyKind::Zombie, base - minions));
 
         // Shuffle for random mixing
         use rand::seq::SliceRandom;
@@ -68,7 +68,7 @@ impl WaveState {
 
         // Build spawn queue; boss first on every 10th wave, added on top
         self.spawn_queue.clear();
-        if self.current_wave % 10 == 0 {
+        if self.current_wave.is_multiple_of(10) {
             self.spawn_queue.push_back(EnemyKind::Boss);
         }
         for k in list {

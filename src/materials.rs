@@ -1,4 +1,4 @@
-use bevy::math::{Vec2, Vec3, Vec4};
+use bevy::math::{Vec3, Vec4};
 use bevy::pbr::Material;
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderType};
@@ -76,43 +76,4 @@ impl Material for ImpactMaterial {
     }
 }
 
-/// Uniform data for volumetric explosion effects.
-#[derive(Clone, Copy, ShaderType, Default, Debug)]
-pub struct ExplosionMaterialUniform {
-    pub color: Vec4,
-    pub progress: f32,
-    pub glow: f32,
-    pub _pad: Vec2,
-}
-
-/// Expanding explosion material used for lethal blasts.
-#[derive(Asset, AsBindGroup, TypePath, Debug, Clone)]
-pub struct ExplosionMaterial {
-    #[uniform(0)]
-    pub data: ExplosionMaterialUniform,
-}
-
-impl ExplosionMaterial {
-    pub fn new(color: Color) -> Self {
-        let linear = color.to_linear();
-        let rgba = linear.to_f32_array();
-        ExplosionMaterial {
-            data: ExplosionMaterialUniform {
-                color: Vec4::from_array(rgba),
-                progress: 0.0,
-                glow: 1.0,
-                _pad: Vec2::ZERO,
-            },
-        }
-    }
-}
-
-impl Material for ExplosionMaterial {
-    fn fragment_shader() -> ShaderRef {
-        "shaders/explosion.wgsl".into()
-    }
-
-    fn alpha_mode(&self) -> AlphaMode {
-        AlphaMode::Add
-    }
-}
+// Explosion material removed

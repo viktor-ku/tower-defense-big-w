@@ -16,5 +16,3 @@
 //!
 //! pub fn spawn_enemy(commands: &mut Commands, /* assets, config, etc */) -> Entity { /* ... */ }
 //! ```
-
-

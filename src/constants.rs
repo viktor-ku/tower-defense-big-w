@@ -55,10 +55,8 @@ pub const C_DAMAGE_NUMBER_LIFETIME_SECS: f32 = 0.56;
 pub const C_DAMAGE_NUMBER_SPAWN_HEIGHT: f32 = 0.0;
 pub const C_DAMAGE_NUMBER_FONT_SIZE: f32 = 16.0;
 pub const C_ENEMY_FLASH_DURATION_SECS: f32 = 0.20;
-pub const C_ENEMY_PRE_EXPLOSION_DURATION_SECS: f32 = 0.6;
-pub const C_ENEMY_PRE_EXPLOSION_FLASHES: f32 = 8.0;
-pub const C_EXPLOSION_EFFECT_DURATION_SECS: f32 = 0.8;
-pub const C_EXPLOSION_EFFECT_MAX_SCALE: f32 = 3.0;
+pub const C_ENEMY_FADE_OUT_DURATION_SECS: f32 = 0.6;
+// Deprecated explosion/pre-explosion settings removed
 
 // Projectile trail removed (no trail rendering)
 
@@ -167,14 +165,9 @@ pub struct Tunables {
     pub damage_number_font_size: f32,
     /// Duration of the white flash applied to enemies on hit.
     pub enemy_flash_duration_secs: f32,
-    /// Duration of the pre-explosion warning flash on enemies.
-    pub enemy_pre_explosion_duration_secs: f32,
-    /// Number of flash cycles during the pre-explosion warning.
-    pub enemy_pre_explosion_flashes: f32,
-    /// Duration of the spawned explosion effect.
-    pub explosion_effect_duration_secs: f32,
-    /// Maximum scale of the spawned explosion effect.
-    pub explosion_effect_max_scale: f32,
+    /// Duration of the enemy fade-out on death.
+    pub enemy_fade_out_duration_secs: f32,
+    // Deprecated explosion/pre-explosion tunables removed
 
     // Projectile trail settings removed
     /// Enemy health bar width in world units.
@@ -259,10 +252,7 @@ impl Default for Tunables {
             damage_number_spawn_height: C_DAMAGE_NUMBER_SPAWN_HEIGHT,
             damage_number_font_size: C_DAMAGE_NUMBER_FONT_SIZE,
             enemy_flash_duration_secs: C_ENEMY_FLASH_DURATION_SECS,
-            enemy_pre_explosion_duration_secs: C_ENEMY_PRE_EXPLOSION_DURATION_SECS,
-            enemy_pre_explosion_flashes: C_ENEMY_PRE_EXPLOSION_FLASHES,
-            explosion_effect_duration_secs: C_EXPLOSION_EFFECT_DURATION_SECS,
-            explosion_effect_max_scale: C_EXPLOSION_EFFECT_MAX_SCALE,
+            enemy_fade_out_duration_secs: C_ENEMY_FADE_OUT_DURATION_SECS,
 
             // Projectile trail removed
 

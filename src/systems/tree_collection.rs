@@ -42,6 +42,16 @@ pub fn hold_to_collect(
     const COLLECT_RADIUS: f32 = 8.0;
     const HOLD_DURATION: f32 = 1.0;
 
+    // Only do the O(N) nearest scan when the key is held
+    let is_holding = keyboard_input.pressed(Key::Character("e".into()));
+    if !is_holding {
+        hold.current_target = None;
+        hold.elapsed_seconds = 0.0;
+        current.target = None;
+        current.progress = 0.0;
+        return;
+    }
+
     // Find nearest eligible target within radius among harvestables
     let mut nearest: Option<(Entity, Vec3, Harvestable)> = None;
     let mut best_dist_sq = f32::MAX;
@@ -58,8 +68,6 @@ pub fn hold_to_collect(
             best_dist_sq = d2;
         }
     }
-
-    let is_holding = keyboard_input.pressed(Key::Character("e".into()));
 
     match (nearest, is_holding) {
         (Some((entity, _target_pos, harvestable)), true) => {

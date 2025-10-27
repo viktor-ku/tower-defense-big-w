@@ -46,7 +46,6 @@ fn main() {
         .add_plugins((
             MaterialPlugin::<ProjectileMaterial>::default(),
             MaterialPlugin::<ImpactMaterial>::default(),
-            MaterialPlugin::<ExplosionMaterial>::default(),
         ))
         .add_plugins(ChunkPlugin)
         .add_plugins(FrameTimeDiagnosticsPlugin::default())
@@ -91,8 +90,6 @@ fn main() {
                 update_tower_option_hover,
                 update_tower_selection_affordability,
                 tower_drawer_shortcuts,
-                tower_drawer_scroll,
-                update_tower_scrollbar_thumb,
             )
                 .run_if(in_state(GameState::Playing)),
         )
@@ -113,9 +110,7 @@ fn main() {
                 projectile_system,
                 damage_dealt_spawn_text_system,
                 enemy_fade_out_system,
-                enemy_pre_explosion_system,
                 impact_effect_system,
-                explosion_effect_system,
                 enemy_flash_system,
             )
                 .run_if(in_state(GameState::Playing)),

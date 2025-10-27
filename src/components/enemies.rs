@@ -25,9 +25,6 @@ pub struct Enemy {
     pub max_health: u32,
     pub speed: f32,
     pub damage: u32,
-    pub kind: EnemyKind,
-    /// Visual height (used for placing health bars above the unit)
-    pub visual_height: f32,
 }
 
 /// Marker for the health bar root entity attached to an enemy.

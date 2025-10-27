@@ -13,5 +13,3 @@ pub struct PathFollower {
     pub road_index: usize,
     pub next_index: usize,
 }
-
-

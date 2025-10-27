@@ -169,7 +169,13 @@ fn update_chunks(
     assets: Res<ChunkAssets>,
     tunables: Res<Tunables>,
     children_q: Query<&Children>,
+    mut last_chunk: Local<Option<ChunkCoord>>,
 ) {
+    // Only perform load/unload work when the player actually changes chunks
+    if *last_chunk == Some(pc.0) {
+        return;
+    }
+    *last_chunk = Some(pc.0);
     let center = pc.0;
     let desired = desired_chunks(center, cfg.active_radius);
     let keep = desired_chunks(center, cfg.active_radius + cfg.hysteresis);
@@ -232,7 +238,9 @@ fn chunk_hud_toggle(
 ) {
     if input.just_pressed(KeyCode::F3) {
         hud.enabled = !hud.enabled;
-        if !hud.enabled && let Some(root) = hud.root.take() {
+        if !hud.enabled
+            && let Some(root) = hud.root.take()
+        {
             despawn_recursive(&mut commands, root, &children_q);
         }
     }
@@ -272,6 +280,9 @@ fn update_chunk_hud_text(
     mut text_q: Query<&mut Text, With<ChunkHudText>>,
 ) {
     if !hud.enabled {
+        return;
+    }
+    if !hud.is_changed() && !loaded.is_changed() && !player_chunk.is_changed() {
         return;
     }
     if let Ok(mut text) = text_q.single_mut() {
@@ -318,14 +329,42 @@ fn chunk_config_shortcuts(input: Res<ButtonInput<KeyCode>>, mut cfg: ResMut<Chun
     }
 }
 
+#[derive(Default)]
+struct DistanceCullState {
+    last_player_pos: Vec3,
+    initialized: bool,
+    accumulator_secs: f32,
+}
+
 fn distance_culling(
     cfg: Res<ChunkConfig>,
+    time: Res<Time>,
     player_q: Query<&Transform, With<Player>>,
     mut q: Query<(&Transform, &mut Visibility), With<Mesh3d>>,
+    mut state: Local<DistanceCullState>,
 ) {
     let Ok(player_tf) = player_q.single() else {
         return;
     };
+
+    // Throttle updates to ~10 Hz and only when the player has moved noticeably
+    state.accumulator_secs += time.delta_secs();
+    let moved_enough = if state.initialized {
+        player_tf
+            .translation
+            .distance_squared(state.last_player_pos)
+            > 1.0 // ~1 unit squared
+    } else {
+        true
+    };
+
+    if state.accumulator_secs < 0.1 && !moved_enough {
+        return;
+    }
+    state.accumulator_secs = 0.0;
+    state.last_player_pos = player_tf.translation;
+    state.initialized = true;
+
     let threshold = cfg.size * (cfg.active_radius + cfg.hysteresis + 1) as f32;
     let p = player_tf.translation;
     for (tf, mut vis) in q.iter_mut() {

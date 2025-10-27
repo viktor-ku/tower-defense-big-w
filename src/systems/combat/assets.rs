@@ -56,7 +56,6 @@ impl EnemyHealthBarAssets {
 pub struct CombatVfxAssets {
     projectile_mesh: Option<Handle<Mesh>>,
     impact_mesh: Option<Handle<Mesh>>,
-    explosion_mesh: Option<Handle<Mesh>>,
     projectile_white_material: Option<Handle<StandardMaterial>>,
 }
 
@@ -73,11 +72,7 @@ impl CombatVfxAssets {
             .clone()
     }
 
-    pub fn explosion_mesh(&mut self, meshes: &mut Assets<Mesh>) -> Handle<Mesh> {
-        self.explosion_mesh
-            .get_or_insert_with(|| meshes.add(Mesh::from(Sphere::new(0.6))))
-            .clone()
-    }
+    // explosion mesh removed
 
     pub fn projectile_white_material(
         &mut self,
