@@ -53,3 +53,24 @@ cargo run    # launch the game
 That’s it — with rustup and current GPU drivers in place, Bevy/wgpu will pick the best backend automatically (Vulkan/Metal/DirectX) for your platform.
 
 
+## Development tools
+
+- This project supports optional Bevy dev tools (frame time graph and UI debug helpers) behind a Cargo feature.
+- Use `mise` tasks to run with or without them:
+
+```bash
+# Without dev tools
+mise run run
+
+# With dev tools enabled
+mise run run:devtools
+
+# Release profiles
+mise run "run:release"
+mise run "run:release:devtools"
+```
+
+Notes:
+- Dev tools are excluded by default from normal runs and builds; they are enabled via `--features devtools`.
+- Cross‑platform: works on Windows, Linux, and macOS.
+

@@ -22,6 +22,7 @@ use setup::*;
 use splash::SplashPlugin;
 use systems::*;
 // Frame time graph (Bevy 0.17 dev tools)
+#[cfg(feature = "devtools")]
 use bevy::dev_tools::frame_time_graph::FrameTimeGraphPlugin;
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use rand::Rng;
@@ -39,8 +40,9 @@ fn main() {
 
     // Persist the used seed so we can reproduce a given world later if needed.
     persist_seed_to_app_data(launch_seed);
-    App::new()
-        .insert_resource(tunables.clone())
+
+    let mut app = App::new();
+    app.insert_resource(tunables.clone())
         .insert_resource(WaveState::new(&tunables))
         .insert_resource(CombatVfxAssets::default())
         .insert_resource(RandomizationPolicy::default())
@@ -66,10 +68,16 @@ fn main() {
         ))
         .add_plugins(ChunkPlugin)
         .add_plugins(SplashPlugin)
-        .add_plugins(FrameTimeDiagnosticsPlugin::default())
-        .add_plugins(FrameTimeGraphPlugin)
-        // Add explicit exit handling
-        .add_systems(Update, bevy::window::close_when_requested)
+        .add_plugins(FrameTimeDiagnosticsPlugin::default());
+
+    // Dev tools (frame time graph) only in devtools feature
+    #[cfg(feature = "devtools")]
+    {
+        app.add_plugins(FrameTimeGraphPlugin);
+    }
+
+    // Add explicit exit handling and the rest of the systems/plugins
+    app.add_systems(Update, bevy::window::close_when_requested)
         .add_systems(Update, bevy::window::exit_on_all_closed)
         .init_state::<GameState>()
         .insert_state(GameState::Loading)
@@ -187,8 +195,9 @@ fn main() {
         // Tree collection system
         .add_systems(Update, hold_to_collect.run_if(in_state(GameState::Playing)))
         // Window close handling - use force exit for immediate termination
-        .add_systems(Update, force_exit_on_close)
-        .run();
+        .add_systems(Update, force_exit_on_close);
+
+    app.run();
 }
 
 /// Parse command-line arguments for an explicit seed, otherwise generate a random one.

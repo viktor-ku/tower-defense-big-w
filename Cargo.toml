@@ -11,8 +11,6 @@ dirs-next = "=2.0.0"
 [dependencies.bevy]
 version = "=0.17.2"
 features = [
-    "bevy_dev_tools",
-    "bevy_ui_debug",
     "experimental_bevy_ui_widgets",
     "flac",
     "jpeg",
@@ -25,4 +23,11 @@ features = [
     "wav",
     "webp",
     "zlib",
+]
+
+[features]
+devtools = [
+    # Enable Bevy's built-in development tooling and UI debug helpers only in this feature
+    "bevy/bevy_dev_tools",
+    "bevy/bevy_ui_debug",
 ]

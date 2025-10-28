@@ -20,12 +20,28 @@ Get-ChildItem -Path . -Filter 'trace-*' -File -ErrorAction SilentlyContinue | Re
 cargo run
 """
 
+[tasks."run:devtools"]
+description = "Run in debug with devtools (cleans trace-* first)"
+shell = "powershell"
+run = """
+Get-ChildItem -Path . -Filter 'trace-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+cargo run --features devtools
+"""
+
 [tasks."run:release"]
 description = "Run in release (cleans trace-* first)"
 shell = "powershell"
 run = """
 Get-ChildItem -Path . -Filter 'trace-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 cargo run --release
+"""
+
+[tasks."run:release:devtools"]
+description = "Run in release with devtools (cleans trace-* first)"
+shell = "powershell"
+run = """
+Get-ChildItem -Path . -Filter 'trace-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+cargo run --release --features devtools
 """
 
 [tasks.fmt]
