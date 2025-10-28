@@ -472,8 +472,14 @@ pub fn update_tower_selection_affordability(
     children_q: Query<&Children>,
     mut text_colors: Query<&mut TextColor>,
     mut missing_texts: Query<(&mut Text, &TowerMissingText)>,
+    selection: Res<TowerBuildSelection>,
     mut commands: Commands,
 ) {
+    // If the drawer isn't present anymore (e.g., just selected/cancelled this frame),
+    // skip updating affordability to avoid issuing commands for entities that will be despawned.
+    if selection.drawer_root.is_none() {
+        return;
+    }
     let Ok(player) = player_q.single() else {
         return;
     };
@@ -489,14 +495,14 @@ pub fn update_tower_selection_affordability(
         let affordable = player.wood >= req_wood && player.rock >= req_rock;
 
         if affordable {
-            commands
-                .entity(entity)
-                .insert((Button, TowerChoiceButton { kind: option.kind }));
+            if let Ok(mut ec) = commands.get_entity(entity) {
+                ec.insert((Button, TowerChoiceButton { kind: option.kind }));
+            }
         } else {
-            commands
-                .entity(entity)
-                .remove::<Button>()
-                .remove::<TowerChoiceButton>();
+            if let Ok(mut ec) = commands.get_entity(entity) {
+                ec.remove::<Button>();
+                ec.remove::<TowerChoiceButton>();
+            }
         }
 
         let color = if affordable {
@@ -593,6 +599,8 @@ fn despawn_entity_recursive(
                 stack.push(child);
             }
         }
-        commands.entity(entity).despawn();
+        if commands.get_entity(entity).is_ok() {
+            commands.entity(entity).despawn();
+        }
     }
 }
