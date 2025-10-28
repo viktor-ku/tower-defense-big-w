@@ -14,6 +14,8 @@ pub struct RandomizationPolicy {
     pub road_generation_seeded: bool,
     /// Whether chunk content (trees/rocks distribution) is seeded.
     pub chunk_content_seeded: bool,
+    /// Whether rule-based resource passes are seeded.
+    pub resource_rules_seeded: bool,
 }
 
 impl Default for RandomizationPolicy {
@@ -24,6 +26,7 @@ impl Default for RandomizationPolicy {
             town_layout_seeded: true,
             road_generation_seeded: true,
             chunk_content_seeded: true,
+            resource_rules_seeded: true,
         }
     }
 }

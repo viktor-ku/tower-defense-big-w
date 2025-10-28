@@ -35,8 +35,15 @@ impl Plugin for SplashPlugin {
 struct LoadingDelay(Timer);
 
 fn on_enter_loading(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Camera for splash UI
-    commands.spawn((Camera2d, SplashRoot));
+    // Camera for splash UI; set a higher order so it renders on top of 3D
+    commands.spawn((
+        Camera2d,
+        Camera {
+            order: 10,
+            ..default()
+        },
+        SplashRoot,
+    ));
 
     // Ensure splash stays up for at least 2s
     commands.insert_resource(LoadingDelay(Timer::from_seconds(2.0, TimerMode::Once)));

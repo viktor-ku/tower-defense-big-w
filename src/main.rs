@@ -67,6 +67,8 @@ fn main() {
             MaterialPlugin::<ImpactMaterial>::default(),
         ))
         .add_plugins(ChunkPlugin)
+        .add_plugins(ResourcePassesPlugin)
+        .add_plugins(RocksAlongRoadPassPlugin)
         .add_plugins(SplashPlugin)
         .add_plugins(FrameTimeDiagnosticsPlugin::default());
 
