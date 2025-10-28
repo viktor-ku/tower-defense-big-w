@@ -91,6 +91,7 @@ fn main() {
                 spawn_village_health_bar,
                 spawn_resource_counters,
                 spawn_wave_hud,
+                spawn_game_speed_indicator,
             ),
         )
         .add_systems(Update, handle_menu_input.run_if(in_state(GameState::Menu)))
@@ -161,6 +162,8 @@ fn main() {
             )
                 .run_if(in_state(GameState::Playing)),
         )
+        // Game speed indicator updates every frame to also hide in non-game states
+        .add_systems(Update, update_game_speed_indicator)
         .add_systems(
             Update,
             (

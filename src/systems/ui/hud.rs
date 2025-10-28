@@ -253,3 +253,46 @@ pub fn update_wave_hud(
         }
     }
 }
+
+// Game speed / pause indicator
+#[derive(Component)]
+pub struct GameSpeedIndicatorText;
+
+pub fn spawn_game_speed_indicator(mut commands: Commands) {
+    commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(20.0),
+                top: Val::Px(20.0),
+                width: Val::Auto,
+                height: Val::Auto,
+                ..default()
+            },
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new(""),
+                TextFont {
+                    font_size: 28.0,
+                    ..default()
+                },
+                TextColor(Color::srgba(0.95, 0.95, 0.95, 1.0)),
+                GameSpeedIndicatorText,
+            ));
+        });
+}
+
+pub fn update_game_speed_indicator(
+    state: Res<State<GameState>>,
+    mut query: Query<&mut Text, With<GameSpeedIndicatorText>>,
+) {
+    let desired = match state.get() {
+        GameState::Playing => "1x",
+        GameState::Paused => "||",
+        _ => "",
+    };
+    for mut text in query.iter_mut() {
+        *text = Text::new(desired.to_string());
+    }
+}
