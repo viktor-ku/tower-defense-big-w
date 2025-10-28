@@ -1,0 +1,38 @@
+[tasks.build]
+description = "Build in debug"
+shell = "powershell"
+run = """
+cargo build
+"""
+
+[tasks."build:release"]
+description = "Build in release"
+shell = "powershell"
+run = """
+cargo build --release
+"""
+
+[tasks.run]
+description = "Run in debug (cleans trace-* first)"
+shell = "powershell"
+run = """
+Get-ChildItem -Path . -Filter 'trace-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+cargo run
+"""
+
+[tasks."run:release"]
+description = "Run in release (cleans trace-* first)"
+shell = "powershell"
+run = """
+Get-ChildItem -Path . -Filter 'trace-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+cargo run --release
+"""
+
+[tasks.fmt]
+description = "Format Rust code"
+shell = "powershell"
+run = """
+cargo fmt --all
+"""
+
+

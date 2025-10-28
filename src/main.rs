@@ -9,6 +9,7 @@ mod entities;
 mod events;
 mod materials;
 mod setup;
+mod splash;
 mod systems;
 
 use components::*;
@@ -16,6 +17,7 @@ use constants::Tunables;
 use events::*;
 use materials::*;
 use setup::*;
+use splash::SplashPlugin;
 use systems::*;
 // Frame time graph (Bevy 0.17 dev tools)
 use bevy::dev_tools::frame_time_graph::FrameTimeGraphPlugin;
@@ -48,13 +50,14 @@ fn main() {
             MaterialPlugin::<ImpactMaterial>::default(),
         ))
         .add_plugins(ChunkPlugin)
+        .add_plugins(SplashPlugin)
         .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(FrameTimeGraphPlugin)
         // Add explicit exit handling
         .add_systems(Update, bevy::window::close_when_requested)
         .add_systems(Update, bevy::window::exit_on_all_closed)
         .init_state::<GameState>()
-        .insert_state(GameState::Playing)
+        .insert_state(GameState::Loading)
         .insert_resource(CurrentCollectProgress::default())
         .insert_resource(CollectUiState::default())
         .insert_resource(TowerBuildSelection::default())
@@ -66,7 +69,7 @@ fn main() {
         .add_message::<bevy::window::WindowCloseRequested>()
         .add_message::<AppExit>()
         .add_systems(
-            Startup,
+            OnEnter(GameState::Loading),
             (
                 setup,
                 warm_ui_pipelines,

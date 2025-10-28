@@ -6,6 +6,7 @@ use bevy::prelude::*;
 /// - Playing: active gameplay loop
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub enum GameState {
+    Loading,
     #[default]
     Menu,
     Playing,
