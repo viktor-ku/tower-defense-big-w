@@ -1,5 +1,6 @@
 use crate::components::*;
 use bevy::input::keyboard::Key;
+use bevy::input::mouse::MouseButton;
 use bevy::prelude::*;
 
 pub fn handle_menu_input(
@@ -14,10 +15,11 @@ pub fn handle_menu_input(
 
 pub fn handle_game_input(
     keyboard_input: Res<ButtonInput<Key>>,
+    mouse_input: Res<ButtonInput<MouseButton>>,
     mut building_mode_query: Query<&mut BuildingMode>,
     mut selection: ResMut<TowerBuildSelection>,
 ) {
-    if keyboard_input.just_pressed(Key::Escape) {
+    if keyboard_input.just_pressed(Key::Escape) || mouse_input.just_pressed(MouseButton::Right) {
         // Cancel building mode and any tower selection/preview
         let mut was_building = false;
         for mut building_mode in building_mode_query.iter_mut() {
