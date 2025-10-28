@@ -7,6 +7,7 @@ pub struct EnemyHealthBarAssets {
     quad_mesh: Option<Handle<Mesh>>,
     background_material: Option<Handle<StandardMaterial>>,
     fill_material: Option<Handle<StandardMaterial>>,
+    border_material: Option<Handle<StandardMaterial>>,
 }
 
 impl EnemyHealthBarAssets {
@@ -40,8 +41,27 @@ impl EnemyHealthBarAssets {
         self.fill_material
             .get_or_insert_with(|| {
                 materials.add(StandardMaterial {
-                    base_color: Color::srgba(0.2, 0.85, 0.2, 0.9),
-                    alpha_mode: AlphaMode::Blend,
+                    base_color: Color::srgba(0.9, 0.05, 0.1, 1.0),
+                    emissive: Color::srgb(1.0, 0.1, 0.12).into(),
+                    alpha_mode: AlphaMode::Opaque,
+                    unlit: true,
+                    cull_mode: None,
+                    ..default()
+                })
+            })
+            .clone()
+    }
+
+    pub fn border_material(
+        &mut self,
+        materials: &mut Assets<StandardMaterial>,
+    ) -> Handle<StandardMaterial> {
+        self.border_material
+            .get_or_insert_with(|| {
+                materials.add(StandardMaterial {
+                    base_color: Color::WHITE,
+                    emissive: Color::WHITE.into(),
+                    alpha_mode: AlphaMode::Opaque,
                     unlit: true,
                     cull_mode: None,
                     ..default()

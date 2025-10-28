@@ -12,7 +12,10 @@ pub mod projectiles;
 pub mod towers;
 
 pub use assets::{CombatVfxAssets, EnemyHealthBarAssets};
-pub use enemy::{enemy_spawning, face_enemy_health_bars, update_enemy_health_bars};
+pub use enemy::{
+    cleanup_enemy_health_bars, enemy_spawning, face_enemy_health_bars, position_enemy_health_bars,
+    update_enemy_health_bars,
+};
 pub use projectiles::{
     damage_dealt_spawn_text_system, damage_number_system, enemy_fade_out_system,
     enemy_flash_system, impact_effect_system, projectile_system, tower_shooting,

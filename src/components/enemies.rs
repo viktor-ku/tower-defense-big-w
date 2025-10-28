@@ -27,9 +27,11 @@ pub struct Enemy {
     pub damage: u32,
 }
 
-/// Marker for the health bar root entity attached to an enemy.
+/// Root entity for an enemy health bar, decoupled from the enemy transform.
 #[derive(Component)]
-pub struct EnemyHealthBarRoot;
+pub struct EnemyHealthBarRoot {
+    pub owner: Entity,
+}
 
 /// Fill bar component tracking width constraints and owner entity.
 #[derive(Component)]

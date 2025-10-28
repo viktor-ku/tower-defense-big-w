@@ -95,7 +95,7 @@ pub fn enemy_spawning(
                 &mut materials,
                 &mut health_bar_assets,
                 &tunables,
-                size,
+                Vec3::new(spawn_pos.x, half_h, spawn_pos.z),
             );
 
             enemy_events.write(EnemySpawned {
@@ -136,60 +136,74 @@ fn attach_health_bar(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     health_bar_assets: &mut ResMut<EnemyHealthBarAssets>,
     tunables: &Tunables,
-    base_height: f32,
+    owner_world_pos: Vec3,
 ) {
     let quad_mesh = health_bar_assets.mesh(meshes);
     let background_mat = health_bar_assets.background_material(materials);
     let fill_mat = health_bar_assets.fill_material(materials);
 
-    commands.entity(enemy_entity).with_children(|parent| {
-        parent
-            .spawn((
-                EnemyHealthBarRoot,
-                Transform::from_translation(Vec3::new(
-                    0.0,
-                    base_height + tunables.health_bar_offset_y,
-                    0.0,
-                )),
-                GlobalTransform::default(),
-                Visibility::default(),
-                InheritedVisibility::default(),
-            ))
-            .with_children(|bar| {
-                bar.spawn((
-                    Mesh3d(quad_mesh.clone()),
-                    MeshMaterial3d(background_mat.clone()),
-                    Transform {
-                        translation: Vec3::ZERO,
-                        scale: Vec3::new(
-                            tunables.health_bar_width,
-                            tunables.health_bar_height,
-                            1.0,
-                        ),
-                        ..default()
-                    },
-                ));
+    let border_mat = health_bar_assets.border_material(materials);
+    let d = tunables.health_bar_height * 0.12;
 
-                bar.spawn((
-                    Mesh3d(quad_mesh.clone()),
-                    MeshMaterial3d(fill_mat),
-                    Transform {
-                        translation: Vec3::new(0.0, 0.0, 0.001),
-                        scale: Vec3::new(
-                            tunables.health_bar_width,
-                            tunables.health_bar_fill_height,
-                            1.0,
-                        ),
-                        ..default()
-                    },
-                    EnemyHealthBarFill {
-                        max_width: tunables.health_bar_width,
-                        owner: enemy_entity,
-                        last_ratio: 1.0,
-                    },
-                ));
-            });
-    });
+    let root_translation = owner_world_pos + Vec3::Y * tunables.health_bar_offset_y;
+
+    commands
+        .spawn((
+            EnemyHealthBarRoot {
+                owner: enemy_entity,
+            },
+            Transform::from_translation(root_translation),
+            GlobalTransform::default(),
+            Visibility::default(),
+            InheritedVisibility::default(),
+        ))
+        .with_children(|bar| {
+            // White border (slightly larger)
+            bar.spawn((
+                Mesh3d(quad_mesh.clone()),
+                MeshMaterial3d(border_mat),
+                Transform {
+                    translation: Vec3::new(0.0, 0.0, 0.0),
+                    scale: Vec3::new(
+                        tunables.health_bar_width + d,
+                        tunables.health_bar_height + d,
+                        1.0,
+                    ),
+                    ..default()
+                },
+            ));
+
+            // Background (dark)
+            bar.spawn((
+                Mesh3d(quad_mesh.clone()),
+                MeshMaterial3d(background_mat.clone()),
+                Transform {
+                    translation: Vec3::new(0.0, 0.0, 0.001),
+                    scale: Vec3::new(tunables.health_bar_width, tunables.health_bar_height, 1.0),
+                    ..default()
+                },
+            ));
+
+            // Fill (bright red), left-to-right
+            bar.spawn((
+                Mesh3d(quad_mesh.clone()),
+                MeshMaterial3d(fill_mat),
+                Transform {
+                    translation: Vec3::new(0.0, 0.0, 0.002),
+                    scale: Vec3::new(
+                        tunables.health_bar_width,
+                        tunables.health_bar_fill_height,
+                        1.0,
+                    ),
+                    ..default()
+                },
+                EnemyHealthBarFill {
+                    max_width: tunables.health_bar_width,
+                    owner: enemy_entity,
+                    last_ratio: 1.0,
+                },
+            ));
+        });
 }
 
 pub fn update_enemy_health_bars(
@@ -222,14 +236,48 @@ pub fn face_enemy_health_bars(
     let Ok(camera_tf) = camera_query.single() else {
         return;
     };
-    let cam_pos = camera_tf.translation();
+    // Align bars to the camera's yaw so they are always screen-horizontal
+    let forward = camera_tf.forward();
+    let yaw = forward.x.atan2(forward.z);
 
-    for (mut transform, global) in bars.iter_mut() {
-        let bar_pos = global.translation();
-        let dir = Vec3::new(cam_pos.x - bar_pos.x, 0.0, cam_pos.z - bar_pos.z);
-        if dir.length_squared() > f32::EPSILON {
-            let yaw = dir.x.atan2(dir.z);
-            transform.rotation = Quat::from_rotation_y(yaw);
+    for (mut transform, _) in bars.iter_mut() {
+        transform.rotation = Quat::from_rotation_y(yaw);
+    }
+}
+
+pub fn position_enemy_health_bars(
+    tunables: Res<Tunables>,
+    owner_tf_q: Query<&GlobalTransform>,
+    mut bars_q: Query<(&EnemyHealthBarRoot, &mut Transform)>,
+) {
+    for (root, mut transform) in bars_q.iter_mut() {
+        if let Ok(owner_tf) = owner_tf_q.get(root.owner) {
+            let owner_pos = owner_tf.translation();
+            transform.translation.x = owner_pos.x;
+            transform.translation.y = owner_pos.y + tunables.health_bar_offset_y;
+            transform.translation.z = owner_pos.z;
+        }
+    }
+}
+
+pub fn cleanup_enemy_health_bars(
+    mut commands: Commands,
+    bars_q: Query<(Entity, &EnemyHealthBarRoot)>,
+    enemy_q: Query<(), With<Enemy>>,
+    children_q: Query<&Children>,
+) {
+    for (bar_entity, root) in bars_q.iter() {
+        if enemy_q.get(root.owner).is_err() {
+            // Despawn bar and all its children
+            let mut stack = vec![bar_entity];
+            while let Some(e) = stack.pop() {
+                if let Ok(children) = children_q.get(e) {
+                    for child in children.iter() {
+                        stack.push(child);
+                    }
+                }
+                commands.entity(e).despawn();
+            }
         }
     }
 }

@@ -145,7 +145,9 @@ fn main() {
             (
                 tower_spawn_effect_system,
                 face_enemy_health_bars,
+                position_enemy_health_bars,
                 update_enemy_health_bars,
+                cleanup_enemy_health_bars,
             )
                 .run_if(in_state(GameState::Playing)),
         )
