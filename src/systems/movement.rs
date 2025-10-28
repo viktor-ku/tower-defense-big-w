@@ -1,3 +1,4 @@
+use crate::audio::PlayerFootstepEvent;
 use crate::components::*;
 use crate::constants::Tunables;
 use crate::systems::combat::projectiles::EnemyFadeOut;
@@ -11,6 +12,8 @@ pub fn player_movement(
     mut player_query: Query<&mut Transform, (With<Player>, With<IsoPlayer>)>,
     tunables: Res<Tunables>,
     mut log_accumulator: Local<f32>,
+    mut step_accumulator: Local<f32>,
+    mut footstep_events: MessageWriter<PlayerFootstepEvent>,
 ) {
     if let Ok(mut transform) = player_query.single_mut() {
         let mut direction = Vec3::ZERO;
@@ -39,6 +42,16 @@ pub fn player_movement(
         if direction.length() > 0.0 {
             direction = direction.normalize();
             transform.translation += direction * tunables.player_speed * time.delta_secs();
+
+            // Footstep: emit at a regular cadence while moving
+            *step_accumulator += time.delta_secs();
+            let step_interval = 0.4_f32; // seconds per step (generic surface)
+            if *step_accumulator >= step_interval {
+                footstep_events.write(PlayerFootstepEvent {
+                    position: transform.translation,
+                });
+                *step_accumulator = 0.0;
+            }
 
             // Debug: Log player position every few seconds without unsafe statics
             *log_accumulator += time.delta_secs();

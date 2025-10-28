@@ -1,3 +1,4 @@
+use crate::audio::{BuildingActionEvent, BuildingActionKind};
 use crate::components::{
     BuildingMode, BuiltTower, Player, SellingMode, Tower, TowerBuildSelection, TowerGhost,
     TowerKind,
@@ -31,6 +32,7 @@ pub fn tower_building(
     mut ghost_state: Local<Option<TowerGhostData>>,
     mut selection: ResMut<TowerBuildSelection>,
     tunables: Res<Tunables>,
+    mut building_sfx: MessageWriter<BuildingActionEvent>,
 ) {
     let building_mode_active = building_mode_query.iter().any(|mode| mode.is_active);
 
@@ -163,9 +165,21 @@ pub fn tower_building(
             kind,
         );
 
+        // Emit building place SFX event
+        building_sfx.write(BuildingActionEvent {
+            kind: BuildingActionKind::Place,
+            position: placement_pos,
+        });
+
         // Force re-choose next time
         selection.choice = None;
         clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
+    } else if mouse_input.just_pressed(MouseButton::Left) && selection.choice.is_some() {
+        // Invalid placement attempt: out of range or not affordable
+        building_sfx.write(BuildingActionEvent {
+            kind: BuildingActionKind::Invalid,
+            position: placement_pos,
+        });
     }
 }
 
@@ -519,6 +533,7 @@ pub fn tower_selling_click(
     towers_q: Query<(Entity, &Transform, &BuiltTower), With<Tower>>,
     mut player_q: Query<&mut Player>,
     mut commands: Commands,
+    mut building_sfx: MessageWriter<BuildingActionEvent>,
 ) {
     let selling_active = selling_q.iter().any(|s| s.is_active);
     if !selling_active {
@@ -542,7 +557,7 @@ pub fn tower_selling_click(
     };
 
     // Find nearest tower within threshold on XZ plane
-    let mut best: Option<(Entity, TowerKind, f32)> = None;
+    let mut best: Option<(Entity, TowerKind, f32, Vec3)> = None;
     for (entity, transform, built) in towers_q.iter() {
         let tower_pos = transform.translation;
         let dx = tower_pos.x - world_point.x;
@@ -551,12 +566,12 @@ pub fn tower_selling_click(
         if d2 <= 4.0 {
             // threshold radius ~2.0
             if best.as_ref().map(|b| d2 < b.2).unwrap_or(true) {
-                best = Some((entity, built.kind, d2));
+                best = Some((entity, built.kind, d2, tower_pos));
             }
         }
     }
 
-    if let Some((entity, kind, _)) = best {
+    if let Some((entity, kind, _, pos)) = best {
         if let Ok(mut player) = player_q.single_mut() {
             let (wood_cost, rock_cost) = kind.cost();
             let wood_refund = wood_cost / 2;
@@ -565,5 +580,10 @@ pub fn tower_selling_click(
             player.rock = player.rock.saturating_add(rock_refund);
         }
         commands.entity(entity).despawn();
+        // Emit building sell SFX event
+        building_sfx.write(BuildingActionEvent {
+            kind: BuildingActionKind::Sell,
+            position: pos,
+        });
     }
 }

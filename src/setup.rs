@@ -1,3 +1,4 @@
+use crate::audio::AudioListener;
 use crate::constants::Tunables;
 use crate::random_policy::RandomizationPolicy;
 use crate::{
@@ -237,6 +238,7 @@ pub fn setup(
             tunables.camera_offset.z,
         )
         .looking_at(Vec3::ZERO, Vec3::Y),
+        AudioListener,
     ));
 
     commands.spawn((

@@ -4,6 +4,7 @@ use bevy::pbr::MaterialPlugin;
 use bevy::prelude::*;
 mod constants;
 
+mod audio;
 mod components;
 mod entities;
 mod events;
@@ -62,6 +63,8 @@ fn main() {
                 filter: "wgpu=error,bevy_render=error".into(),
                 ..default()
             }),))
+        .add_plugins(bevy_kira_audio::prelude::AudioPlugin)
+        .add_plugins(audio::GameAudioPlugin)
         .add_plugins((
             MaterialPlugin::<ProjectileMaterial>::default(),
             MaterialPlugin::<ImpactMaterial>::default(),

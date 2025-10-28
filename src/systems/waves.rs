@@ -1,21 +1,22 @@
+use crate::audio::{BossWaveStartedEvent, WaveStartedEvent};
 use crate::components::{Enemy, WavePhase, WaveState};
 use crate::constants::Tunables;
 use crate::random_policy::RandomizationPolicy;
 use crate::systems::WorldSeed;
-use bevy::audio::{AudioPlayer, PlaybackMode, PlaybackSettings, Volume};
 use bevy::prelude::*;
 use std::time::Duration;
 
 /// Handles transitioning between wave intermissions and active waves.
 pub fn wave_progression(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     time: Res<Time>,
     mut wave_state: ResMut<WaveState>,
     tunables: Res<Tunables>,
     enemy_query: Query<Entity, With<Enemy>>,
     seed: Res<WorldSeed>,
     policy: Res<RandomizationPolicy>,
+    mut wave_started_writer: MessageWriter<WaveStartedEvent>,
+    mut boss_wave_started_writer: MessageWriter<BossWaveStartedEvent>,
 ) {
     match wave_state.phase {
         WavePhase::Intermission => {
@@ -34,22 +35,11 @@ pub fn wave_progression(
 
             wave_state.intermission_timer.tick(time.delta());
             if wave_state.intermission_timer.just_finished() {
-                let rel_path = "sounds/round-start.wav";
-                let full_path = std::path::Path::new("assets").join(rel_path);
-                if full_path.exists() {
-                    commands.spawn((
-                        AudioPlayer::new(asset_server.load(rel_path)),
-                        PlaybackSettings {
-                            mode: PlaybackMode::Despawn,
-                            volume: Volume::Decibels(-10.0),
-                            ..default()
-                        },
-                    ));
+                let next_wave = wave_state.current_wave + 1;
+                if next_wave % 10 == 0 {
+                    boss_wave_started_writer.write(BossWaveStartedEvent);
                 } else {
-                    error!(
-                        "Missing sound asset: {}. Skipping playback.",
-                        full_path.display()
-                    );
+                    wave_started_writer.write(WaveStartedEvent);
                 }
                 let seed_mode = if policy.wave_composition_seeded {
                     Some(seed.0)

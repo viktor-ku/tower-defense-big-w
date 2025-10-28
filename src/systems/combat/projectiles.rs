@@ -1,5 +1,6 @@
 use super::assets::CombatVfxAssets;
-use crate::components::{Enemy, Tower};
+use crate::audio::{TowerShotEvent, TowerShotKind};
+use crate::components::{BuiltTower, Enemy, Tower, TowerKind};
 use crate::constants::Tunables;
 use crate::events::{DamageDealt, EnemyKilled};
 use crate::materials::ImpactMaterial;
@@ -13,14 +14,15 @@ use std::time::Duration;
 pub fn tower_shooting(
     time: Res<Time>,
     mut commands: Commands,
-    mut tower_query: Query<(&Transform, &mut Tower)>,
+    mut tower_query: Query<(&Transform, &mut Tower, Option<&BuiltTower>)>,
     enemy_pos: Query<(&Transform, Entity), (With<Enemy>, Without<EnemyFadeOut>)>,
     tunables: Res<Tunables>,
     mut vfx_assets: ResMut<CombatVfxAssets>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
+    mut shot_events: MessageWriter<TowerShotEvent>,
 ) {
-    for (tower_transform, mut tower) in tower_query.iter_mut() {
+    for (tower_transform, mut tower, built_kind_opt) in tower_query.iter_mut() {
         tower.last_shot += time.delta_secs();
 
         if tower.last_shot >= tower.fire_interval_secs {
@@ -53,6 +55,15 @@ pub fn tower_shooting(
                     tower.height,
                     tower.projectile_speed,
                 );
+                // Emit tower shot audio event from tower position
+                let kind = match built_kind_opt.map(|b| b.kind).unwrap_or(TowerKind::Bow) {
+                    TowerKind::Bow => TowerShotKind::Bow,
+                    TowerKind::Crossbow => TowerShotKind::Crossbow,
+                };
+                shot_events.write(TowerShotEvent {
+                    kind,
+                    position: tower_transform.translation,
+                });
                 tower.last_shot = 0.0;
             }
         }
