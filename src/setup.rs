@@ -4,6 +4,7 @@ use crate::{
     systems::{CameraSettings, EnemyHealthBarAssets},
 };
 use bevy::prelude::*;
+use rand::{Rng, SeedableRng, rngs::StdRng};
 
 /// Road pattern types used for procedural road generation.
 #[derive(Debug, Clone, Copy)]
@@ -11,6 +12,14 @@ enum RoadPattern {
     Straight,
     Curved,
     Snake,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ExitSide {
+    North,
+    East,
+    South,
+    West,
 }
 
 /// Generates and spawns a road mesh between two points; returns the path waypoints.
@@ -21,8 +30,9 @@ fn generate_and_spawn_road(
     start: Vec3,
     end: Vec3,
     width: f32,
+    rng: &mut StdRng,
 ) -> Option<Vec<Vec3>> {
-    let mut waypoints = generate_road_pattern(start, end, width)?;
+    let mut waypoints = generate_road_pattern(start, end, width, rng)?;
 
     // Enforce exact endpoints to guarantee clean connections to the town square
     if let Some(first) = waypoints.first_mut() {
@@ -32,26 +42,36 @@ fn generate_and_spawn_road(
         *last = Vec3::new(end.x, 0.0, end.z);
     }
 
-    // Spawn road segments
+    // Spawn road segments as multiple short patches for a tiled look (cosmetic only)
     let mut last = waypoints[0];
     for &current in waypoints.iter().skip(1) {
         let dir = current - last;
         let seg_len = dir.length();
         if seg_len > 0.001 {
-            let mid = (last + current) / 2.0;
             let yaw = dir.z.atan2(dir.x);
             let rotation = Quat::from_rotation_y(yaw);
+            let forward = dir / seg_len; // normalized direction on XZ
 
-            let seg_mesh = meshes.add(Plane3d::default().mesh().size(seg_len, width).build());
-            commands.spawn((
-                Mesh3d(seg_mesh),
-                MeshMaterial3d(material.clone()),
-                Transform {
-                    translation: Vec3::new(mid.x, 0.011, mid.z),
-                    rotation,
-                    scale: Vec3::ONE,
-                },
-            ));
+            // Determine how many patches to render for this segment
+            // Target small patch length for a tiled appearance
+            let target_patch_len = 3.0_f32;
+            let patch_count = (seg_len / target_patch_len).ceil().max(1.0) as u32;
+            let patch_len = seg_len / patch_count as f32;
+
+            for i in 0..patch_count {
+                let center_offset = (i as f32 + 0.5) * patch_len;
+                let mid = last + forward * center_offset;
+                let seg_mesh = meshes.add(Plane3d::default().mesh().size(patch_len, width).build());
+                commands.spawn((
+                    Mesh3d(seg_mesh),
+                    MeshMaterial3d(material.clone()),
+                    Transform {
+                        translation: Vec3::new(mid.x, 0.011, mid.z),
+                        rotation,
+                        scale: Vec3::ONE,
+                    },
+                ));
+            }
         }
         last = current;
     }
@@ -60,8 +80,13 @@ fn generate_and_spawn_road(
 }
 
 /// Generates a random road path (straight, curved, snake) between two points.
-fn generate_road_pattern(start: Vec3, end: Vec3, _width: f32) -> Option<Vec<Vec3>> {
-    let pattern = match rand::random::<u8>() % 3 {
+fn generate_road_pattern(
+    start: Vec3,
+    end: Vec3,
+    _width: f32,
+    rng: &mut StdRng,
+) -> Option<Vec<Vec3>> {
+    let pattern = match rng.random_range(0..3) {
         0 => RoadPattern::Straight,
         1 => RoadPattern::Curved,
         2 => RoadPattern::Snake,
@@ -75,9 +100,9 @@ fn generate_road_pattern(start: Vec3, end: Vec3, _width: f32) -> Option<Vec<Vec3
             let steps = 20;
 
             // Random variations for this road
-            let wiggle_amplitude = 6.0 + rand::random::<f32>() * 8.0; // 6-14 units
-            let wiggle_frequency = 2.0 + rand::random::<f32>() * 3.0; // 2-5 waves
-            let phase_offset = rand::random::<f32>() * 2.0 * std::f32::consts::PI; // Random phase
+            let wiggle_amplitude = 6.0 + rng.random::<f32>() * 8.0; // 6-14 units
+            let wiggle_frequency = 2.0 + rng.random::<f32>() * 3.0; // 2-5 waves
+            let phase_offset = rng.random::<f32>() * 2.0 * std::f32::consts::PI; // Random phase
 
             for i in 0..=steps {
                 let t = i as f32 / steps as f32;
@@ -93,8 +118,8 @@ fn generate_road_pattern(start: Vec3, end: Vec3, _width: f32) -> Option<Vec<Vec3
 
                 // Add some random noise for extra variation
                 let noise_amplitude = 3.0 * edge_fade;
-                let noise_x = (rand::random::<f32>() - 0.5) * noise_amplitude;
-                let noise_z = (rand::random::<f32>() - 0.5) * noise_amplitude;
+                let noise_x = (rng.random::<f32>() - 0.5) * noise_amplitude;
+                let noise_z = (rng.random::<f32>() - 0.5) * noise_amplitude;
 
                 // Calculate perpendicular direction for wiggling
                 let main_direction = (end - start).normalize();
@@ -108,37 +133,37 @@ fn generate_road_pattern(start: Vec3, end: Vec3, _width: f32) -> Option<Vec<Vec3
         }
         RoadPattern::Curved => {
             // Curved road with random control points and variations
-            let curve_strength = 20.0 + rand::random::<f32>() * 40.0; // 20-60 units
-            let mid1_offset = 0.2 + rand::random::<f32>() * 0.3; // 0.2-0.5
-            let mid2_offset = 0.5 + rand::random::<f32>() * 0.3; // 0.5-0.8
+            let curve_strength = 20.0 + rng.random::<f32>() * 40.0; // 20-60 units
+            let mid1_offset = 0.2 + rng.random::<f32>() * 0.3; // 0.2-0.5
+            let mid2_offset = 0.5 + rng.random::<f32>() * 0.3; // 0.5-0.8
 
             let mid1 = start
                 + (end - start) * mid1_offset
                 + Vec3::new(
-                    (rand::random::<f32>() - 0.5) * curve_strength,
+                    (rng.random::<f32>() - 0.5) * curve_strength,
                     0.0,
-                    (rand::random::<f32>() - 0.5) * curve_strength,
+                    (rng.random::<f32>() - 0.5) * curve_strength,
                 );
             let mid2 = start
                 + (end - start) * mid2_offset
                 + Vec3::new(
-                    (rand::random::<f32>() - 0.5) * curve_strength,
+                    (rng.random::<f32>() - 0.5) * curve_strength,
                     0.0,
-                    (rand::random::<f32>() - 0.5) * curve_strength,
+                    (rng.random::<f32>() - 0.5) * curve_strength,
                 );
 
-            let segments = 15 + (rand::random::<u8>() % 11) as usize; // 15-25 segments
+            let segments = 15 + (rng.random::<u8>() % 11) as usize; // 15-25 segments
             generate_bezier_curve(start, mid1, mid2, end, segments)
         }
         RoadPattern::Snake => {
             // S-shaped road with random variations
             let mut waypoints = Vec::new();
-            let steps = 25 + (rand::random::<u8>() % 16) as usize; // 25-40 steps
+            let steps = 25 + (rng.random::<u8>() % 16) as usize; // 25-40 steps
 
             // Random variations for snake pattern
-            let snake_amplitude = 20.0 + rand::random::<f32>() * 25.0; // 20-45 units
-            let snake_frequency = 1.5 + rand::random::<f32>() * 2.0; // 1.5-3.5 waves
-            let phase_offset = rand::random::<f32>() * 2.0 * std::f32::consts::PI;
+            let snake_amplitude = 20.0 + rng.random::<f32>() * 25.0; // 20-45 units
+            let snake_frequency = 1.5 + rng.random::<f32>() * 2.0; // 1.5-3.5 waves
+            let phase_offset = rng.random::<f32>() * 2.0 * std::f32::consts::PI;
 
             for i in 0..=steps {
                 let t = i as f32 / steps as f32;
@@ -241,7 +266,7 @@ pub fn setup(
         NoDistanceCull,
     ));
 
-    // Perimeter walls (visual, thick, not walkable)
+    // Perimeter walls and seeded exit gate
     let wall_mat = materials.add(StandardMaterial {
         base_color: Color::srgb(0.55, 0.55, 0.56),
         perceptual_roughness: 1.0,
@@ -252,73 +277,320 @@ pub fn setup(
     let half = tunables.town_size / 2.0;
     let h2 = tunables.wall_height / 2.0;
 
-    // North wall (X-aligned at z = -half)
-    let north_wall = meshes.add(Cuboid::new(
-        tunables.town_size,
-        tunables.wall_height,
-        tunables.wall_thickness,
-    ));
-    commands.spawn((
-        Mesh3d(north_wall),
-        MeshMaterial3d(wall_mat.clone()),
-        Transform::from_xyz(0.0, h2, -half),
-        Wall,
-    ));
+    // Seeded RNG for layout
+    let mut rng = StdRng::seed_from_u64(tunables.world_seed);
 
-    // South wall (X-aligned at z = +half)
-    let south_wall = meshes.add(Cuboid::new(
-        tunables.town_size,
-        tunables.wall_height,
-        tunables.wall_thickness,
-    ));
-    commands.spawn((
-        Mesh3d(south_wall),
-        MeshMaterial3d(wall_mat.clone()),
-        Transform::from_xyz(0.0, h2, half),
-        Wall,
-    ));
+    // Choose exit side and gate lateral offset
+    let exit_side = match rng.random_range(0..4) {
+        0 => ExitSide::North,
+        1 => ExitSide::East,
+        2 => ExitSide::South,
+        _ => ExitSide::West,
+    };
+    let m = tunables
+        .gate_corner_margin
+        .min(half - tunables.gate_width * 0.5 - 0.1);
+    let lateral = rng.random_range((-half + m)..=(half - m));
 
-    // West wall (Z-aligned at x = -half)
-    let west_wall = meshes.add(Cuboid::new(
-        tunables.wall_thickness,
-        tunables.wall_height,
-        tunables.town_size,
-    ));
-    commands.spawn((
-        Mesh3d(west_wall),
-        MeshMaterial3d(wall_mat.clone()),
-        Transform::from_xyz(-half, h2, 0.0),
-        Wall,
-    ));
-
-    // East wall with gate opening centered at z=0
-    let segment_len = (tunables.town_size - tunables.gate_width) / 2.0;
-
-    // Top (positive Z) segment
-    let east_top = meshes.add(Cuboid::new(
-        tunables.wall_thickness,
-        tunables.wall_height,
-        segment_len,
-    ));
-    commands.spawn((
-        Mesh3d(east_top),
-        MeshMaterial3d(wall_mat.clone()),
-        Transform::from_xyz(half, h2, tunables.gate_width / 2.0 + segment_len / 2.0),
-        Wall,
-    ));
-
-    // Bottom (negative Z) segment
-    let east_bottom = meshes.add(Cuboid::new(
-        tunables.wall_thickness,
-        tunables.wall_height,
-        segment_len,
-    ));
-    commands.spawn((
-        Mesh3d(east_bottom),
-        MeshMaterial3d(wall_mat.clone()),
-        Transform::from_xyz(half, h2, -(tunables.gate_width / 2.0 + segment_len / 2.0)),
-        Wall,
-    ));
+    // Spawn walls with a gate opening on the chosen exit side
+    let gate_center = match exit_side {
+        ExitSide::East => {
+            // Split east wall into two segments along Z
+            let top_len = (half - (lateral + tunables.gate_width * 0.5)).max(0.0);
+            if top_len > 0.0 {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.wall_thickness,
+                    tunables.wall_height,
+                    top_len,
+                ));
+                let z = lateral + tunables.gate_width * 0.5 + top_len * 0.5;
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(half, h2, z),
+                    Wall,
+                ));
+            }
+            let bottom_len = (lateral - tunables.gate_width * 0.5 - (-half)).max(0.0);
+            if bottom_len > 0.0 {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.wall_thickness,
+                    tunables.wall_height,
+                    bottom_len,
+                ));
+                let z = -half + bottom_len * 0.5;
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(half, h2, z),
+                    Wall,
+                ));
+            }
+            // Other full walls
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.town_size,
+                    tunables.wall_height,
+                    tunables.wall_thickness,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(0.0, h2, -half),
+                    Wall,
+                ));
+            }
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.town_size,
+                    tunables.wall_height,
+                    tunables.wall_thickness,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(0.0, h2, half),
+                    Wall,
+                ));
+            }
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.wall_thickness,
+                    tunables.wall_height,
+                    tunables.town_size,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(-half, h2, 0.0),
+                    Wall,
+                ));
+            }
+            Vec3::new(half, 0.0, lateral)
+        }
+        ExitSide::West => {
+            // Split west wall into two segments along Z
+            let top_len = (half - (lateral + tunables.gate_width * 0.5)).max(0.0);
+            if top_len > 0.0 {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.wall_thickness,
+                    tunables.wall_height,
+                    top_len,
+                ));
+                let z = lateral + tunables.gate_width * 0.5 + top_len * 0.5;
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(-half, h2, z),
+                    Wall,
+                ));
+            }
+            let bottom_len = (lateral - tunables.gate_width * 0.5 - (-half)).max(0.0);
+            if bottom_len > 0.0 {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.wall_thickness,
+                    tunables.wall_height,
+                    bottom_len,
+                ));
+                let z = -half + bottom_len * 0.5;
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(-half, h2, z),
+                    Wall,
+                ));
+            }
+            // Other full walls
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.town_size,
+                    tunables.wall_height,
+                    tunables.wall_thickness,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(0.0, h2, -half),
+                    Wall,
+                ));
+            }
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.town_size,
+                    tunables.wall_height,
+                    tunables.wall_thickness,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(0.0, h2, half),
+                    Wall,
+                ));
+            }
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.wall_thickness,
+                    tunables.wall_height,
+                    tunables.town_size,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(half, h2, 0.0),
+                    Wall,
+                ));
+            }
+            Vec3::new(-half, 0.0, lateral)
+        }
+        ExitSide::North => {
+            // Split north wall into two segments along X
+            let right_len = (half - (lateral + tunables.gate_width * 0.5)).max(0.0);
+            if right_len > 0.0 {
+                let mesh = meshes.add(Cuboid::new(
+                    right_len,
+                    tunables.wall_height,
+                    tunables.wall_thickness,
+                ));
+                let x = lateral + tunables.gate_width * 0.5 + right_len * 0.5;
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(x, h2, -half),
+                    Wall,
+                ));
+            }
+            let left_len = (lateral - tunables.gate_width * 0.5 - (-half)).max(0.0);
+            if left_len > 0.0 {
+                let mesh = meshes.add(Cuboid::new(
+                    left_len,
+                    tunables.wall_height,
+                    tunables.wall_thickness,
+                ));
+                let x = -half + left_len * 0.5;
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(x, h2, -half),
+                    Wall,
+                ));
+            }
+            // Other full walls
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.town_size,
+                    tunables.wall_height,
+                    tunables.wall_thickness,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(0.0, h2, half),
+                    Wall,
+                ));
+            }
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.wall_thickness,
+                    tunables.wall_height,
+                    tunables.town_size,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(-half, h2, 0.0),
+                    Wall,
+                ));
+            }
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.wall_thickness,
+                    tunables.wall_height,
+                    tunables.town_size,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(half, h2, 0.0),
+                    Wall,
+                ));
+            }
+            Vec3::new(lateral, 0.0, -half)
+        }
+        ExitSide::South => {
+            // Split south wall into two segments along X
+            let right_len = (half - (lateral + tunables.gate_width * 0.5)).max(0.0);
+            if right_len > 0.0 {
+                let mesh = meshes.add(Cuboid::new(
+                    right_len,
+                    tunables.wall_height,
+                    tunables.wall_thickness,
+                ));
+                let x = lateral + tunables.gate_width * 0.5 + right_len * 0.5;
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(x, h2, half),
+                    Wall,
+                ));
+            }
+            let left_len = (lateral - tunables.gate_width * 0.5 - (-half)).max(0.0);
+            if left_len > 0.0 {
+                let mesh = meshes.add(Cuboid::new(
+                    left_len,
+                    tunables.wall_height,
+                    tunables.wall_thickness,
+                ));
+                let x = -half + left_len * 0.5;
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(x, h2, half),
+                    Wall,
+                ));
+            }
+            // Other full walls
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.town_size,
+                    tunables.wall_height,
+                    tunables.wall_thickness,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(0.0, h2, -half),
+                    Wall,
+                ));
+            }
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.wall_thickness,
+                    tunables.wall_height,
+                    tunables.town_size,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(-half, h2, 0.0),
+                    Wall,
+                ));
+            }
+            {
+                let mesh = meshes.add(Cuboid::new(
+                    tunables.wall_thickness,
+                    tunables.wall_height,
+                    tunables.town_size,
+                ));
+                commands.spawn((
+                    Mesh3d(mesh),
+                    MeshMaterial3d(wall_mat.clone()),
+                    Transform::from_xyz(half, h2, 0.0),
+                    Wall,
+                ));
+            }
+            Vec3::new(lateral, 0.0, half)
+        }
+    };
 
     // Town square pavement material
     let square_mat = materials.add(StandardMaterial {
@@ -328,7 +600,7 @@ pub fn setup(
         ..default()
     });
 
-    // Roads: single strip from east gate to village center, distinct dark material
+    // Roads material
     let road_mat = materials.add(StandardMaterial {
         base_color: Color::srgb(0.15, 0.15, 0.15),
         perceptual_roughness: 1.0,
@@ -337,28 +609,54 @@ pub fn setup(
     });
 
     let road_width = tunables.road_width;
-    let half = tunables.town_size / 2.0;
 
-    // Single east road from the gate opening to village center
-    let east_road = generate_and_spawn_road(
-        &mut commands,
-        &mut meshes,
-        road_mat.clone(),
-        Vec3::new(half, 0.0, 0.0),
-        Vec3::new(0.0, 0.0, 0.0),
-        road_width,
-    )
-    .unwrap();
+    // Determine base position near the wall opposite to the exit side
+    let side_normal = match exit_side {
+        ExitSide::East => Vec3::new(1.0, 0.0, 0.0),
+        ExitSide::West => Vec3::new(-1.0, 0.0, 0.0),
+        ExitSide::North => Vec3::new(0.0, 0.0, -1.0),
+        ExitSide::South => Vec3::new(0.0, 0.0, 1.0),
+    };
+    let opposite_dir = -side_normal;
+    let base_pos = opposite_dir * (half - tunables.base_clearance_from_wall);
 
-    // Save roads for path following
-    commands.insert_resource(RoadPaths {
-        roads: vec![east_road],
-    });
+    // (Player will be spawned on the TownSquare after it's placed)
 
-    // 3D player box (larger and more visible)
+    // Plaza (TownSquare): 2:1 wide rectangle in front of base, facing the gate
+    let short_side = tunables.plaza_short_side;
+    let long_side = tunables.plaza_aspect * short_side;
+    let mut dir_to_gate = (gate_center - base_pos);
+    dir_to_gate.y = 0.0;
+    let dir_len = dir_to_gate.length();
+    let dir_to_gate = if dir_len > 1e-3 {
+        dir_to_gate / dir_len
+    } else {
+        side_normal
+    };
+    let plaza_center = base_pos + dir_to_gate * (tunables.plaza_gap_from_base + 0.5 * short_side);
+    let yaw = dir_to_gate.z.atan2(dir_to_gate.x);
+    let plaza_rotation = Quat::from_rotation_y(yaw + std::f32::consts::FRAC_PI_2);
+    let square_mesh = meshes.add(
+        Plane3d::default()
+            .mesh()
+            .size(long_side, short_side)
+            .build(),
+    );
+    commands.spawn((
+        Mesh3d(square_mesh),
+        MeshMaterial3d(square_mat),
+        Transform {
+            translation: Vec3::new(plaza_center.x, 0.012, plaza_center.z),
+            rotation: plaza_rotation,
+            scale: Vec3::ONE,
+        },
+        TownSquare,
+    ));
+
+    // 3D player box (larger and more visible) — spawn on the TownSquare
     let player_mesh = meshes.add(Cuboid::new(2.0, 4.0, 2.0));
     let player_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(1.0, 0.2, 0.2), // Bright red for visibility
+        base_color: Color::srgb(1.0, 0.2, 0.2),
         perceptual_roughness: 0.6,
         metallic: 0.0,
         ..default()
@@ -367,27 +665,13 @@ pub fn setup(
         .spawn((
             Mesh3d(player_mesh),
             MeshMaterial3d(player_mat),
-            Transform::from_xyz(0.0, 2.0, 0.0), // Higher up so it's more visible
+            Transform::from_xyz(plaza_center.x, 2.0, plaza_center.z),
             IsoPlayer,
             Player { wood: 0, rock: 0 },
         ))
         .id();
 
-    // Town square pavement under the center
-    let square_mesh = meshes.add(
-        Plane3d::default()
-            .mesh()
-            .size(tunables.square_size, tunables.square_size)
-            .build(),
-    );
-    commands.spawn((
-        Mesh3d(square_mesh),
-        MeshMaterial3d(square_mat),
-        Transform::from_xyz(0.0, 0.012, 0.0),
-        TownSquare,
-    ));
-
-    // Spawn village (center) - Big purple block for visibility; marks TownCenter
+    // Spawn village (base) near opposite wall
     let village_mesh = meshes.add(Cuboid::new(8.0, 6.0, 8.0)); // Big block
     let village_mat = materials.add(StandardMaterial {
         base_color: Color::srgb(0.8, 0.2, 0.8), // Bright purple
@@ -399,13 +683,28 @@ pub fn setup(
     commands.spawn((
         Mesh3d(village_mesh),
         MeshMaterial3d(village_mat),
-        Transform::from_xyz(0.0, 3.0, 0.0), // Elevated so it's visible
+        Transform::from_xyz(base_pos.x, 3.0, base_pos.z), // Elevated so it's visible
         Village {
             health: tunables.village_health,
             max_health: tunables.village_health,
         },
         TownCenter,
     ));
+
+    // Seeded road from gate to base using generated patterns
+    let road_seed = tunables.world_seed ^ 0xD00Du64.wrapping_mul(0x9E37_79B9_7F4A_7C15);
+    let mut road_rng = StdRng::seed_from_u64(road_seed);
+    if let Some(road) = generate_and_spawn_road(
+        &mut commands,
+        &mut meshes,
+        road_mat.clone(),
+        gate_center,
+        plaza_center,
+        road_width,
+        &mut road_rng,
+    ) {
+        commands.insert_resource(RoadPaths { roads: vec![road] });
+    }
 
     // Trees and rocks are now spawned by the chunking system per active chunk
 

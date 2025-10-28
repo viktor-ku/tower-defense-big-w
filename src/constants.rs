@@ -119,6 +119,16 @@ pub struct Tunables {
     pub gate_width: f32,
     /// Town square pavement size around the center.
     pub square_size: f32,
+    /// Clearance to keep the base away from the opposite wall.
+    pub base_clearance_from_wall: f32,
+    /// Minimum margin from the corners when placing the gate along a wall.
+    pub gate_corner_margin: f32,
+    /// Short side length of the rectangular plaza in front of the base.
+    pub plaza_short_side: f32,
+    /// Aspect ratio (long:short) for the plaza. 2.0 means 2:1 wide rectangle.
+    pub plaza_aspect: f32,
+    /// Gap between the base and the near edge of the plaza.
+    pub plaza_gap_from_base: f32,
 
     /// Player movement speed in units/second.
     pub player_speed: f32,
@@ -224,6 +234,12 @@ impl Default for Tunables {
             wall_height: C_WALL_HEIGHT,
             gate_width: C_GATE_WIDTH,
             square_size: C_SQUARE_SIZE,
+            // Seeded layout controls
+            base_clearance_from_wall: C_TOWN_SIZE * 0.10,
+            gate_corner_margin: C_TOWN_SIZE * 0.15,
+            plaza_short_side: 50.0,
+            plaza_aspect: 2.0,
+            plaza_gap_from_base: 6.0,
 
             // Player
             player_speed: C_PLAYER_SPEED,

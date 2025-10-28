@@ -60,12 +60,20 @@ pub fn enemy_movement(
         (Entity, &mut Transform, &Enemy, Option<&mut PathFollower>),
         Without<EnemyFadeOut>,
     >,
-    mut village_query: Query<&mut Village>,
+    // Split queries to avoid Transform access conflicts; ensure disjoint via Without<Enemy>
+    village_tf_query: Query<&Transform, (With<TownCenter>, Without<Enemy>)>,
+    mut village_query: Query<&mut Village, With<TownCenter>>,
     roads: Option<Res<RoadPaths>>,
     tunables: Res<Tunables>,
 ) {
     // Collision radius for village impact
     let village_collision_radius = tunables.village_collision_radius;
+
+    // Resolve current village/base position once (assumes single TownCenter)
+    let village_pos = village_tf_query
+        .single()
+        .map(|tf| tf.translation)
+        .unwrap_or(Vec3::ZERO);
 
     for (entity, mut transform, enemy, follower_opt) in enemy_query.iter_mut() {
         if let (Some(roads), Some(mut follower)) = (&roads, follower_opt) {
@@ -81,24 +89,26 @@ pub fn enemy_movement(
                         follower.next_index += 1;
                     }
                 } else {
-                    // Finished following the road, now move to village center
-                    let to_center =
-                        Vec3::new(0.0, transform.translation.y, 0.0) - transform.translation;
-                    let dir = Vec3::new(to_center.x, 0.0, to_center.z).normalize_or_zero();
+                    // Finished following the road, now move to the actual village position
+                    let to_village =
+                        Vec3::new(village_pos.x, transform.translation.y, village_pos.z)
+                            - transform.translation;
+                    let dir = Vec3::new(to_village.x, 0.0, to_village.z).normalize_or_zero();
                     transform.translation += dir * enemy.speed * time.delta_secs();
                 }
             }
         } else {
-            // Fallback: Move towards center
-            let to_center = Vec3::new(0.0, transform.translation.y, 0.0) - transform.translation;
-            let dir = Vec3::new(to_center.x, 0.0, to_center.z).normalize_or_zero();
+            // Fallback: Move towards the actual village position
+            let to_village = Vec3::new(village_pos.x, transform.translation.y, village_pos.z)
+                - transform.translation;
+            let dir = Vec3::new(to_village.x, 0.0, to_village.z).normalize_or_zero();
             transform.translation += dir * enemy.speed * time.delta_secs();
         }
 
         // Check if enemy actually hit the village block (much more precise collision)
-        if Vec2::new(transform.translation.x, transform.translation.z).length()
-            < village_collision_radius
-        {
+        let dx = transform.translation.x - village_pos.x;
+        let dz = transform.translation.z - village_pos.z;
+        if Vec2::new(dx, dz).length() < village_collision_radius {
             if let Ok(mut village) = village_query.single_mut() {
                 village.health = village.health.saturating_sub(enemy.damage);
                 if cfg!(debug_assertions) {
