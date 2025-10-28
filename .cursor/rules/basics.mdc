@@ -1,0 +1,17 @@
+---
+alwaysApply: true
+---
+
+This project is written in Rust, it uses Bevy engine.
+
+This project is a game. Tower defense genre.
+
+Because this is a typical Rust project please run `cargo check` at the end of your work to make sure all of the changes are ready to be tested.
+
+Use ripgrep (rg) (ask user to install it if missing) to make your life easier when searching for things.
+
+Utilize mise (ask user to install if missing), mise provides the correct environment, has useful tasks in its config.
+
+Run `cargo fmt` (or identical mise task) to format your code before commiting. Setup pre-commit hook if needed.
+
+When writing the game features keep in mind that we want this game to build on all three platforms: Windows, Linux, Macos.
