@@ -1,4 +1,7 @@
-use crate::components::{BuildingMode, Player, Tower, TowerBuildSelection, TowerGhost, TowerKind};
+use crate::components::{
+    BuildingMode, BuiltTower, Player, SellingMode, Tower, TowerBuildSelection, TowerGhost,
+    TowerKind,
+};
 use crate::constants::Tunables;
 use crate::events::TowerBuilt;
 use bevy::asset::RenderAssetUsages;
@@ -104,12 +107,9 @@ pub fn tower_building(
         transform.translation = placement_pos;
     }
 
-    // Check affordability per selected tower kind (hardcoded requirements)
+    // Check affordability per selected tower kind (centralized costs)
     let mut affordable = false;
-    let (wood_cost, rock_cost) = match preview_kind.unwrap_or(TowerKind::Bow) {
-        TowerKind::Bow => (3, 1),
-        TowerKind::Crossbow => (10, 3),
-    };
+    let (wood_cost, rock_cost) = preview_kind.unwrap_or(TowerKind::Bow).cost();
     if let Ok(player) = player_res_query.single_mut() {
         affordable = player.wood >= wood_cost && player.rock >= rock_cost;
     }
@@ -121,31 +121,32 @@ pub fn tower_building(
         && mouse_input.just_pressed(MouseButton::Left)
         && selection.choice.is_some()
     {
+        let kind = selection.choice.unwrap_or(TowerKind::Bow);
+        let (wood_cost, rock_cost) = kind.cost();
         if let Ok(mut player) = player_res_query.single_mut() {
             // Deduct resources based on selected kind
             player.wood = player.wood.saturating_sub(wood_cost);
             player.rock = player.rock.saturating_sub(rock_cost);
         }
         // Determine tower stats from selected kind
-        let (damage, fire_interval_secs, projectile_speed, size, color) =
-            match selection.choice.unwrap_or(TowerKind::Bow) {
-                // Bow: smaller and blue (absolute size); slower projectiles
-                TowerKind::Bow => (
-                    12,
-                    0.7,
-                    60.0,
-                    (1.02, 2.72, 1.02),
-                    Color::srgb(0.35, 0.45, 0.95),
-                ),
-                // Crossbow: bigger and purple (absolute size); much faster projectiles
-                TowerKind::Crossbow => (
-                    35,
-                    2.4,
-                    140.0,
-                    (1.38, 3.68, 1.38),
-                    Color::srgb(0.62, 0.36, 0.86),
-                ),
-            };
+        let (damage, fire_interval_secs, projectile_speed, size, color) = match kind {
+            // Bow: smaller and blue (absolute size); slower projectiles
+            TowerKind::Bow => (
+                12,
+                0.7,
+                60.0,
+                (1.02, 2.72, 1.02),
+                Color::srgb(0.35, 0.45, 0.95),
+            ),
+            // Crossbow: bigger and purple (absolute size); much faster projectiles
+            TowerKind::Crossbow => (
+                35,
+                2.4,
+                140.0,
+                (1.38, 3.68, 1.38),
+                Color::srgb(0.62, 0.36, 0.86),
+            ),
+        };
 
         place_tower(
             &mut commands,
@@ -159,6 +160,7 @@ pub fn tower_building(
             size,
             color,
             &tunables,
+            kind,
         );
 
         // Force re-choose next time
@@ -377,6 +379,7 @@ fn place_tower(
     size: (f32, f32, f32),
     color: Color,
     tunables: &Tunables,
+    kind: TowerKind,
 ) {
     let mesh = meshes.add(Cuboid::new(size.0, size.1, size.2));
     let mat = materials.add(StandardMaterial {
@@ -400,6 +403,7 @@ fn place_tower(
             projectile_speed,
             last_shot: 0.0,
         },
+        BuiltTower { kind },
     ));
 
     tower_events.write(TowerBuilt { position });
@@ -502,5 +506,64 @@ pub fn tower_spawn_effect_system(
             materials.remove(&material_handle);
             meshes.remove(&effect.mesh);
         }
+    }
+}
+
+/// Click-to-sell system. When in selling mode and left-click, sell the nearest tower
+/// under the cursor within a small radius and refund 50% of its cost.
+pub fn tower_selling_click(
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window>,
+    camera_q: Query<(&Camera, &GlobalTransform)>,
+    selling_q: Query<&SellingMode>,
+    towers_q: Query<(Entity, &Transform, &BuiltTower), With<Tower>>,
+    mut player_q: Query<&mut Player>,
+    mut commands: Commands,
+) {
+    let selling_active = selling_q.iter().any(|s| s.is_active);
+    if !selling_active {
+        return;
+    }
+    if !mouse_input.just_pressed(MouseButton::Left) {
+        return;
+    }
+
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Ok((camera, cam_tf)) = camera_q.single() else {
+        return;
+    };
+    let Some(cursor_pos) = window.cursor_position() else {
+        return;
+    };
+    let Some(world_point) = cursor_to_ground(camera, cam_tf, cursor_pos, 0.0) else {
+        return;
+    };
+
+    // Find nearest tower within threshold on XZ plane
+    let mut best: Option<(Entity, TowerKind, f32)> = None;
+    for (entity, transform, built) in towers_q.iter() {
+        let tower_pos = transform.translation;
+        let dx = tower_pos.x - world_point.x;
+        let dz = tower_pos.z - world_point.z;
+        let d2 = dx * dx + dz * dz;
+        if d2 <= 4.0 {
+            // threshold radius ~2.0
+            if best.as_ref().map(|b| d2 < b.2).unwrap_or(true) {
+                best = Some((entity, built.kind, d2));
+            }
+        }
+    }
+
+    if let Some((entity, kind, _)) = best {
+        if let Ok(mut player) = player_q.single_mut() {
+            let (wood_cost, rock_cost) = kind.cost();
+            let wood_refund = wood_cost / 2;
+            let rock_refund = rock_cost / 2;
+            player.wood = player.wood.saturating_add(wood_refund);
+            player.rock = player.rock.saturating_add(rock_refund);
+        }
+        commands.entity(entity).despawn();
     }
 }

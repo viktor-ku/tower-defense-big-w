@@ -720,6 +720,7 @@ pub fn setup(
 
     // Trees and rocks are now spawned by the chunking system per active chunk
 
-    // Spawn building mode
+    // Spawn building and selling modes
     commands.spawn(BuildingMode { is_active: false });
+    commands.spawn(SellingMode { is_active: false });
 }

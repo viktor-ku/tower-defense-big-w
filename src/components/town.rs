@@ -13,6 +13,12 @@ pub struct BuildingMode {
     pub is_active: bool,
 }
 
+/// Global toggle for selling mode.
+#[derive(Component)]
+pub struct SellingMode {
+    pub is_active: bool,
+}
+
 // Town markers for various world structures
 #[derive(Component)]
 pub struct TownCenter;

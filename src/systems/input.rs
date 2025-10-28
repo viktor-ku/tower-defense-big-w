@@ -17,6 +17,7 @@ pub fn handle_game_input(
     keyboard_input: Res<ButtonInput<Key>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     mut building_mode_query: Query<&mut BuildingMode>,
+    mut selling_mode_query: Query<&mut SellingMode>,
     mut selection: ResMut<TowerBuildSelection>,
 ) {
     if keyboard_input.just_pressed(Key::Escape) || mouse_input.just_pressed(MouseButton::Right) {
@@ -27,6 +28,10 @@ pub fn handle_game_input(
                 building_mode.is_active = false;
                 was_building = true;
             }
+        }
+        // Also cancel selling mode
+        for mut selling in selling_mode_query.iter_mut() {
+            selling.is_active = false;
         }
 
         if was_building

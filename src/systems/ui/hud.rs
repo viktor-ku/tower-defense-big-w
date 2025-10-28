@@ -303,3 +303,5 @@ pub fn update_game_speed_indicator(
         *text = Text::new(desired.to_string());
     }
 }
+
+// (SELL button moved into the tower drawer)

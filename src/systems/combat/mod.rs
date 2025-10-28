@@ -20,4 +20,4 @@ pub use projectiles::{
     damage_dealt_spawn_text_system, damage_number_system, enemy_fade_out_system,
     enemy_flash_system, impact_effect_system, projectile_system, tower_shooting,
 };
-pub use towers::{tower_building, tower_spawn_effect_system};
+pub use towers::{tower_building, tower_selling_click, tower_spawn_effect_system};

@@ -119,6 +119,10 @@ fn main() {
         )
         .add_systems(Update, player_movement.run_if(in_state(GameState::Playing)))
         .add_systems(Update, tower_building.run_if(in_state(GameState::Playing)))
+        .add_systems(
+            Update,
+            tower_selling_click.run_if(in_state(GameState::Playing)),
+        )
         // Tower selection drawer UI
         .add_systems(
             Update,
@@ -128,6 +132,7 @@ fn main() {
                 update_tower_option_hover,
                 update_tower_selection_affordability,
                 tower_drawer_shortcuts,
+                handle_drawer_sell_button_interactions,
             )
                 .run_if(in_state(GameState::Playing)),
         )

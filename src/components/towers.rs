@@ -7,6 +7,15 @@ pub enum TowerKind {
     Crossbow,
 }
 
+impl TowerKind {
+    pub fn cost(self) -> (u32, u32) {
+        match self {
+            TowerKind::Bow => (3, 1),
+            TowerKind::Crossbow => (10, 3),
+        }
+    }
+}
+
 /// Combat tower with basic attack properties.
 #[derive(Component)]
 pub struct Tower {
@@ -19,6 +28,12 @@ pub struct Tower {
     /// Projectile speed for this tower's shots.
     pub projectile_speed: f32,
     pub last_shot: f32,
+}
+
+/// Marker storing which kind this built tower is, used for selling/refunds.
+#[derive(Component, Copy, Clone, Debug)]
+pub struct BuiltTower {
+    pub kind: TowerKind,
 }
 
 /// Marker for the in-progress tower preview (ghost).

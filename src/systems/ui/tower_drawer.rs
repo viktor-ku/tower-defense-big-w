@@ -20,6 +20,9 @@ pub struct TowerMissingText {
     pub kind: TowerKind,
 }
 
+#[derive(Component)]
+pub struct DrawerSellButton;
+
 pub fn manage_tower_selection_drawer(
     mut commands: Commands,
     building_mode_q: Query<&BuildingMode>,
@@ -41,8 +44,10 @@ pub fn manage_tower_selection_drawer(
             (0, 0)
         };
 
-        let bow_affordable = player_wood >= 3 && player_rock >= 1;
-        let crossbow_affordable = player_wood >= 10 && player_rock >= 3;
+        let (bow_wood, bow_rock) = TowerKind::Bow.cost();
+        let (xb_wood, xb_rock) = TowerKind::Crossbow.cost();
+        let bow_affordable = player_wood >= bow_wood && player_rock >= bow_rock;
+        let crossbow_affordable = player_wood >= xb_wood && player_rock >= xb_rock;
 
         let normal_text = Color::srgba(0.9, 0.92, 0.98, 1.0);
         let disabled_text = Color::srgba(0.7, 0.74, 0.82, 0.7);
@@ -68,6 +73,52 @@ pub fn manage_tower_selection_drawer(
                 BorderColor::all(Color::srgba(0.75, 0.75, 0.85, 0.45)),
             ))
             .with_children(|parent| {
+                // SELL controls at the top of the drawer
+                parent
+                    .spawn((
+                        Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Auto,
+                            row_gap: Val::Px(8.0),
+                            flex_direction: FlexDirection::Column,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgba(0.10, 0.11, 0.16, 0.0)),
+                    ))
+                    .with_children(|sell| {
+                        sell.spawn((
+                            Button,
+                            DrawerSellButton,
+                            Node {
+                                padding: UiRect::all(Val::Px(10.0)),
+                                border: UiRect::all(Val::Px(1.0)),
+                                ..default()
+                            },
+                            BackgroundColor(Color::srgba(0.16, 0.18, 0.25, 0.95)),
+                            BorderColor::all(Color::srgba(0.80, 0.55, 0.85, 0.4)),
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn((
+                                Text::new("SELL"),
+                                TextFont {
+                                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                                    font_size: 22.0,
+                                    ..default()
+                                },
+                                TextColor(Color::srgba(0.96, 0.92, 1.0, 1.0)),
+                            ));
+                        });
+
+                        sell.spawn((
+                            Text::new("Selling refunds half the spent resources."),
+                            TextFont {
+                                font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                                font_size: 14.0,
+                                ..default()
+                            },
+                            TextColor(Color::srgba(0.78, 0.82, 0.9, 0.95)),
+                        ));
+                    });
                 parent.spawn((
                     Text::new("Choose a tower"),
                     TextFont {
@@ -201,7 +252,7 @@ pub fn manage_tower_selection_drawer(
                                                     )),
                                                 ));
                                                 cost.spawn((
-                                                    Text::new("3"),
+                                                    Text::new(format!("{}", bow_wood)),
                                                     TextFont {
                                                         font: asset_server.load(
                                                             "fonts/Nova_Mono/NovaMono-Regular.ttf",
@@ -226,7 +277,7 @@ pub fn manage_tower_selection_drawer(
                                                     )),
                                                 ));
                                                 cost.spawn((
-                                                    Text::new("1"),
+                                                    Text::new(format!("{}", bow_rock)),
                                                     TextFont {
                                                         font: asset_server.load(
                                                             "fonts/Nova_Mono/NovaMono-Regular.ttf",
@@ -373,7 +424,7 @@ pub fn manage_tower_selection_drawer(
                                                     )),
                                                 ));
                                                 cost.spawn((
-                                                    Text::new("10"),
+                                                    Text::new(format!("{}", xb_wood)),
                                                     TextFont {
                                                         font: asset_server.load(
                                                             "fonts/Nova_Mono/NovaMono-Regular.ttf",
@@ -398,7 +449,7 @@ pub fn manage_tower_selection_drawer(
                                                     )),
                                                 ));
                                                 cost.spawn((
-                                                    Text::new("3"),
+                                                    Text::new(format!("{}", xb_rock)),
                                                     TextFont {
                                                         font: asset_server.load(
                                                             "fonts/Nova_Mono/NovaMono-Regular.ttf",
@@ -497,6 +548,38 @@ pub fn tower_drawer_shortcuts(
 }
 
 #[allow(clippy::type_complexity)]
+pub fn handle_drawer_sell_button_interactions(
+    mut interactions: Query<
+        (&Interaction, &mut BackgroundColor),
+        (Changed<Interaction>, With<Button>, With<DrawerSellButton>),
+    >,
+    mut selling_q: Query<&mut SellingMode>,
+    mut building_q: Query<&mut BuildingMode>,
+    mut selection: ResMut<TowerBuildSelection>,
+    children_q: Query<&Children>,
+    mut commands: Commands,
+) {
+    for (interaction, mut bg) in interactions.iter_mut() {
+        if matches!(*interaction, Interaction::Pressed) {
+            if let Ok(mut selling) = selling_q.single_mut() {
+                selling.is_active = true;
+            }
+            for mut mode in building_q.iter_mut() {
+                mode.is_active = false;
+            }
+            selection.choice = None;
+            selection.hovered_choice = None;
+            *bg = BackgroundColor(Color::srgba(0.20, 0.12, 0.20, 0.95));
+
+            // Close the drawer immediately
+            if let Some(root) = selection.drawer_root.take() {
+                despawn_entity_recursive(&mut commands, root, &children_q);
+            }
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
 pub fn update_tower_selection_affordability(
     player_q: Query<&Player>,
     options_q: Query<(Entity, &TowerOption, &Children)>,
@@ -519,10 +602,7 @@ pub fn update_tower_selection_affordability(
     let disabled_text = Color::srgba(0.7, 0.74, 0.82, 0.7);
 
     for (entity, option, children) in options_q.iter() {
-        let (req_wood, req_rock) = match option.kind {
-            TowerKind::Bow => (3, 1),
-            TowerKind::Crossbow => (10, 3),
-        };
+        let (req_wood, req_rock) = option.kind.cost();
         let affordable = player.wood >= req_wood && player.rock >= req_rock;
 
         if affordable {
