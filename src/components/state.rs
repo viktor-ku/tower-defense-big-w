@@ -10,4 +10,5 @@ pub enum GameState {
     #[default]
     Menu,
     Playing,
+    Paused,
 }
