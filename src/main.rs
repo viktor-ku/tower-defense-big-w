@@ -99,8 +99,14 @@ fn main() {
             Update,
             handle_game_input.run_if(in_state(GameState::Playing)),
         )
-        .add_systems(Update, pause_toggle_input.run_if(in_state(GameState::Playing)))
-        .add_systems(Update, pause_toggle_input.run_if(in_state(GameState::Paused)))
+        .add_systems(
+            Update,
+            pause_toggle_input.run_if(in_state(GameState::Playing)),
+        )
+        .add_systems(
+            Update,
+            pause_toggle_input.run_if(in_state(GameState::Paused)),
+        )
         .add_systems(Update, player_movement.run_if(in_state(GameState::Playing)))
         .add_systems(Update, tower_building.run_if(in_state(GameState::Playing)))
         // Tower selection drawer UI
@@ -149,8 +155,11 @@ fn main() {
         .add_observer(on_tower_built)
         .add_observer(on_enemy_spawned)
         .add_observer(on_enemy_killed)
-        // Camera system
-        .add_systems(Update, camera_system.run_if(in_state(GameState::Playing)))
+        // Camera system: run after transform propagation so it sees latest positions
+        .add_systems(
+            PostUpdate,
+            camera_system.run_if(in_state(GameState::Playing)),
+        )
         // HUD systems
         .add_systems(
             Update,

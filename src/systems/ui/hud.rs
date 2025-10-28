@@ -260,16 +260,14 @@ pub struct GameSpeedIndicatorText;
 
 pub fn spawn_game_speed_indicator(mut commands: Commands) {
     commands
-        .spawn((
-            Node {
-                position_type: PositionType::Absolute,
-                left: Val::Px(20.0),
-                top: Val::Px(20.0),
-                width: Val::Auto,
-                height: Val::Auto,
-                ..default()
-            },
-        ))
+        .spawn((Node {
+            position_type: PositionType::Absolute,
+            left: Val::Px(20.0),
+            top: Val::Px(20.0),
+            width: Val::Auto,
+            height: Val::Auto,
+            ..default()
+        },))
         .with_children(|parent| {
             parent.spawn((
                 Text::new(""),
