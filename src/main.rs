@@ -69,6 +69,7 @@ fn main() {
             Startup,
             (
                 setup,
+                warm_ui_pipelines,
                 spawn_village_health_bar,
                 spawn_resource_counters,
                 spawn_wave_hud,
