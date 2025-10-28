@@ -178,7 +178,7 @@ fn attach_health_bar(
                 Mesh3d(quad_mesh.clone()),
                 MeshMaterial3d(background_mat.clone()),
                 Transform {
-                    translation: Vec3::new(0.0, 0.0, 0.001),
+                    translation: Vec3::new(0.0, 0.0, -0.001),
                     scale: Vec3::new(tunables.health_bar_width, tunables.health_bar_height, 1.0),
                     ..default()
                 },
@@ -189,7 +189,7 @@ fn attach_health_bar(
                 Mesh3d(quad_mesh.clone()),
                 MeshMaterial3d(fill_mat),
                 Transform {
-                    translation: Vec3::new(0.0, 0.0, 0.002),
+                    translation: Vec3::new(0.0, 0.0, -0.002),
                     scale: Vec3::new(
                         tunables.health_bar_width,
                         tunables.health_bar_fill_height,
