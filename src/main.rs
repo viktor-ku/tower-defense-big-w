@@ -202,6 +202,8 @@ fn main() {
     app.run();
 }
 
+// Default font is specified per-usage in UI systems to ensure explicit control.
+
 /// Parse command-line arguments for an explicit seed, otherwise generate a random one.
 fn determine_launch_seed() -> u64 {
     // Accept either --seed=NUMBER or --seed NUMBER

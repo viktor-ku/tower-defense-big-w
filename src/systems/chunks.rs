@@ -238,6 +238,7 @@ fn chunk_hud_toggle(
     input: Res<ButtonInput<KeyCode>>,
     mut hud: ResMut<ChunkHudState>,
     children_q: Query<&Children>,
+    asset_server: Res<AssetServer>,
 ) {
     if input.just_pressed(KeyCode::F3) {
         hud.enabled = !hud.enabled;
@@ -265,6 +266,7 @@ fn chunk_hud_toggle(
                     ChunkHudText,
                     Text::new("chunks: ..."),
                     TextFont {
+                        font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                         font_size: 16.0,
                         ..default()
                     },

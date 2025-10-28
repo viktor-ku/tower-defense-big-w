@@ -82,7 +82,7 @@ pub(crate) struct WaveTimerDisplay {
     pub(crate) last_seconds: Option<u32>,
 }
 
-pub fn spawn_resource_counters(mut commands: Commands) {
+pub fn spawn_resource_counters(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn((
             Node {
@@ -103,6 +103,7 @@ pub fn spawn_resource_counters(mut commands: Commands) {
             parent.spawn((
                 Text::new("Wood: 0"),
                 TextFont {
+                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 26.0,
                     ..default()
                 },
@@ -117,6 +118,7 @@ pub fn spawn_resource_counters(mut commands: Commands) {
             parent.spawn((
                 Text::new("Rock: 0"),
                 TextFont {
+                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 26.0,
                     ..default()
                 },
@@ -130,7 +132,11 @@ pub fn spawn_resource_counters(mut commands: Commands) {
         });
 }
 
-pub fn spawn_wave_hud(mut commands: Commands, wave_state: Res<WaveState>) {
+pub fn spawn_wave_hud(
+    mut commands: Commands,
+    wave_state: Res<WaveState>,
+    asset_server: Res<AssetServer>,
+) {
     let wave_number = wave_state.upcoming_wave_number();
     let (timer_label, timer_state) = match wave_state.phase {
         WavePhase::Intermission => {
@@ -170,6 +176,7 @@ pub fn spawn_wave_hud(mut commands: Commands, wave_state: Res<WaveState>) {
             parent.spawn((
                 Text::new(format!("Wave: {}", wave_number)),
                 TextFont {
+                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 32.0,
                     ..default()
                 },
@@ -183,6 +190,7 @@ pub fn spawn_wave_hud(mut commands: Commands, wave_state: Res<WaveState>) {
             parent.spawn((
                 Text::new(timer_label),
                 TextFont {
+                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 24.0,
                     ..default()
                 },
@@ -258,7 +266,7 @@ pub fn update_wave_hud(
 #[derive(Component)]
 pub struct GameSpeedIndicatorText;
 
-pub fn spawn_game_speed_indicator(mut commands: Commands) {
+pub fn spawn_game_speed_indicator(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn((Node {
             position_type: PositionType::Absolute,
@@ -272,6 +280,7 @@ pub fn spawn_game_speed_indicator(mut commands: Commands) {
             parent.spawn((
                 Text::new(""),
                 TextFont {
+                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 28.0,
                     ..default()
                 },

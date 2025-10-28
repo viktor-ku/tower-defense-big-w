@@ -311,6 +311,7 @@ pub fn damage_dealt_spawn_text_system(
     tunables: Res<Tunables>,
     mut events: MessageReader<DamageDealt>,
     enemy_pose_query: Query<&GlobalTransform, With<Enemy>>,
+    asset_server: Res<AssetServer>,
 ) {
     for evt in events.read() {
         if let Ok(tf) = enemy_pose_query.get(evt.enemy) {
@@ -334,6 +335,7 @@ pub fn damage_dealt_spawn_text_system(
                 },
                 Text::new(evt.amount.to_string()),
                 TextFont {
+                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: tunables.damage_number_font_size,
                     ..default()
                 },

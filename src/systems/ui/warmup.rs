@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 /// Pre-warm UI pipelines and glyphs that cause a first-use hitch (e.g., Overflow::clip and special glyphs).
-pub fn warm_ui_pipelines(mut commands: Commands) {
+pub fn warm_ui_pipelines(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Tiny, transparent UI subtree that exercises:
     // - Overflow::clip (clipping pipeline)
     // - Borders
@@ -25,6 +25,7 @@ pub fn warm_ui_pipelines(mut commands: Commands) {
             parent.spawn((
                 Text::new("Range: 00  •  DPS: ~0.0  •  Fire: 0.0s"),
                 TextFont {
+                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 1.0,
                     ..default()
                 },

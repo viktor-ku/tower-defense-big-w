@@ -27,6 +27,7 @@ pub fn manage_tower_selection_drawer(
     children_q: Query<&Children>,
     drawer_root_alive: Query<(), With<TowerDrawerRoot>>,
     player_q: Query<&Player>,
+    asset_server: Res<AssetServer>,
 ) {
     let building = building_mode_q.iter().any(|b| b.is_active);
 
@@ -70,6 +71,7 @@ pub fn manage_tower_selection_drawer(
                 parent.spawn((
                     Text::new("Choose a tower"),
                     TextFont {
+                        font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                         font_size: 30.0,
                         ..default()
                     },
@@ -78,6 +80,7 @@ pub fn manage_tower_selection_drawer(
                 parent.spawn((
                     Text::new("1 to select Bow, 2 to select Crossbow; Esc to cancel"),
                     TextFont {
+                        font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                         font_size: 16.0,
                         ..default()
                     },
@@ -138,6 +141,7 @@ pub fn manage_tower_selection_drawer(
                                         col.spawn((
                                             Text::new("Bow tower [1]"),
                                             TextFont {
+                                                font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                 font_size: 20.0,
                                                 ..default()
                                             },
@@ -150,6 +154,7 @@ pub fn manage_tower_selection_drawer(
                                         col.spawn((
                                             Text::new("Fires quickly but does little damage"),
                                             TextFont {
+                                                font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                 font_size: 16.0,
                                                 ..default()
                                             },
@@ -162,6 +167,7 @@ pub fn manage_tower_selection_drawer(
                                         col.spawn((
                                             Text::new("Range: 30  •  DPS: ~17.1  •  Fire: 0.7s"),
                                             TextFont {
+                                                font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                 font_size: 14.0,
                                                 ..default()
                                             },
@@ -194,6 +200,7 @@ pub fn manage_tower_selection_drawer(
                                                 cost.spawn((
                                                     Text::new("3"),
                                                     TextFont {
+                                                        font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                         font_size: 16.0,
                                                         ..default()
                                                     },
@@ -216,6 +223,7 @@ pub fn manage_tower_selection_drawer(
                                                 cost.spawn((
                                                     Text::new("1"),
                                                     TextFont {
+                                                        font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                         font_size: 16.0,
                                                         ..default()
                                                     },
@@ -229,6 +237,7 @@ pub fn manage_tower_selection_drawer(
                                         col.spawn((
                                             Text::new(""),
                                             TextFont {
+                                                font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                 font_size: 14.0,
                                                 ..default()
                                             },
@@ -296,6 +305,7 @@ pub fn manage_tower_selection_drawer(
                                         col.spawn((
                                             Text::new("Crossbow tower [2]"),
                                             TextFont {
+                                                font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                 font_size: 20.0,
                                                 ..default()
                                             },
@@ -308,6 +318,7 @@ pub fn manage_tower_selection_drawer(
                                         col.spawn((
                                             Text::new("Fires slowly but does lots of damage"),
                                             TextFont {
+                                                font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                 font_size: 16.0,
                                                 ..default()
                                             },
@@ -320,6 +331,7 @@ pub fn manage_tower_selection_drawer(
                                         col.spawn((
                                             Text::new("Range: 30  •  DPS: ~14.6  •  Fire: 2.4s"),
                                             TextFont {
+                                                font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                 font_size: 14.0,
                                                 ..default()
                                             },
@@ -352,6 +364,7 @@ pub fn manage_tower_selection_drawer(
                                                 cost.spawn((
                                                     Text::new("10"),
                                                     TextFont {
+                                                        font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                         font_size: 16.0,
                                                         ..default()
                                                     },
@@ -374,6 +387,7 @@ pub fn manage_tower_selection_drawer(
                                                 cost.spawn((
                                                     Text::new("3"),
                                                     TextFont {
+                                                        font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                         font_size: 16.0,
                                                         ..default()
                                                     },
@@ -387,6 +401,7 @@ pub fn manage_tower_selection_drawer(
                                         col.spawn((
                                             Text::new(""),
                                             TextFont {
+                                                font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
                                                 font_size: 14.0,
                                                 ..default()
                                             },
