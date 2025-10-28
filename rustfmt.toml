@@ -1,0 +1,14 @@
+## Width & indentation (stable)
+max_width = 100
+hard_tabs = false
+tab_spaces = 4
+
+## Imports & modules (stable)
+reorder_imports = true
+reorder_modules = true
+
+## Readability & diffs (stable)
+
+## Gentle readability tweaks (stable)
+use_field_init_shorthand = true
+

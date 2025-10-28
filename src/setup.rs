@@ -625,7 +625,7 @@ pub fn setup(
     // Plaza (TownSquare): 2:1 wide rectangle in front of base, facing the gate
     let short_side = tunables.plaza_short_side;
     let long_side = tunables.plaza_aspect * short_side;
-    let mut dir_to_gate = (gate_center - base_pos);
+    let mut dir_to_gate = gate_center - base_pos;
     dir_to_gate.y = 0.0;
     let dir_len = dir_to_gate.length();
     let dir_to_gate = if dir_len > 1e-3 {

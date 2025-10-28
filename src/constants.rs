@@ -118,6 +118,7 @@ pub struct Tunables {
     /// Gate opening width on the east wall.
     pub gate_width: f32,
     /// Town square pavement size around the center.
+    #[allow(dead_code)]
     pub square_size: f32,
     /// Clearance to keep the base away from the opposite wall.
     pub base_clearance_from_wall: f32,
