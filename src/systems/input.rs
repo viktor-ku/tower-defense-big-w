@@ -9,27 +9,33 @@ pub fn handle_menu_input(
     if keyboard_input.just_pressed(Key::Character("p".into())) {
         next_state.set(GameState::Playing);
     }
-    if keyboard_input.just_pressed(Key::Escape) {
-        std::process::exit(0);
-    }
+    // Do not exit the game on Escape
 }
 
 pub fn handle_game_input(
     keyboard_input: Res<ButtonInput<Key>>,
-    mut next_state: ResMut<NextState<GameState>>,
     mut building_mode_query: Query<&mut BuildingMode>,
     mut selection: ResMut<TowerBuildSelection>,
 ) {
     if keyboard_input.just_pressed(Key::Escape) {
-        // If the tower drawer is open, Esc should cancel building instead of going to menu
-        if selection.drawer_root.is_some() {
-            for mut building_mode in building_mode_query.iter_mut() {
+        // Cancel building mode and any tower selection/preview
+        let mut was_building = false;
+        for mut building_mode in building_mode_query.iter_mut() {
+            if building_mode.is_active {
                 building_mode.is_active = false;
+                was_building = true;
             }
+        }
+
+        if was_building
+            || selection.choice.is_some()
+            || selection.hovered_choice.is_some()
+            || selection.drawer_root.is_some()
+        {
             selection.choice = None;
+            selection.hovered_choice = None;
+            // Drawer will be cleaned up by manage_tower_selection_drawer next frame
             return;
-        } else {
-            next_state.set(GameState::Menu);
         }
     }
 
