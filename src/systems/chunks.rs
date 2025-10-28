@@ -2,6 +2,7 @@ use crate::components::{ChunkRoot, Harvestable, HarvestableKind, NoDistanceCull,
 use crate::constants::Tunables;
 use bevy::prelude::*;
 // UI debug overlay omitted for now; logging is used instead
+use crate::random_policy::RandomizationPolicy;
 use rand::{Rng, SeedableRng, rngs::StdRng};
 use std::collections::{HashMap, HashSet};
 
@@ -170,6 +171,7 @@ fn update_chunks(
     tunables: Res<Tunables>,
     children_q: Query<&Children>,
     mut last_chunk: Local<Option<ChunkCoord>>,
+    policy: Res<RandomizationPolicy>,
 ) {
     // Only perform load/unload work when the player actually changes chunks
     if *last_chunk == Some(pc.0) {
@@ -224,6 +226,7 @@ fn update_chunks(
             &tunables,
             seed.0,
             cfg.size,
+            policy.chunk_content_seeded,
         );
 
         loaded.0.insert(coord, root);
@@ -408,9 +411,33 @@ fn spawn_chunk_content(
     tunables: &Res<Tunables>,
     world_seed: u64,
     size: f32,
+    seeded: bool,
 ) {
     let origin = chunk_origin(coord, size);
-    let mut rng = StdRng::seed_from_u64(hash_combine(world_seed, coord.x, coord.z));
+    let mut seeded_rng = StdRng::seed_from_u64(hash_combine(world_seed, coord.x, coord.z));
+    let mut thread_rng = rand::rng();
+    fn pick_f32(
+        seeded: bool,
+        seeded_rng: &mut StdRng,
+        thread_rng: &mut rand::rngs::ThreadRng,
+    ) -> f32 {
+        if seeded {
+            seeded_rng.random::<f32>()
+        } else {
+            thread_rng.random::<f32>()
+        }
+    }
+    fn pick_u32(
+        seeded: bool,
+        seeded_rng: &mut StdRng,
+        thread_rng: &mut rand::rngs::ThreadRng,
+    ) -> u32 {
+        if seeded {
+            seeded_rng.random::<u32>()
+        } else {
+            thread_rng.random::<u32>()
+        }
+    }
 
     // Increase resource density using tunables as a guide
     let trees_per_chunk = (tunables.trees_count / 2).max(30) as usize;
@@ -418,13 +445,14 @@ fn spawn_chunk_content(
 
     // Trees
     for _ in 0..trees_per_chunk {
-        let local_x = rng.random::<f32>() * size;
-        let local_z = rng.random::<f32>() * size;
+        let local_x = pick_f32(seeded, &mut seeded_rng, &mut thread_rng) * size;
+        let local_z = pick_f32(seeded, &mut seeded_rng, &mut thread_rng) * size;
         let pos = origin + Vec3::new(local_x, 0.0, local_z);
 
         // Random wood amount per tree within tunables range
         let wood_span = (tunables.tree_wood_max - tunables.tree_wood_min + 1).max(1);
-        let wood_amount = tunables.tree_wood_min + (rng.random::<u32>() % wood_span);
+        let wood_amount = tunables.tree_wood_min
+            + (pick_u32(seeded, &mut seeded_rng, &mut thread_rng) % wood_span);
 
         commands.entity(root).with_children(|p| {
             p.spawn((
@@ -442,8 +470,8 @@ fn spawn_chunk_content(
 
     // Rocks
     for _ in 0..rocks_per_chunk {
-        let local_x = rng.random::<f32>() * size;
-        let local_z = rng.random::<f32>() * size;
+        let local_x = pick_f32(seeded, &mut seeded_rng, &mut thread_rng) * size;
+        let local_z = pick_f32(seeded, &mut seeded_rng, &mut thread_rng) * size;
         let pos = origin + Vec3::new(local_x, 0.0, local_z);
 
         commands.entity(root).with_children(|p| {

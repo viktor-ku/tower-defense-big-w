@@ -43,15 +43,39 @@ impl WaveState {
         }
     }
 
-    pub fn start_next_wave(&mut self, tunables: &Tunables) {
+    pub fn start_next_wave(&mut self, tunables: &Tunables, seed_mode: Option<u64>) {
         self.current_wave += 1;
         self.phase = WavePhase::Spawning;
 
         // Build composition for this wave
         let base = self.wave_enemy_count(tunables) as usize;
         // Minions: 50–60%; Zombies: 20–30%; remainder -> minions to keep majority
-        let rm = 0.5 + rand::random::<f32>() * 0.1;
-        let rz = 0.2 + rand::random::<f32>() * 0.1;
+        let (rm, rz, mut shuffler): (f32, f32, Box<dyn FnMut(&mut Vec<EnemyKind>)>) =
+            match seed_mode {
+                Some(world_seed) => {
+                    use rand::{Rng, SeedableRng, rngs::StdRng};
+                    let seed = world_seed
+                        ^ ((self.current_wave as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15));
+                    let mut rng = StdRng::seed_from_u64(seed);
+                    let rm = 0.5 + rng.random::<f32>() * 0.1;
+                    let rz = 0.2 + rng.random::<f32>() * 0.1;
+                    let shuf = move |list: &mut Vec<EnemyKind>| {
+                        use rand::seq::SliceRandom;
+                        list.shuffle(&mut rng);
+                    };
+                    (rm, rz, Box::new(shuf))
+                }
+                None => {
+                    let rm = 0.5 + rand::random::<f32>() * 0.1;
+                    let rz = 0.2 + rand::random::<f32>() * 0.1;
+                    let shuf = move |list: &mut Vec<EnemyKind>| {
+                        use rand::seq::SliceRandom;
+                        let mut rng = rand::rng();
+                        list.shuffle(&mut rng);
+                    };
+                    (rm, rz, Box::new(shuf))
+                }
+            };
         let mut minions = (rm * base as f32).floor() as usize;
         let zombies = (rz * base as f32).floor() as usize;
         // Ensure remainder goes to minions (keeps them majority)
@@ -61,10 +85,8 @@ impl WaveState {
         list.extend(std::iter::repeat_n(EnemyKind::Minion, minions));
         list.extend(std::iter::repeat_n(EnemyKind::Zombie, base - minions));
 
-        // Shuffle for random mixing
-        use rand::seq::SliceRandom;
-        let mut rng = rand::rng();
-        list.shuffle(&mut rng);
+        // Shuffle for random mixing using the selected shuffler
+        shuffler(&mut list);
 
         // Build spawn queue; boss first on every 10th wave, added on top
         self.spawn_queue.clear();

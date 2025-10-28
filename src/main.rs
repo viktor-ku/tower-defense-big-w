@@ -8,6 +8,7 @@ mod components;
 mod entities;
 mod events;
 mod materials;
+mod random_policy;
 mod setup;
 mod splash;
 mod systems;
@@ -16,19 +17,33 @@ use components::*;
 use constants::Tunables;
 use events::*;
 use materials::*;
+use random_policy::RandomizationPolicy;
 use setup::*;
 use splash::SplashPlugin;
 use systems::*;
 // Frame time graph (Bevy 0.17 dev tools)
 use bevy::dev_tools::frame_time_graph::FrameTimeGraphPlugin;
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
+use rand::Rng;
+use std::fs;
+use std::io::Write;
+use std::path::PathBuf;
 
 fn main() {
-    let tunables = Tunables::default();
+    // Determine the world seed for this run: allow --seed override, otherwise randomize.
+    let launch_seed = determine_launch_seed();
+
+    // Start from default tunables, then inject the dynamic seed before the app/plugins read it.
+    let mut tunables = Tunables::default();
+    tunables.world_seed = launch_seed;
+
+    // Persist the used seed so we can reproduce a given world later if needed.
+    persist_seed_to_app_data(launch_seed);
     App::new()
         .insert_resource(tunables.clone())
         .insert_resource(WaveState::new(&tunables))
         .insert_resource(CombatVfxAssets::default())
+        .insert_resource(RandomizationPolicy::default())
         .add_plugins((DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
@@ -160,4 +175,77 @@ fn main() {
         // Window close handling - use force exit for immediate termination
         .add_systems(Update, force_exit_on_close)
         .run();
+}
+
+/// Parse command-line arguments for an explicit seed, otherwise generate a random one.
+fn determine_launch_seed() -> u64 {
+    // Accept either --seed=NUMBER or --seed NUMBER
+    let mut args = std::env::args().skip(1);
+    let mut pending_seed_flag = false;
+    while let Some(arg) = args.next() {
+        if pending_seed_flag {
+            if let Ok(value) = arg.parse::<u64>() {
+                return value;
+            }
+            // If malformed, ignore and continue to random seed
+            pending_seed_flag = false;
+            continue;
+        }
+
+        if let Some(rest) = arg.strip_prefix("--seed=") {
+            if let Ok(value) = rest.parse::<u64>() {
+                return value;
+            }
+        } else if arg == "--seed" {
+            pending_seed_flag = true;
+        }
+    }
+
+    // No explicit seed provided: generate a random 64-bit seed
+    let seed: u64 = rand::rng().random();
+    println!("[td] Launching with random world seed: {}", seed);
+    seed
+}
+
+/// Save the seed into the platform-specific app data directory under td/seed.txt.
+fn persist_seed_to_app_data(seed: u64) {
+    // Prefer a standard data dir; fall back to current dir if unavailable.
+    let base_dir: PathBuf = match dirs_next::data_dir() {
+        Some(p) => p,
+        None => match std::env::current_dir() {
+            Ok(p) => p,
+            Err(_) => return, // Give up quietly if we can't determine any directory
+        },
+    };
+
+    let dir = base_dir.join("td");
+    let file_path = dir.join("seed.txt");
+
+    if let Err(e) = fs::create_dir_all(&dir) {
+        eprintln!(
+            "[td] Warning: failed to create app data directory at {:?}: {}",
+            dir, e
+        );
+        return;
+    }
+
+    // Write the seed as plain text
+    match fs::File::create(&file_path) {
+        Ok(mut f) => {
+            if let Err(e) = writeln!(f, "{}", seed) {
+                eprintln!(
+                    "[td] Warning: failed to write seed to {:?}: {}",
+                    file_path, e
+                );
+            } else {
+                println!("[td] Saved world seed {} to {:?}", seed, file_path);
+            }
+        }
+        Err(e) => {
+            eprintln!(
+                "[td] Warning: failed to open seed file {:?}: {}",
+                file_path, e
+            );
+        }
+    }
 }

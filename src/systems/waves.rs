@@ -1,5 +1,7 @@
 use crate::components::{Enemy, WavePhase, WaveState};
 use crate::constants::Tunables;
+use crate::random_policy::RandomizationPolicy;
+use crate::systems::WorldSeed;
 use bevy::audio::{AudioPlayer, PlaybackMode, PlaybackSettings, Volume};
 use bevy::prelude::*;
 use std::time::Duration;
@@ -12,6 +14,8 @@ pub fn wave_progression(
     mut wave_state: ResMut<WaveState>,
     tunables: Res<Tunables>,
     enemy_query: Query<Entity, With<Enemy>>,
+    seed: Res<WorldSeed>,
+    policy: Res<RandomizationPolicy>,
 ) {
     match wave_state.phase {
         WavePhase::Intermission => {
@@ -38,7 +42,12 @@ pub fn wave_progression(
                         ..default()
                     },
                 ));
-                wave_state.start_next_wave(&tunables);
+                let seed_mode = if policy.wave_composition_seeded {
+                    Some(seed.0)
+                } else {
+                    None
+                };
+                wave_state.start_next_wave(&tunables, seed_mode);
             }
         }
         WavePhase::Spawning => {

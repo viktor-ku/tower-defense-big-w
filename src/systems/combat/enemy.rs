@@ -5,6 +5,8 @@ use crate::components::{
 };
 use crate::constants::Tunables;
 use crate::events::EnemySpawned;
+use crate::random_policy::RandomizationPolicy;
+use crate::systems::WorldSeed;
 use bevy::math::primitives::Cuboid;
 use bevy::pbr::MeshMaterial3d;
 use bevy::prelude::*;
@@ -23,6 +25,8 @@ pub fn enemy_spawning(
     roads: Option<Res<RoadPaths>>,
     tunables: Res<Tunables>,
     mut wave_state: ResMut<WaveState>,
+    seed: Res<WorldSeed>,
+    policy: Res<RandomizationPolicy>,
 ) {
     if wave_state.phase != WavePhase::Spawning {
         return;
@@ -42,7 +46,16 @@ pub fn enemy_spawning(
 
     wave_state.spawn_timer.tick(time.delta());
     if wave_state.spawn_timer.just_finished() {
-        let (spawn_pos, road_index) = select_spawn_point(&roads, &tunables);
+        let (spawn_pos, road_index) = if policy.enemy_spawn_selection_seeded {
+            let derived = derive_seed(
+                seed.0,
+                wave_state.current_wave as u64,
+                wave_state.enemies_spawned as u64,
+            );
+            select_seeded_spawn_point(&roads, &tunables, derived)
+        } else {
+            select_random_spawn_point(&roads, &tunables)
+        };
 
         // Determine which enemy to spawn next
         if let Some(kind) = wave_state.spawn_queue.pop_front() {
@@ -106,7 +119,36 @@ pub fn enemy_spawning(
     }
 }
 
-fn select_spawn_point(
+fn select_seeded_spawn_point(
+    roads: &Option<Res<RoadPaths>>,
+    tunables: &Tunables,
+    derived_seed: u64,
+) -> (Vec3, Option<usize>) {
+    if let Some(roads) = roads
+        && !roads.roads.is_empty()
+    {
+        use rand::{Rng, SeedableRng, rngs::StdRng};
+        let mut rng =
+            StdRng::seed_from_u64(derive_seed(derived_seed, 0x01, roads.roads.len() as u64));
+        let mut ri = (rng.random::<f32>() * roads.roads.len() as f32).floor() as usize;
+        if ri >= roads.roads.len() {
+            ri = roads.roads.len() - 1;
+        }
+        let wp = &roads.roads[ri][0];
+        return (Vec3::new(wp.x, 0.0, wp.z), Some(ri));
+    }
+
+    use rand::{Rng, SeedableRng, rngs::StdRng};
+    let mut rng = StdRng::seed_from_u64(derive_seed(derived_seed, 0x02, 0));
+    let angle = rng.random::<f32>() * 2.0 * PI;
+    let distance = tunables.enemy_spawn_ring_distance;
+    (
+        Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance),
+        None,
+    )
+}
+
+fn select_random_spawn_point(
     roads: &Option<Res<RoadPaths>>,
     tunables: &Tunables,
 ) -> (Vec3, Option<usize>) {
@@ -128,6 +170,18 @@ fn select_spawn_point(
         None,
     )
 }
+
+#[inline]
+fn derive_seed(base: u64, a: u64, b: u64) -> u64 {
+    // Mix base with two counters. Constants from xorshift/splitmix families.
+    let mut h = base ^ 0x9E37_79B9_7F4A_7C15u64;
+    h ^= a.wrapping_mul(0xC2B2_AE3D_27D4_EB4Fu64);
+    h = h.rotate_left(27) ^ (h >> 33);
+    h ^= b.wrapping_mul(0x1656_67B1_9E37_79F9u64);
+    h ^ (h >> 29)
+}
+
+// (No other helpers)
 
 fn attach_health_bar(
     commands: &mut Commands,

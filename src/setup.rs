@@ -1,4 +1,5 @@
 use crate::constants::Tunables;
+use crate::random_policy::RandomizationPolicy;
 use crate::{
     components::*,
     systems::{CameraSettings, EnemyHealthBarAssets},
@@ -219,6 +220,7 @@ pub fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     tunables: Res<Tunables>,
+    policy: Res<RandomizationPolicy>,
 ) {
     // Insert global camera settings resource (easy to tweak)
     commands.insert_resource(CameraSettings {
@@ -277,8 +279,13 @@ pub fn setup(
     let half = tunables.town_size / 2.0;
     let h2 = tunables.wall_height / 2.0;
 
-    // Seeded RNG for layout
-    let mut rng = StdRng::seed_from_u64(tunables.world_seed);
+    // RNG for layout (seeded vs random per policy)
+    let mut rng = if policy.town_layout_seeded {
+        StdRng::seed_from_u64(tunables.world_seed)
+    } else {
+        let s: u64 = rand::rng().random();
+        StdRng::seed_from_u64(s)
+    };
 
     // Choose exit side and gate lateral offset
     let exit_side = match rng.random_range(0..4) {
@@ -691,9 +698,14 @@ pub fn setup(
         TownCenter,
     ));
 
-    // Seeded road from gate to base using generated patterns
+    // Road from gate to base using generated patterns (seeded vs random per policy)
     let road_seed = tunables.world_seed ^ 0xD00Du64.wrapping_mul(0x9E37_79B9_7F4A_7C15);
-    let mut road_rng = StdRng::seed_from_u64(road_seed);
+    let mut road_rng = if policy.road_generation_seeded {
+        StdRng::seed_from_u64(road_seed)
+    } else {
+        let s: u64 = rand::rng().random();
+        StdRng::seed_from_u64(s)
+    };
     if let Some(road) = generate_and_spawn_road(
         &mut commands,
         &mut meshes,
