@@ -11,7 +11,8 @@ struct SplashRoot;
 #[derive(Resource, Default)]
 struct LoadingAssets {
     // Core assets we want ready before gameplay
-    audio: Handle<AudioSource>,
+    // Audio is optional: if the file is missing, we proceed without it.
+    audio: Option<Handle<AudioSource>>,
     font: Handle<Font>,
     logo: Handle<Image>,
     shaders: Vec<Handle<LoadedUntypedAsset>>,
@@ -88,7 +89,19 @@ fn queue_preloads(
         return;
     }
     // Begin preloading core assets (extend as needed)
-    let audio: Handle<AudioSource> = asset_server.load("sounds/round-start.wav");
+    let audio: Option<Handle<AudioSource>> = {
+        let rel_path = "sounds/round-start.wav";
+        let full_path = std::path::Path::new("assets").join(rel_path);
+        if !full_path.exists() {
+            error!(
+                "Missing sound asset: {}. Proceeding without audio.",
+                full_path.display()
+            );
+            None
+        } else {
+            Some(asset_server.load(rel_path))
+        }
+    };
     let font: Handle<Font> = asset_server.load("fonts/Luckiest_Guy/LuckiestGuy-Regular.ttf");
     let logo: Handle<Image> = asset_server.load("images/logo-512x.png");
 
@@ -123,7 +136,10 @@ fn check_preloads(
         .shaders
         .iter()
         .all(|h| asset_server.is_loaded_with_dependencies(h.id()));
-    let audio_ready = asset_server.is_loaded_with_dependencies(assets.audio.id());
+    let audio_ready = match &assets.audio {
+        Some(h) => asset_server.is_loaded_with_dependencies(h.id()),
+        None => true,
+    };
     let font_ready = asset_server.is_loaded_with_dependencies(assets.font.id());
     let logo_ready = asset_server.is_loaded_with_dependencies(assets.logo.id());
 

@@ -34,14 +34,23 @@ pub fn wave_progression(
 
             wave_state.intermission_timer.tick(time.delta());
             if wave_state.intermission_timer.just_finished() {
-                commands.spawn((
-                    AudioPlayer::new(asset_server.load("sounds/round-start.wav")),
-                    PlaybackSettings {
-                        mode: PlaybackMode::Despawn,
-                        volume: Volume::Decibels(-10.0),
-                        ..default()
-                    },
-                ));
+                let rel_path = "sounds/round-start.wav";
+                let full_path = std::path::Path::new("assets").join(rel_path);
+                if full_path.exists() {
+                    commands.spawn((
+                        AudioPlayer::new(asset_server.load(rel_path)),
+                        PlaybackSettings {
+                            mode: PlaybackMode::Despawn,
+                            volume: Volume::Decibels(-10.0),
+                            ..default()
+                        },
+                    ));
+                } else {
+                    error!(
+                        "Missing sound asset: {}. Skipping playback.",
+                        full_path.display()
+                    );
+                }
                 let seed_mode = if policy.wave_composition_seeded {
                     Some(seed.0)
                 } else {
