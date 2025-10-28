@@ -1,4 +1,4 @@
-use crate::components::{ChunkRoot, Harvestable, HarvestableKind, Player, Tree};
+use crate::components::{ChunkRoot, Harvestable, HarvestableKind, NoDistanceCull, Player, Tree};
 use crate::constants::Tunables;
 use bevy::prelude::*;
 // UI debug overlay omitted for now; logging is used instead
@@ -340,7 +340,7 @@ fn distance_culling(
     cfg: Res<ChunkConfig>,
     time: Res<Time>,
     player_q: Query<&Transform, With<Player>>,
-    mut q: Query<(&Transform, &mut Visibility), With<Mesh3d>>,
+    mut q: Query<(&Transform, &mut Visibility), (With<Mesh3d>, Without<NoDistanceCull>)>,
     mut state: Local<DistanceCullState>,
 ) {
     let Ok(player_tf) = player_q.single() else {
@@ -365,7 +365,9 @@ fn distance_culling(
     state.last_player_pos = player_tf.translation;
     state.initialized = true;
 
-    let threshold = cfg.size * (cfg.active_radius + cfg.hysteresis + 1) as f32;
+    // Be less aggressive: add a safety margin to cover diagonal distances and large meshes
+    let base = (cfg.active_radius + cfg.hysteresis + 1) as f32;
+    let threshold = cfg.size * base * 1.5;
     let p = player_tf.translation;
     for (tf, mut vis) in q.iter_mut() {
         let d = Vec2::new(tf.translation.x - p.x, tf.translation.z - p.z).length();

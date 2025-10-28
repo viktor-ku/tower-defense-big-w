@@ -238,6 +238,7 @@ pub fn setup(
         Mesh3d(ground_mesh),
         MeshMaterial3d(ground_mat),
         Transform::IDENTITY,
+        NoDistanceCull,
     ));
 
     // Perimeter walls (visual, thick, not walkable)
