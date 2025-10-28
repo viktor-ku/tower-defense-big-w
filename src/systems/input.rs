@@ -52,3 +52,17 @@ pub fn handle_game_input(
         selection.choice = None;
     }
 }
+
+pub fn pause_toggle_input(
+    keyboard_input: Res<ButtonInput<Key>>,
+    state: Res<State<GameState>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if keyboard_input.just_pressed(Key::Space) {
+        match state.get() {
+            GameState::Playing => next_state.set(GameState::Paused),
+            GameState::Paused => next_state.set(GameState::Playing),
+            _ => {}
+        }
+    }
+}

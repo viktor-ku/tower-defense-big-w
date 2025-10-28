@@ -98,6 +98,8 @@ fn main() {
             Update,
             handle_game_input.run_if(in_state(GameState::Playing)),
         )
+        .add_systems(Update, pause_toggle_input.run_if(in_state(GameState::Playing)))
+        .add_systems(Update, pause_toggle_input.run_if(in_state(GameState::Paused)))
         .add_systems(Update, player_movement.run_if(in_state(GameState::Playing)))
         .add_systems(Update, tower_building.run_if(in_state(GameState::Playing)))
         // Tower selection drawer UI
