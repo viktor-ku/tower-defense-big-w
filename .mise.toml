@@ -6,29 +6,19 @@ run = "cargo build"
 description = "Build in release"
 run = "cargo build --release"
 
-[tasks.start]
-description = "Run in debug (cleans trace-* first)"
-shell = "powershell"
-run = """
-Get-ChildItem -Path . -Filter 'trace-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-cargo run
-"""
+[tasks.dev]
+description = "Run in debug"
+depends = ["clean"]
+run = "cargo run"
 
-[tasks."start:devtools"]
-description = "Run in debug with devtools (cleans trace-* first)"
-shell = "powershell"
-run = """
-Get-ChildItem -Path . -Filter 'trace-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-cargo run --features devtools
-"""
+[tasks."dev:tools"]
+description = "Run in debug with devtools"
+depends = ["clean"]
+run = "cargo run --features devtools"
 
-[tasks."start:release"]
-description = "Run in release (cleans trace-* first)"
-shell = "powershell"
-run = """
-Get-ChildItem -Path . -Filter 'trace-*' -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-cargo run --release
-"""
+[tasks."start"]
+description = "Run in release"
+run = "cargo run --release"
 
 [tasks.fmt]
 description = "Format Rust code"
@@ -37,3 +27,6 @@ run = "cargo fmt --all"
 [tasks.check]
 description = "Check Rust code"
 run = "cargo check"
+
+[tasks.clean]
+run = "rm -rf trace-*"
