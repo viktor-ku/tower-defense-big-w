@@ -335,7 +335,7 @@ pub fn damage_dealt_spawn_text_system(
                 },
                 Text::new(evt.amount.to_string()),
                 TextFont {
-                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
+                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: tunables.damage_number_font_size,
                     ..default()
                 },

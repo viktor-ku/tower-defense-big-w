@@ -266,7 +266,7 @@ fn chunk_hud_toggle(
                     ChunkHudText,
                     Text::new("chunks: ..."),
                     TextFont {
-                        font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
+                        font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
                         font_size: 16.0,
                         ..default()
                     },

@@ -103,7 +103,7 @@ pub fn spawn_resource_counters(mut commands: Commands, asset_server: Res<AssetSe
             parent.spawn((
                 Text::new("Wood: 0"),
                 TextFont {
-                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
+                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 26.0,
                     ..default()
                 },
@@ -118,7 +118,7 @@ pub fn spawn_resource_counters(mut commands: Commands, asset_server: Res<AssetSe
             parent.spawn((
                 Text::new("Rock: 0"),
                 TextFont {
-                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
+                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 26.0,
                     ..default()
                 },
@@ -176,7 +176,7 @@ pub fn spawn_wave_hud(
             parent.spawn((
                 Text::new(format!("Wave: {}", wave_number)),
                 TextFont {
-                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
+                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 32.0,
                     ..default()
                 },
@@ -190,7 +190,7 @@ pub fn spawn_wave_hud(
             parent.spawn((
                 Text::new(timer_label),
                 TextFont {
-                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
+                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 24.0,
                     ..default()
                 },
@@ -280,7 +280,7 @@ pub fn spawn_game_speed_indicator(mut commands: Commands, asset_server: Res<Asse
             parent.spawn((
                 Text::new(""),
                 TextFont {
-                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
+                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 28.0,
                     ..default()
                 },

@@ -25,7 +25,7 @@ pub fn warm_ui_pipelines(mut commands: Commands, asset_server: Res<AssetServer>)
             parent.spawn((
                 Text::new("Range: 00  •  DPS: ~0.0  •  Fire: 0.0s"),
                 TextFont {
-                    font: asset_server.load("fonts/Nova_Mono/Nova_Mono/NovaMono-Regular.ttf"),
+                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
                     font_size: 1.0,
                     ..default()
                 },
