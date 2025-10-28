@@ -676,7 +676,12 @@ pub fn setup(
             MeshMaterial3d(player_mat),
             Transform::from_xyz(plaza_center.x, 2.0, plaza_center.z),
             IsoPlayer,
-            Player { wood: 0, rock: 0 },
+            Player {
+                wood: 0,
+                rock: 0,
+                silver: 0,
+                gold: 0,
+            },
         ))
         .id();
 

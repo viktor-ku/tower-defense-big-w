@@ -2,13 +2,13 @@ use crate::audio::PlayerFootstepEvent;
 use crate::components::*;
 use crate::constants::Tunables;
 use crate::systems::combat::projectiles::EnemyFadeOut;
-use bevy::input::keyboard::Key;
+use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 /// Moves the player using WASD/arrow keys at a fixed speed.
 pub fn player_movement(
     time: Res<Time>,
-    keyboard_input: Res<ButtonInput<Key>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut player_query: Query<&mut Transform, (With<Player>, With<IsoPlayer>)>,
     tunables: Res<Tunables>,
     mut log_accumulator: Local<f32>,
@@ -18,24 +18,16 @@ pub fn player_movement(
     if let Ok(mut transform) = player_query.single_mut() {
         let mut direction = Vec3::ZERO;
 
-        if keyboard_input.pressed(Key::Character("w".into()))
-            || keyboard_input.pressed(Key::ArrowUp)
-        {
+        if keyboard_input.pressed(KeyCode::KeyW) || keyboard_input.pressed(KeyCode::ArrowUp) {
             direction.z -= 1.0;
         }
-        if keyboard_input.pressed(Key::Character("s".into()))
-            || keyboard_input.pressed(Key::ArrowDown)
-        {
+        if keyboard_input.pressed(KeyCode::KeyS) || keyboard_input.pressed(KeyCode::ArrowDown) {
             direction.z += 1.0;
         }
-        if keyboard_input.pressed(Key::Character("a".into()))
-            || keyboard_input.pressed(Key::ArrowLeft)
-        {
+        if keyboard_input.pressed(KeyCode::KeyA) || keyboard_input.pressed(KeyCode::ArrowLeft) {
             direction.x -= 1.0;
         }
-        if keyboard_input.pressed(Key::Character("d".into()))
-            || keyboard_input.pressed(Key::ArrowRight)
-        {
+        if keyboard_input.pressed(KeyCode::KeyD) || keyboard_input.pressed(KeyCode::ArrowRight) {
             direction.x += 1.0;
         }
 

@@ -61,6 +61,12 @@ pub struct WoodCounterText;
 pub struct RockCounterText;
 
 #[derive(Component)]
+pub struct SilverCounterText;
+
+#[derive(Component)]
+pub struct GoldCounterText;
+
+#[derive(Component)]
 pub struct WaveCounterText;
 
 #[derive(Component)]
@@ -128,6 +134,28 @@ pub fn spawn_resource_counters(mut commands: Commands, asset_server: Res<AssetSe
                     kind: HarvestableKind::Rock,
                     last_value: 0,
                 },
+            ));
+
+            parent.spawn((
+                Text::new("Silver: 0"),
+                TextFont {
+                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                    font_size: 26.0,
+                    ..default()
+                },
+                TextColor(Color::srgba(0.88, 0.9, 0.96, 1.0)),
+                SilverCounterText,
+            ));
+
+            parent.spawn((
+                Text::new("Gold: 0"),
+                TextFont {
+                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                    font_size: 26.0,
+                    ..default()
+                },
+                TextColor(Color::srgba(1.0, 0.9, 0.35, 1.0)),
+                GoldCounterText,
             ));
         });
 }
@@ -219,6 +247,21 @@ pub fn update_resource_counters(
                 };
                 *text = Text::new(format!("{}: {}", label, value));
             }
+        }
+    }
+}
+
+pub fn update_currency_counters(
+    player_q: Query<&Player>,
+    mut silver_text_q: Query<&mut Text, (With<SilverCounterText>, Without<GoldCounterText>)>,
+    mut gold_text_q: Query<&mut Text, (With<GoldCounterText>, Without<SilverCounterText>)>,
+) {
+    if let Ok(player) = player_q.single() {
+        for mut text in silver_text_q.iter_mut() {
+            *text = Text::new(format!("Silver: {}", player.silver));
+        }
+        for mut text in gold_text_q.iter_mut() {
+            *text = Text::new(format!("Gold: {}", player.gold));
         }
     }
 }

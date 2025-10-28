@@ -1,6 +1,6 @@
 use super::assets::CombatVfxAssets;
 use crate::audio::{TowerShotEvent, TowerShotKind};
-use crate::components::{BuiltTower, Enemy, Tower, TowerKind};
+use crate::components::{BuiltTower, Enemy, EnemyKind, Player, Tower, TowerKind};
 use crate::constants::Tunables;
 use crate::events::{DamageDealt, EnemyKilled};
 use crate::materials::ImpactMaterial;
@@ -476,6 +476,10 @@ pub fn enemy_fade_out_system(
     mut materials: ResMut<Assets<StandardMaterial>>,
     children_query: Query<&Children>,
     mut enemy_killed_events: MessageWriter<EnemyKilled>,
+    enemy_kind_q: Query<&EnemyKind>,
+    mut player_q: Query<&mut Player>,
+    asset_server: Res<AssetServer>,
+    tunables: Res<Tunables>,
 ) {
     for (entity, mut fade) in fading.iter_mut() {
         fade.timer.tick(time.delta());
@@ -490,6 +494,83 @@ pub fn enemy_fade_out_system(
         }
 
         if fade.timer.just_finished() {
+            // Credit currency based on enemy kind
+            let silver_award: u64 = match enemy_kind_q.get(entity).ok().copied() {
+                Some(EnemyKind::Minion) => 1u64,
+                Some(EnemyKind::Zombie) => 2u64,
+                Some(EnemyKind::Boss) => 5u64,
+                None => 1u64,
+            };
+
+            let gold_award: u64 = if rand::random::<f32>() < 0.05 {
+                1u64
+            } else {
+                0u64
+            };
+
+            if let Ok(mut player) = player_q.single_mut() {
+                player.silver = player.silver.saturating_add(silver_award);
+                if gold_award > 0 {
+                    player.gold = player.gold.saturating_add(1u64);
+                }
+            }
+
+            // Spawn floating reward texts
+            let pos =
+                fade.death_position + Vec3::new(0.0, tunables.damage_number_spawn_height, 0.0);
+            let dir = rand::random::<u8>() % 4;
+            let offset_px = match dir {
+                0 => Vec2::new(10.0, 0.0),
+                1 => Vec2::new(-10.0, 0.0),
+                2 => Vec2::new(0.0, 10.0),
+                _ => Vec2::new(0.0, -10.0),
+            };
+
+            commands.spawn((
+                DamageNumber {
+                    timer: Timer::from_seconds(
+                        tunables.damage_number_lifetime_secs,
+                        TimerMode::Once,
+                    ),
+                    world_position: pos,
+                    ui_offset: offset_px,
+                },
+                Text::new(format!("+{}S", silver_award)),
+                TextFont {
+                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                    font_size: tunables.damage_number_font_size,
+                    ..default()
+                },
+                TextColor(Color::srgba(0.80, 0.82, 0.90, 0.95)),
+            ));
+
+            if gold_award > 0 {
+                let dir2 = (dir + 1) % 4; // different offset direction
+                let offset_px2 = match dir2 {
+                    0 => Vec2::new(10.0, 0.0),
+                    1 => Vec2::new(-10.0, 0.0),
+                    2 => Vec2::new(0.0, 10.0),
+                    _ => Vec2::new(0.0, -10.0),
+                };
+                commands.spawn((
+                    DamageNumber {
+                        timer: Timer::from_seconds(
+                            tunables.damage_number_lifetime_secs,
+                            TimerMode::Once,
+                        ),
+                        world_position: pos,
+                        ui_offset: offset_px2,
+                    },
+                    Text::new("+1G".to_string()),
+                    TextFont {
+                        font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                        font_size: tunables.damage_number_font_size,
+                        ..default()
+                    },
+                    TextColor(Color::srgba(1.0, 0.92, 0.35, 0.98)),
+                ));
+            }
+
             enemy_killed_events.write(EnemyKilled {
                 position: fade.death_position,
             });

@@ -82,6 +82,7 @@ pub fn enemy_spawning(
                     Transform::from_translation(Vec3::new(spawn_pos.x, half_h, spawn_pos.z)),
                     Visibility::default(),
                     InheritedVisibility::default(),
+                    kind,
                     Enemy {
                         health: hp,
                         max_health: hp,

@@ -184,6 +184,7 @@ fn main() {
             (
                 village_health_hud,
                 update_resource_counters,
+                update_currency_counters,
                 update_wave_hud,
                 manage_collect_bar_ui,
             )

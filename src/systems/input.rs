@@ -1,26 +1,27 @@
 use crate::components::*;
-use bevy::input::keyboard::Key;
+use bevy::input::keyboard::KeyCode;
 use bevy::input::mouse::MouseButton;
 use bevy::prelude::*;
 
 pub fn handle_menu_input(
-    keyboard_input: Res<ButtonInput<Key>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if keyboard_input.just_pressed(Key::Character("p".into())) {
+    if keyboard_input.just_pressed(KeyCode::KeyP) {
         next_state.set(GameState::Playing);
     }
     // Do not exit the game on Escape
 }
 
 pub fn handle_game_input(
-    keyboard_input: Res<ButtonInput<Key>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     mouse_input: Res<ButtonInput<MouseButton>>,
     mut building_mode_query: Query<&mut BuildingMode>,
     mut selling_mode_query: Query<&mut SellingMode>,
     mut selection: ResMut<TowerBuildSelection>,
 ) {
-    if keyboard_input.just_pressed(Key::Escape) || mouse_input.just_pressed(MouseButton::Right) {
+    if keyboard_input.just_pressed(KeyCode::Escape) || mouse_input.just_pressed(MouseButton::Right)
+    {
         // Cancel building mode and any tower selection/preview
         let mut was_building = false;
         for mut building_mode in building_mode_query.iter_mut() {
@@ -46,7 +47,7 @@ pub fn handle_game_input(
         }
     }
 
-    if keyboard_input.just_pressed(Key::Character("b".into())) {
+    if keyboard_input.just_pressed(KeyCode::KeyB) {
         for mut building_mode in building_mode_query.iter_mut() {
             building_mode.is_active = !building_mode.is_active;
             if cfg!(debug_assertions) {
@@ -59,11 +60,11 @@ pub fn handle_game_input(
 }
 
 pub fn pause_toggle_input(
-    keyboard_input: Res<ButtonInput<Key>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
     state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if keyboard_input.just_pressed(Key::Space) {
+    if keyboard_input.just_pressed(KeyCode::Space) {
         match state.get() {
             GameState::Playing => next_state.set(GameState::Paused),
             GameState::Paused => next_state.set(GameState::Playing),
