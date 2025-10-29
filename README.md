@@ -2,6 +2,40 @@
 
 I am exploring how much further can I get using AI + my project management and coding skills in game development
 
+## How to play
+
+**Village Defender** is a tower defense game where you protect your village from waves of enemies by building defensive towers and collecting resources.
+
+### Game Mechanics
+- **Resource Collection**: Hold `E` near trees and rocks to collect wood and stone resources
+- **Tower Building**: Press `B` to enter building mode, then select a tower type and place it within range
+- **Tower Types**: 
+  - **Bow Tower**: 3 wood, 1 rock - Fast firing, moderate damage
+  - **Crossbow Tower**: 10 wood, 3 rock - Slower firing, high damage
+- **Enemy Waves**: Defend against increasingly difficult waves of enemies
+- **Village Health**: Your village has 200 health - if it reaches 0, you lose!
+
+### Keyboard Shortcuts
+
+#### Movement
+- `WASD` or `Arrow Keys` - Move your character around the world
+
+#### Game Controls
+- `P` - Start/Resume game (from menu)
+- `Space` - Pause/Unpause game
+- `B` - Toggle building mode
+- `Escape` or `Right Mouse Button` - Cancel building mode or tower selection
+
+#### Resource Collection
+- `E` (Hold) - Collect resources from trees and rocks (hold for 1 second)
+
+#### Debug/Development (F-keys)
+- `F3` - Toggle chunk HUD display
+- `F4`/`F5` - Decrease/Increase unload cap per frame
+- `F6`/`F7` - Decrease/Increase load cap per frame  
+- `F8`/`F9` - Decrease/Increase active chunk radius
+- `F10`/`F11` - Decrease/Increase chunk hysteresis
+
 ## How to get started
 
 ### 1. Install `rustup`
