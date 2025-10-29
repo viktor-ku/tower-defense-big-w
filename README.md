@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/images/logo-512x.png" alt="Tower Defense Logo" width="256" height="256">
+</div>
+
 # Tower Defense
 
 I am exploring how much further can I get using AI + my project management and coding skills in game development
