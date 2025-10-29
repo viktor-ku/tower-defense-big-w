@@ -25,6 +25,17 @@ pub enum TreeSize {
     Big,
 }
 
+/// Marker for a rock resource node.
+#[derive(Component)]
+pub struct Rock;
+
+/// Size variant for rocks.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RockSize {
+    Small,
+    Big,
+}
+
 /// Tracks the current hold-to-collect target and normalized progress [0,1].
 #[derive(Resource, Default, Debug, Clone, Copy)]
 pub struct CurrentCollectProgress {

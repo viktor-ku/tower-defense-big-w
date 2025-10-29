@@ -26,7 +26,13 @@ pub fn hold_to_collect(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<Key>>,
     mut player_query: Query<(&Transform, &mut Player)>,
-    harvestables: Query<(Entity, &Transform, &Harvestable, Option<&TreeSize>)>,
+    harvestables: Query<(
+        Entity,
+        &Transform,
+        &Harvestable,
+        Option<&TreeSize>,
+        Option<&RockSize>,
+    )>,
     mut resource_events: MessageWriter<ResourceCollected>,
     mut current: ResMut<CurrentCollectProgress>,
     mut commands: Commands,
@@ -55,12 +61,18 @@ pub fn hold_to_collect(
     }
 
     // Find nearest eligible target within radius among harvestables
-    let mut nearest: Option<(Entity, Vec3, Harvestable, Option<TreeSize>)> = None;
+    let mut nearest: Option<(
+        Entity,
+        Vec3,
+        Harvestable,
+        Option<TreeSize>,
+        Option<RockSize>,
+    )> = None;
     let mut best_dist_sq = f32::MAX;
 
     let player_pos = player_transform.translation;
 
-    for (entity, transform, harvestable, tree_size) in harvestables.iter() {
+    for (entity, transform, harvestable, tree_size, rock_size) in harvestables.iter() {
         if harvestable.amount == 0 {
             continue;
         }
@@ -71,13 +83,14 @@ pub fn hold_to_collect(
                 transform.translation,
                 *harvestable,
                 tree_size.copied(),
+                rock_size.copied(),
             ));
             best_dist_sq = d2;
         }
     }
 
     match (nearest, is_holding) {
-        (Some((entity, target_pos, harvestable, tree_size)), true) => {
+        (Some((entity, target_pos, harvestable, tree_size, rock_size)), true) => {
             if hold.current_target == Some(entity) {
                 hold.elapsed_seconds += time.delta_secs();
             } else {
@@ -85,10 +98,13 @@ pub fn hold_to_collect(
                 hold.elapsed_seconds = 0.0;
             }
 
-            // Determine hold duration based on tree size
-            let hold_duration = match tree_size {
-                Some(TreeSize::Big) => BIG_TREE_HOLD_DURATION,
-                _ => SMALL_TREE_HOLD_DURATION,
+            // Determine hold duration based on size: big trees or big rocks take longer
+            let is_big_target = matches!(tree_size, Some(TreeSize::Big))
+                || matches!(rock_size, Some(RockSize::Big));
+            let hold_duration = if is_big_target {
+                BIG_TREE_HOLD_DURATION
+            } else {
+                SMALL_TREE_HOLD_DURATION
             };
 
             current.target = Some(entity);
@@ -112,8 +128,11 @@ pub fn hold_to_collect(
                             });
                         }
                         HarvestableKind::Rock => {
-                            // Rocks give 1 rock total
-                            let actual_rock = 1;
+                            // Small rocks give 1, big rocks give 4
+                            let actual_rock = match rock_size {
+                                Some(RockSize::Big) => 4,
+                                _ => 1,
+                            };
                             player.rock += actual_rock;
                             resource_events.write(ResourceCollected {
                                 kind: harvestable.kind,

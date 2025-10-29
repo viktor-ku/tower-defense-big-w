@@ -1,6 +1,6 @@
 use crate::components::TownSquareCenter;
 use crate::components::{
-    ChunkRoot, Harvestable, HarvestableKind, NoDistanceCull, Player, Tree, TreeSize,
+    ChunkRoot, Harvestable, HarvestableKind, NoDistanceCull, Player, Rock, RockSize, Tree, TreeSize,
 };
 use crate::constants::Tunables;
 use crate::core::rng as core_rng;
@@ -38,6 +38,7 @@ pub struct ChunkAssets {
     pub big_tree_mat: Handle<StandardMaterial>,
     pub rock_mesh: Handle<Mesh>,
     pub rock_mat: Handle<StandardMaterial>,
+    pub big_rock_mesh: Handle<Mesh>,
 }
 
 #[derive(Resource, Default)]
@@ -133,6 +134,13 @@ fn setup_chunk_assets(
         ..default()
     });
 
+    // Big rock mirrors big tree scaling: 1.7x width/depth, 2.2x height
+    let big_rock_mesh = meshes.add(Cuboid::new(
+        tunables.rock_size.x * 1.7,
+        tunables.rock_size.y * 2.2,
+        tunables.rock_size.z * 1.7,
+    ));
+
     commands.insert_resource(ChunkAssets {
         tree_mesh,
         tree_mat,
@@ -140,6 +148,7 @@ fn setup_chunk_assets(
         big_tree_mat,
         rock_mesh,
         rock_mat,
+        big_rock_mesh,
     });
 }
 
@@ -537,11 +546,31 @@ fn spawn_chunk_content(
             continue;
         }
 
+        // Determine if this is a big rock based on distance from village
+        let is_big_rock =
+            pick_f32(seeded, &mut seeded_rng, &mut thread_rng) < big_tree_chance(d_plaza);
+
+        let (mesh, rock_size, y_half) = if is_big_rock {
+            (
+                assets.big_rock_mesh.clone(),
+                RockSize::Big,
+                (tunables.rock_size.y * 2.2) * 0.5,
+            )
+        } else {
+            (
+                assets.rock_mesh.clone(),
+                RockSize::Small,
+                tunables.rock_size.y * 0.5,
+            )
+        };
+
         commands.entity(root).with_children(|p| {
             p.spawn((
-                Mesh3d(assets.rock_mesh.clone()),
+                Mesh3d(mesh),
                 MeshMaterial3d(assets.rock_mat.clone()),
-                Transform::from_xyz(pos.x, 0.3, pos.z),
+                Transform::from_xyz(pos.x, y_half, pos.z),
+                Rock,
+                rock_size,
                 Harvestable {
                     kind: HarvestableKind::Rock,
                     amount: 10,
