@@ -1,4 +1,6 @@
-use crate::components::{ChunkRoot, Harvestable, HarvestableKind, NoDistanceCull, Player, Tree};
+use crate::components::{
+    ChunkRoot, Harvestable, HarvestableKind, NoDistanceCull, Player, Tree, TreeSize,
+};
 use crate::constants::Tunables;
 use bevy::prelude::*;
 // UI debug overlay omitted for now; logging is used instead
@@ -34,6 +36,8 @@ pub struct PlayerChunk(pub ChunkCoord);
 pub struct ChunkAssets {
     pub tree_mesh: Handle<Mesh>,
     pub tree_mat: Handle<StandardMaterial>,
+    pub big_tree_mesh: Handle<Mesh>,
+    pub big_tree_mat: Handle<StandardMaterial>,
     pub rock_mesh: Handle<Mesh>,
     pub rock_mat: Handle<StandardMaterial>,
 }
@@ -106,6 +110,19 @@ fn setup_chunk_assets(
         ..default()
     });
 
+    // Big tree is 1.7x wider and 1.8x taller
+    let big_tree_mesh = meshes.add(Cuboid::new(
+        tunables.tree_size.x * 1.7,
+        tunables.tree_size.y * 1.8,
+        tunables.tree_size.z * 1.7,
+    ));
+    let big_tree_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.2, 0.6, 0.2),
+        perceptual_roughness: 0.8,
+        metallic: 0.0,
+        ..default()
+    });
+
     let rock_mesh = meshes.add(Cuboid::new(
         tunables.rock_size.x,
         tunables.rock_size.y,
@@ -121,6 +138,8 @@ fn setup_chunk_assets(
     commands.insert_resource(ChunkAssets {
         tree_mesh,
         tree_mat,
+        big_tree_mesh,
+        big_tree_mat,
         rock_mesh,
         rock_mat,
     });
@@ -571,17 +590,45 @@ fn spawn_chunk_content(
             continue;
         }
 
+        // Determine if this is a big tree based on distance from village
+        // Big trees are rare near village (5% chance) but common far away (50% chance)
+        let distance_from_village = pos.length();
+        let big_tree_chance = if distance_from_village < 100.0 {
+            // Very close to village: 5% chance
+            0.05
+        } else if distance_from_village < 200.0 {
+            // Medium distance: 20% chance
+            0.20
+        } else {
+            // Far from village: 50% chance
+            0.50
+        };
+
+        let is_big_tree = pick_f32(seeded, &mut seeded_rng, &mut thread_rng) < big_tree_chance;
+        let tree_size = if is_big_tree {
+            TreeSize::Big
+        } else {
+            TreeSize::Small
+        };
+
         // Random wood amount per tree within tunables range
         let wood_span = (tunables.tree_wood_max - tunables.tree_wood_min + 1).max(1);
         let wood_amount = tunables.tree_wood_min
             + (pick_u32(seeded, &mut seeded_rng, &mut thread_rng) % wood_span);
 
         commands.entity(root).with_children(|p| {
+            let (mesh, material) = if is_big_tree {
+                (assets.big_tree_mesh.clone(), assets.big_tree_mat.clone())
+            } else {
+                (assets.tree_mesh.clone(), assets.tree_mat.clone())
+            };
+
             p.spawn((
-                Mesh3d(assets.tree_mesh.clone()),
-                MeshMaterial3d(assets.tree_mat.clone()),
+                Mesh3d(mesh),
+                MeshMaterial3d(material),
                 Transform::from_xyz(pos.x, 1.5, pos.z),
                 Tree,
+                tree_size,
                 Harvestable {
                     kind: HarvestableKind::Wood,
                     amount: wood_amount,

@@ -26,7 +26,7 @@ pub fn hold_to_collect(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<Key>>,
     mut player_query: Query<(&Transform, &mut Player)>,
-    harvestables: Query<(Entity, &Transform, &Harvestable)>,
+    harvestables: Query<(Entity, &Transform, &Harvestable, Option<&TreeSize>)>,
     mut resource_events: MessageWriter<ResourceCollected>,
     mut current: ResMut<CurrentCollectProgress>,
     mut commands: Commands,
@@ -41,7 +41,8 @@ pub fn hold_to_collect(
     };
 
     const COLLECT_RADIUS: f32 = 8.0;
-    const HOLD_DURATION: f32 = 1.0;
+    const SMALL_TREE_HOLD_DURATION: f32 = 1.0;
+    const BIG_TREE_HOLD_DURATION: f32 = 2.5;
 
     // Only do the O(N) nearest scan when the key is held
     let is_holding = keyboard_input.pressed(Key::Character("e".into()));
@@ -54,24 +55,29 @@ pub fn hold_to_collect(
     }
 
     // Find nearest eligible target within radius among harvestables
-    let mut nearest: Option<(Entity, Vec3, Harvestable)> = None;
+    let mut nearest: Option<(Entity, Vec3, Harvestable, Option<TreeSize>)> = None;
     let mut best_dist_sq = f32::MAX;
 
     let player_pos = player_transform.translation;
 
-    for (entity, transform, harvestable) in harvestables.iter() {
+    for (entity, transform, harvestable, tree_size) in harvestables.iter() {
         if harvestable.amount == 0 {
             continue;
         }
         let d2 = player_pos.distance_squared(transform.translation);
         if d2 <= COLLECT_RADIUS * COLLECT_RADIUS && d2 < best_dist_sq {
-            nearest = Some((entity, transform.translation, *harvestable));
+            nearest = Some((
+                entity,
+                transform.translation,
+                *harvestable,
+                tree_size.copied(),
+            ));
             best_dist_sq = d2;
         }
     }
 
     match (nearest, is_holding) {
-        (Some((entity, target_pos, harvestable)), true) => {
+        (Some((entity, target_pos, harvestable, tree_size)), true) => {
             if hold.current_target == Some(entity) {
                 hold.elapsed_seconds += time.delta_secs();
             } else {
@@ -79,16 +85,25 @@ pub fn hold_to_collect(
                 hold.elapsed_seconds = 0.0;
             }
 
-            current.target = Some(entity);
-            current.progress = (hold.elapsed_seconds / HOLD_DURATION).clamp(0.0, 1.0);
+            // Determine hold duration based on tree size
+            let hold_duration = match tree_size {
+                Some(TreeSize::Big) => BIG_TREE_HOLD_DURATION,
+                _ => SMALL_TREE_HOLD_DURATION,
+            };
 
-            if hold.elapsed_seconds >= HOLD_DURATION {
+            current.target = Some(entity);
+            current.progress = (hold.elapsed_seconds / hold_duration).clamp(0.0, 1.0);
+
+            if hold.elapsed_seconds >= hold_duration {
                 let collected = harvestable.amount;
                 if collected > 0 {
                     match harvestable.kind {
                         HarvestableKind::Wood => {
-                            // Trees give 2 wood total
-                            let actual_wood = 2;
+                            // Small trees give 2 wood, big trees give 8 wood (4x value)
+                            let actual_wood = match tree_size {
+                                Some(TreeSize::Big) => 8,
+                                _ => 2,
+                            };
                             player.wood += actual_wood;
                             resource_events.write(ResourceCollected {
                                 kind: harvestable.kind,

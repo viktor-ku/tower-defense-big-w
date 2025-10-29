@@ -18,6 +18,13 @@ pub struct Harvestable {
 #[derive(Component)]
 pub struct Tree;
 
+/// Size variant for trees.
+#[derive(Component, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TreeSize {
+    Small,
+    Big,
+}
+
 /// Tracks the current hold-to-collect target and normalized progress [0,1].
 #[derive(Resource, Default, Debug, Clone, Copy)]
 pub struct CurrentCollectProgress {
