@@ -3,17 +3,14 @@ use crate::components::{
     ChunkRoot, Harvestable, HarvestableKind, NoDistanceCull, Player, Tree, TreeSize,
 };
 use crate::constants::Tunables;
+use crate::core::rng as core_rng;
 use bevy::prelude::*;
 // UI debug overlay omitted for now; logging is used instead
 use crate::random_policy::RandomizationPolicy;
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{SeedableRng, rngs::StdRng};
 use std::collections::{HashMap, HashSet};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct ChunkCoord {
-    pub x: i32,
-    pub z: i32,
-}
+pub use crate::core::grid::ChunkCoord;
 
 #[derive(Resource, Clone, Copy)]
 pub struct WorldSeed(pub u64);
@@ -195,18 +192,9 @@ fn load_initial_chunks(
 
 // Debug overlay is not implemented in this scaffold; enable logging instead.
 
-pub fn world_to_chunk(pos: Vec3, size: f32) -> ChunkCoord {
-    let fx = pos.x.div_euclid(size).floor();
-    let fz = pos.z.div_euclid(size).floor();
-    ChunkCoord {
-        x: fx as i32,
-        z: fz as i32,
-    }
-}
-
-fn chunk_origin(coord: ChunkCoord, size: f32) -> Vec3 {
-    Vec3::new(coord.x as f32 * size, 0.0, coord.z as f32 * size)
-}
+pub use crate::core::grid::world_to_chunk;
+use crate::core::grid::{adjacent_chunks, desired_chunks};
+use crate::core::world::{big_tree_chance, chunk_origin, generate_chunk_resource_count};
 
 fn despawn_recursive(commands: &mut Commands, entity: Entity, children_q: &Query<&Children>) {
     if let Ok(children) = children_q.get(entity) {
@@ -459,89 +447,13 @@ fn distance_culling(
     }
 }
 
-fn desired_chunks(center: ChunkCoord, r: i32) -> HashSet<ChunkCoord> {
-    let mut set = HashSet::new();
-    for dz in -r..=r {
-        for dx in -r..=r {
-            set.insert(ChunkCoord {
-                x: center.x + dx,
-                z: center.z + dz,
-            });
-        }
-    }
-    set
-}
+// desired_chunks and adjacent_chunks moved to core::grid
 
-/// Get the 8 adjacent chunks (cardinal + diagonal) around a center chunk.
-fn adjacent_chunks(center: ChunkCoord) -> HashSet<ChunkCoord> {
-    let mut set = HashSet::new();
-
-    // Cardinal directions
-    // Up (north)
-    set.insert(ChunkCoord {
-        x: center.x,
-        z: center.z + 1,
-    });
-    // Down (south)
-    set.insert(ChunkCoord {
-        x: center.x,
-        z: center.z - 1,
-    });
-    // Left (west)
-    set.insert(ChunkCoord {
-        x: center.x - 1,
-        z: center.z,
-    });
-    // Right (east)
-    set.insert(ChunkCoord {
-        x: center.x + 1,
-        z: center.z,
-    });
-
-    // Diagonal directions
-    // Up-Left (northwest)
-    set.insert(ChunkCoord {
-        x: center.x - 1,
-        z: center.z + 1,
-    });
-    // Up-Right (northeast)
-    set.insert(ChunkCoord {
-        x: center.x + 1,
-        z: center.z + 1,
-    });
-    // Down-Left (southwest)
-    set.insert(ChunkCoord {
-        x: center.x - 1,
-        z: center.z - 1,
-    });
-    // Down-Right (southeast)
-    set.insert(ChunkCoord {
-        x: center.x + 1,
-        z: center.z - 1,
-    });
-
-    set
-}
-
-fn hash_combine(seed: u64, x: i32, z: i32) -> u64 {
-    let mut h = seed ^ 0x9E37_79B9_7F4A_7C15u64;
-    h ^= (x as u64).wrapping_mul(0xC2B2_AE3D_27D4_EB4Fu64);
-    h = h.rotate_left(27) ^ (h >> 33);
-    h ^= (z as u64).wrapping_mul(0x1656_67B1_9E37_79F9u64);
-    h ^ (h >> 29)
-}
+use core_rng::hash_combine;
 
 /// Generate a deterministic resource count for a chunk based on the world seed and chunk coordinates.
 /// Returns a value between 250 and 275 (inclusive) that is reproducible for the same seed and chunk.
-fn generate_chunk_resource_count(world_seed: u64, chunk_x: i32, chunk_z: i32) -> u32 {
-    // Create a unique seed for this chunk's resource count
-    let resource_seed = hash_combine(world_seed ^ 0x123456789ABCDEF0, chunk_x, chunk_z);
-    let mut rng = StdRng::seed_from_u64(resource_seed);
-
-    // Generate a value between 250 and 275 (inclusive)
-    let range = 275 - 250 + 1; // 26 possible values
-    250 + (rng.random::<u32>() % range)
-}
+// moved to core::world::generate_chunk_resource_count
 
 fn spawn_chunk_content(
     root: Entity,
@@ -557,28 +469,7 @@ fn spawn_chunk_content(
     let origin = chunk_origin(coord, size);
     let mut seeded_rng = StdRng::seed_from_u64(hash_combine(world_seed, coord.x, coord.z));
     let mut thread_rng = rand::rng();
-    fn pick_f32(
-        seeded: bool,
-        seeded_rng: &mut StdRng,
-        thread_rng: &mut rand::rngs::ThreadRng,
-    ) -> f32 {
-        if seeded {
-            seeded_rng.random::<f32>()
-        } else {
-            thread_rng.random::<f32>()
-        }
-    }
-    fn pick_u32(
-        seeded: bool,
-        seeded_rng: &mut StdRng,
-        thread_rng: &mut rand::rngs::ThreadRng,
-    ) -> u32 {
-        if seeded {
-            seeded_rng.random::<u32>()
-        } else {
-            thread_rng.random::<u32>()
-        }
-    }
+    use crate::core::rng::{pick_f32, pick_u32};
 
     // Generate seed-based resource counts (200-250 total resources per chunk)
     let resource_count = generate_chunk_resource_count(world_seed, coord.x, coord.z);
@@ -600,18 +491,8 @@ fn spawn_chunk_content(
         // Determine if this is a big tree based on distance from village
         // Big trees are rare near village (5% chance) but common far away (50% chance)
         let distance_from_village = d_plaza;
-        let big_tree_chance = if distance_from_village < 100.0 {
-            // Very close to village: 5% chance
-            0.05
-        } else if distance_from_village < 200.0 {
-            // Medium distance: 20% chance
-            0.20
-        } else {
-            // Far from village: 50% chance
-            0.50
-        };
-
-        let is_big_tree = pick_f32(seeded, &mut seeded_rng, &mut thread_rng) < big_tree_chance;
+        let is_big_tree = pick_f32(seeded, &mut seeded_rng, &mut thread_rng)
+            < big_tree_chance(distance_from_village);
         let tree_size = if is_big_tree {
             TreeSize::Big
         } else {

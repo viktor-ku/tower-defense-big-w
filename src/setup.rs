@@ -1,28 +1,15 @@
 use crate::audio::AudioListener;
+use crate::components::*;
 use crate::constants::Tunables;
+use crate::core::paths::{generate_road_pattern, segment_patch_tiling};
+use crate::core::world::{ExitSide, choose_exit_side, gate_lateral_offset};
 use crate::random_policy::RandomizationPolicy;
-use crate::{
-    components::*,
-    systems::{CameraSettings, EnemyHealthBarAssets},
-};
+use crate::systems::camera::CameraSettings;
+use crate::systems::combat::assets::EnemyHealthBarAssets;
 use bevy::prelude::*;
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
-/// Road pattern types used for procedural road generation.
-#[derive(Debug, Clone, Copy)]
-enum RoadPattern {
-    Straight,
-    Curved,
-    Snake,
-}
-
-#[derive(Debug, Clone, Copy)]
-enum ExitSide {
-    North,
-    East,
-    South,
-    West,
-}
+// ExitSide, choose_exit_side, gate_lateral_offset moved to core::world
 
 /// Generates and spawns a road mesh between two points; returns the path waypoints.
 fn generate_and_spawn_road(
@@ -47,19 +34,10 @@ fn generate_and_spawn_road(
     // Spawn road segments as multiple short patches for a tiled look (cosmetic only)
     let mut last = waypoints[0];
     for &current in waypoints.iter().skip(1) {
-        let dir = current - last;
-        let seg_len = dir.length();
-        if seg_len > 0.001 {
-            let yaw = dir.z.atan2(dir.x);
+        if let Some((patch_count, patch_len, forward, yaw)) =
+            segment_patch_tiling(last, current, 3.0)
+        {
             let rotation = Quat::from_rotation_y(yaw);
-            let forward = dir / seg_len; // normalized direction on XZ
-
-            // Determine how many patches to render for this segment
-            // Target small patch length for a tiled appearance
-            let target_patch_len = 3.0_f32;
-            let patch_count = (seg_len / target_patch_len).ceil().max(1.0) as u32;
-            let patch_len = seg_len / patch_count as f32;
-
             for i in 0..patch_count {
                 let center_offset = (i as f32 + 0.5) * patch_len;
                 let mid = last + forward * center_offset;
@@ -82,137 +60,7 @@ fn generate_and_spawn_road(
 }
 
 /// Generates a random road path (straight, curved, snake) between two points.
-fn generate_road_pattern(
-    start: Vec3,
-    end: Vec3,
-    _width: f32,
-    rng: &mut StdRng,
-) -> Option<Vec<Vec3>> {
-    let pattern = match rng.random_range(0..3) {
-        0 => RoadPattern::Straight,
-        1 => RoadPattern::Curved,
-        2 => RoadPattern::Snake,
-        _ => RoadPattern::Straight,
-    };
-
-    match pattern {
-        RoadPattern::Straight => {
-            // Almost straight line with subtle wiggling and random variations
-            let mut waypoints = Vec::new();
-            let steps = 20;
-
-            // Random variations for this road
-            let wiggle_amplitude = 6.0 + rng.random::<f32>() * 8.0; // 6-14 units
-            let wiggle_frequency = 2.0 + rng.random::<f32>() * 3.0; // 2-5 waves
-            let phase_offset = rng.random::<f32>() * 2.0 * std::f32::consts::PI; // Random phase
-
-            for i in 0..=steps {
-                let t = i as f32 / steps as f32;
-                let base_point = start.lerp(end, t);
-
-                // Add subtle wiggling with random variations
-                // Fade offsets near endpoints so connections are always clean
-                let edge_fade = (t * (1.0 - t)).max(0.0).sqrt();
-                let wiggle_offset = (t * std::f32::consts::PI * wiggle_frequency + phase_offset)
-                    .sin()
-                    * wiggle_amplitude
-                    * edge_fade;
-
-                // Add some random noise for extra variation
-                let noise_amplitude = 3.0 * edge_fade;
-                let noise_x = (rng.random::<f32>() - 0.5) * noise_amplitude;
-                let noise_z = (rng.random::<f32>() - 0.5) * noise_amplitude;
-
-                // Calculate perpendicular direction for wiggling
-                let main_direction = (end - start).normalize();
-                let perpendicular = Vec3::new(-main_direction.z, 0.0, main_direction.x);
-
-                let wiggled_point =
-                    base_point + perpendicular * wiggle_offset + Vec3::new(noise_x, 0.0, noise_z);
-                waypoints.push(wiggled_point);
-            }
-            Some(waypoints)
-        }
-        RoadPattern::Curved => {
-            // Curved road with random control points and variations
-            let curve_strength = 20.0 + rng.random::<f32>() * 40.0; // 20-60 units
-            let mid1_offset = 0.2 + rng.random::<f32>() * 0.3; // 0.2-0.5
-            let mid2_offset = 0.5 + rng.random::<f32>() * 0.3; // 0.5-0.8
-
-            let mid1 = start
-                + (end - start) * mid1_offset
-                + Vec3::new(
-                    (rng.random::<f32>() - 0.5) * curve_strength,
-                    0.0,
-                    (rng.random::<f32>() - 0.5) * curve_strength,
-                );
-            let mid2 = start
-                + (end - start) * mid2_offset
-                + Vec3::new(
-                    (rng.random::<f32>() - 0.5) * curve_strength,
-                    0.0,
-                    (rng.random::<f32>() - 0.5) * curve_strength,
-                );
-
-            let segments = 15 + (rng.random::<u8>() % 11) as usize; // 15-25 segments
-            generate_bezier_curve(start, mid1, mid2, end, segments)
-        }
-        RoadPattern::Snake => {
-            // S-shaped road with random variations
-            let mut waypoints = Vec::new();
-            let steps = 25 + (rng.random::<u8>() % 16) as usize; // 25-40 steps
-
-            // Random variations for snake pattern
-            let snake_amplitude = 20.0 + rng.random::<f32>() * 25.0; // 20-45 units
-            let snake_frequency = 1.5 + rng.random::<f32>() * 2.0; // 1.5-3.5 waves
-            let phase_offset = rng.random::<f32>() * 2.0 * std::f32::consts::PI;
-
-            for i in 0..=steps {
-                let t = i as f32 / steps as f32;
-                let base_point = start.lerp(end, t);
-
-                // Add S-curve offset with random variations
-                // Fade offsets near endpoints so connections are always clean
-                let edge_fade = (t * (1.0 - t)).max(0.0).sqrt();
-                let offset = (t * std::f32::consts::PI * snake_frequency + phase_offset).sin()
-                    * snake_amplitude
-                    * edge_fade;
-
-                // Add secondary wave for more complex snake pattern
-                let secondary_amplitude = snake_amplitude * 0.3;
-                let secondary_frequency = snake_frequency * 2.0;
-                let secondary_offset = (t * std::f32::consts::PI * secondary_frequency).cos()
-                    * (secondary_amplitude * edge_fade);
-
-                let perpendicular = Vec3::new(-(end.z - start.z), 0.0, end.x - start.x).normalize();
-                let point = base_point + perpendicular * (offset + secondary_offset);
-                waypoints.push(point);
-            }
-            Some(waypoints)
-        }
-    }
-}
-
-/// Generates points on a cubic Bezier curve.
-fn generate_bezier_curve(
-    p0: Vec3,
-    p1: Vec3,
-    p2: Vec3,
-    p3: Vec3,
-    num_segments: usize,
-) -> Option<Vec<Vec3>> {
-    let mut points = Vec::new();
-    for i in 0..=num_segments {
-        let t = i as f32 / num_segments as f32;
-        let omt = 1.0 - t;
-        let point = omt.powf(3.0) * p0
-            + 3.0 * omt.powf(2.0) * t * p1
-            + 3.0 * omt * t.powf(2.0) * p2
-            + t.powf(3.0) * p3;
-        points.push(point);
-    }
-    Some(points)
-}
+// generate_road_pattern moved to core::paths
 
 /// Sets up the world: camera, light, ground, roads, player, village, trees, rocks, and systems state.
 pub fn setup(
@@ -289,17 +137,14 @@ pub fn setup(
         StdRng::seed_from_u64(s)
     };
 
-    // Choose exit side and gate lateral offset
-    let exit_side = match rng.random_range(0..4) {
-        0 => ExitSide::North,
-        1 => ExitSide::East,
-        2 => ExitSide::South,
-        _ => ExitSide::West,
-    };
-    let m = tunables
-        .gate_corner_margin
-        .min(half - tunables.gate_width * 0.5 - 0.1);
-    let lateral = rng.random_range((-half + m)..=(half - m));
+    // Choose exit side and gate lateral offset (pure helpers)
+    let exit_side = choose_exit_side(&mut rng);
+    let lateral = gate_lateral_offset(
+        &mut rng,
+        half,
+        tunables.gate_width,
+        tunables.gate_corner_margin,
+    );
 
     // Spawn walls with a gate opening on the chosen exit side
     let gate_center = match exit_side {

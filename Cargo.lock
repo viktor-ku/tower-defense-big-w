@@ -4573,6 +4573,7 @@ dependencies = [
  "bevy",
  "bevy_kira_audio",
  "bevy_shader",
+ "bevy_state",
  "dirs-next",
  "rand",
 ]

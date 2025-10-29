@@ -6,6 +6,7 @@ mod constants;
 
 mod audio;
 mod components;
+mod core;
 mod entities;
 mod events;
 mod materials;
@@ -21,7 +22,43 @@ use materials::*;
 use random_policy::RandomizationPolicy;
 use setup::*;
 use splash::SplashPlugin;
-use systems::*;
+use systems::camera::camera_system;
+use systems::chunks::ChunkPlugin;
+use systems::combat::assets::CombatVfxAssets;
+use systems::combat::enemy::{
+    cleanup_enemy_health_bars, enemy_spawning, face_enemy_health_bars, position_enemy_health_bars,
+    update_enemy_health_bars,
+};
+use systems::combat::projectiles::{
+    damage_dealt_spawn_text_system, damage_number_system, enemy_fade_out_system,
+    enemy_flash_system, impact_effect_system, projectile_system, tower_shooting,
+};
+use systems::combat::towers::{tower_building, tower_selling_click, tower_spawn_effect_system};
+use systems::input::{handle_game_input, handle_menu_input, pause_toggle_input};
+use systems::movement::{enemy_movement, player_movement};
+use systems::resource_passes::{
+    ResourcePassesPlugin, RocksAlongRoadPassPlugin, TownSquareExclusionPassPlugin,
+};
+use systems::tree_collection::{
+    hold_to_collect, resource_collected_spawn_text_system, resource_number_system,
+};
+use systems::ui::collect_bar::{CollectUiState, manage_collect_bar_ui};
+use systems::ui::hud::{
+    spawn_game_speed_indicator, spawn_resource_counters, spawn_village_health_bar, spawn_wave_hud,
+    update_currency_counters, update_game_speed_indicator, update_resource_counters,
+    update_wave_hud, village_health_hud,
+};
+use systems::ui::observers::{
+    on_enemy_killed, on_enemy_spawned, on_resource_collected, on_tower_built,
+};
+use systems::ui::tower_drawer::{
+    handle_drawer_sell_button_interactions, handle_tower_selection_buttons,
+    manage_tower_selection_drawer, tower_drawer_shortcuts, update_tower_option_hover,
+    update_tower_selection_affordability,
+};
+use systems::ui::warmup::warm_ui_pipelines;
+use systems::waves::wave_progression;
+use systems::window::force_exit_on_close;
 // Frame time graph (Bevy 0.17 dev tools)
 #[cfg(feature = "devtools")]
 use bevy::dev_tools::frame_time_graph::FrameTimeGraphPlugin;

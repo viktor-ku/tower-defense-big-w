@@ -30,3 +30,6 @@ run = "cargo check"
 
 [tasks.clean]
 run = "rm -rf trace-*"
+
+[tasks.test]
+run = "cargo test"

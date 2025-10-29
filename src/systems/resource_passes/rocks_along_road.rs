@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::RoadPaths;
 use crate::components::GameState;
 use crate::components::harvesting::{Harvestable, HarvestableKind};
+use crate::components::roads::RoadPaths;
 use crate::constants::Tunables;
 use crate::random_policy::RandomizationPolicy;
 use crate::systems::chunks::ChunkAssets;

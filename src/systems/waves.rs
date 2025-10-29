@@ -2,13 +2,12 @@ use crate::audio::{BossWaveStartedEvent, WaveStartedEvent};
 use crate::components::{Enemy, WavePhase, WaveState};
 use crate::constants::Tunables;
 use crate::random_policy::RandomizationPolicy;
-use crate::systems::WorldSeed;
+use crate::systems::chunks::WorldSeed;
 use bevy::prelude::*;
 use std::time::Duration;
 
 /// Handles transitioning between wave intermissions and active waves.
 pub fn wave_progression(
-    mut commands: Commands,
     time: Res<Time>,
     mut wave_state: ResMut<WaveState>,
     tunables: Res<Tunables>,

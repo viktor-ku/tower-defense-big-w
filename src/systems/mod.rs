@@ -9,14 +9,7 @@ pub mod window;
 pub mod chunks;
 pub mod resource_passes;
 pub mod waves;
-
-pub use camera::*;
-pub use chunks::*;
-pub use combat::*;
-pub use input::*;
-pub use movement::*;
-pub use resource_passes::*;
-pub use tree_collection::*;
-pub use ui::*;
-pub use waves::*;
-pub use window::*;
+// Intentionally avoid re-exporting subsystem items at the root to reduce API bleed.
+// Import modules directly, e.g., `use td::systems::waves::wave_progression;`
+// Provide a minimal curated prelude for binary crate convenience.
+// No re-exports; import directly from submodules.

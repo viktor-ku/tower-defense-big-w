@@ -4,9 +4,10 @@ use crate::components::{
     WaveState,
 };
 use crate::constants::Tunables;
+use crate::core::rng::derive_seed;
 use crate::events::EnemySpawned;
 use crate::random_policy::RandomizationPolicy;
-use crate::systems::WorldSeed;
+use crate::systems::chunks::WorldSeed;
 use bevy::math::primitives::Cuboid;
 use bevy::pbr::MeshMaterial3d;
 use bevy::prelude::*;
@@ -170,16 +171,6 @@ fn select_random_spawn_point(
         Vec3::new(angle.cos() * distance, 0.0, angle.sin() * distance),
         None,
     )
-}
-
-#[inline]
-fn derive_seed(base: u64, a: u64, b: u64) -> u64 {
-    // Mix base with two counters. Constants from xorshift/splitmix families.
-    let mut h = base ^ 0x9E37_79B9_7F4A_7C15u64;
-    h ^= a.wrapping_mul(0xC2B2_AE3D_27D4_EB4Fu64);
-    h = h.rotate_left(27) ^ (h >> 33);
-    h ^= b.wrapping_mul(0x1656_67B1_9E37_79F9u64);
-    h ^ (h >> 29)
 }
 
 // (No other helpers)

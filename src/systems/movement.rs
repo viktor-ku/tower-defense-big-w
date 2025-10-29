@@ -1,6 +1,7 @@
 use crate::audio::PlayerFootstepEvent;
 use crate::components::*;
 use crate::constants::Tunables;
+use crate::core::geometry::direction_xz;
 use crate::systems::combat::projectiles::EnemyFadeOut;
 use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
@@ -85,28 +86,27 @@ pub fn enemy_movement(
             if let Some(road) = roads.roads.get(follower.road_index) {
                 if follower.next_index < road.len() {
                     let target = road[follower.next_index];
-                    let to_target = Vec3::new(target.x, transform.translation.y, target.z)
-                        - transform.translation;
-                    let dir = Vec3::new(to_target.x, 0.0, to_target.z).normalize_or_zero();
+                    let dir = direction_xz(transform.translation, target);
                     transform.translation += dir * enemy.speed * time.delta_secs();
                     // Advance waypoint when close
-                    if Vec2::new(to_target.x, to_target.z).length() < 1.0 {
+                    if Vec2::new(
+                        target.x - transform.translation.x,
+                        target.z - transform.translation.z,
+                    )
+                    .length()
+                        < 1.0
+                    {
                         follower.next_index += 1;
                     }
                 } else {
                     // Finished following the road, now move to the actual village position
-                    let to_village =
-                        Vec3::new(village_pos.x, transform.translation.y, village_pos.z)
-                            - transform.translation;
-                    let dir = Vec3::new(to_village.x, 0.0, to_village.z).normalize_or_zero();
+                    let dir = direction_xz(transform.translation, village_pos);
                     transform.translation += dir * enemy.speed * time.delta_secs();
                 }
             }
         } else {
             // Fallback: Move towards the actual village position
-            let to_village = Vec3::new(village_pos.x, transform.translation.y, village_pos.z)
-                - transform.translation;
-            let dir = Vec3::new(to_village.x, 0.0, to_village.z).normalize_or_zero();
+            let dir = direction_xz(transform.translation, village_pos);
             transform.translation += dir * enemy.speed * time.delta_secs();
         }
 

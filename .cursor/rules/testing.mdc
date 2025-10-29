@@ -1,0 +1,35 @@
+# Testing & Maintenance Guide
+
+## Determinism
+- Use fixed timestep; avoid wall-clock/system time in tests.
+- Seed RNG via `Tunables.world_seed`; prefer `StdRng::seed_from_u64`.
+- Print seed on failure if using random data; support override via ENV.
+
+## Structure
+- Favor pure functions and minimal `World`/`Schedule` in tests.
+- Use `tests/support` harness: `TestHarness`, `spawn_enemy`, `spawn_tower`, `step_schedule`.
+- Reset `World` per test; register only systems under test.
+
+## Conventions
+- Name: tests/<area>_*.rs; group by subsystem.
+- Use approx eps for floats (1e-5); avoid asserting exact floats.
+- Avoid relying on HashMap iteration order; collect/sort before asserting.
+
+## Flake Handling
+- If a test flaps: add `#[ignore]` with an issue link and "FLAKY" note.
+- Fix within 48h; remove ignore. Never merge red CI.
+
+## Regression Workflow
+1) Reproduce locally with same seed and fixed timestep.
+2) If unintended: fix code; keep test unchanged.
+3) If intentional change: update expectations and changelog entry.
+4) Add a targeted test to prevent recurrence.
+
+## CI & Local Tasks
+- CI: Windows/Linux/macOS → `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test --workspace --all-features`.
+- Local: use mise tasks if available; run fast suite before commits.
+
+## Cross-Platform Notes
+- Use `Time` and durations; avoid sleep/spawn threads in unit tests.
+- Be explicit with path handling; no OS-specific assumptions in tests.
+

@@ -3,6 +3,10 @@ name = "td"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "td"
+path = "src/lib.rs"
+
 [dependencies]
 bevy_kira_audio = { version = "0.24.0", features = ["flac", "mp3", "wav"] }
 bevy_shader = "=0.17.2"
@@ -33,3 +37,6 @@ devtools = [
   "bevy/bevy_dev_tools",
   "bevy/bevy_ui_debug",
 ]
+
+[dev-dependencies]
+bevy_state = "=0.17.2"

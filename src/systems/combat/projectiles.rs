@@ -2,6 +2,7 @@ use super::assets::CombatVfxAssets;
 use crate::audio::{TowerShotEvent, TowerShotKind};
 use crate::components::{BuiltTower, Enemy, EnemyKind, Player, Tower, TowerKind};
 use crate::constants::Tunables;
+use crate::core::geometry::closest_within_radius;
 use crate::events::{DamageDealt, EnemyKilled};
 use crate::materials::ImpactMaterial;
 use bevy::pbr::MeshMaterial3d;
@@ -26,20 +27,16 @@ pub fn tower_shooting(
         tower.last_shot += time.delta_secs();
 
         if tower.last_shot >= tower.fire_interval_secs {
-            // Find closest enemy in range
-            let mut closest_enemy: Option<(Vec3, Entity)> = None;
-            let mut closest_distance = f32::MAX;
-
+            // Find closest enemy in range using pure helper
+            let mut positions: Vec<Vec3> = Vec::new();
+            let mut entities: Vec<Entity> = Vec::new();
             for (enemy_transform, entity) in enemy_pos.iter() {
-                let distance = tower_transform
-                    .translation
-                    .distance(enemy_transform.translation);
-
-                if distance <= tower.range && distance < closest_distance {
-                    closest_enemy = Some((enemy_transform.translation, entity));
-                    closest_distance = distance;
-                }
+                positions.push(enemy_transform.translation);
+                entities.push(entity);
             }
+            let closest_enemy =
+                closest_within_radius(tower_transform.translation, &positions, tower.range)
+                    .map(|idx| (positions[idx], entities[idx]));
 
             if let Some((enemy_pos_vec, enemy_entity)) = closest_enemy {
                 spawn_projectile(
