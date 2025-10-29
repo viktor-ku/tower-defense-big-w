@@ -37,6 +37,7 @@ devtools = [
   "bevy/bevy_dev_tools",
   "bevy/bevy_ui_debug",
 ]
+rich = []
 
 [dev-dependencies]
 bevy_state = "=0.17.2"

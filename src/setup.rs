@@ -525,9 +525,21 @@ pub fn setup(
             Transform::from_xyz(plaza_center.x, 2.0, plaza_center.z),
             IsoPlayer,
             Player {
+                #[cfg(feature = "rich")]
+                wood: 1000,
+                #[cfg(not(feature = "rich"))]
                 wood: 0,
+                #[cfg(feature = "rich")]
+                rock: 1000,
+                #[cfg(not(feature = "rich"))]
                 rock: 0,
+                #[cfg(feature = "rich")]
+                silver: 1000,
+                #[cfg(not(feature = "rich"))]
                 silver: 0,
+                #[cfg(feature = "rich")]
+                gold: 1000,
+                #[cfg(not(feature = "rich"))]
                 gold: 0,
             },
         ))

@@ -24,6 +24,8 @@ pub mod roads;
 pub mod state;
 pub mod towers;
 pub mod town;
+pub mod upgrade_config;
+pub mod upgrades;
 pub mod waves;
 
 // Re-export everything for ergonomic wildcard imports in systems
@@ -36,4 +38,6 @@ pub use roads::*;
 pub use state::*;
 pub use towers::*;
 pub use town::*;
+pub use upgrade_config::*;
+pub use upgrades::*;
 pub use waves::*;

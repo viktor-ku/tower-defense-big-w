@@ -32,7 +32,10 @@ use systems::combat::projectiles::{
     damage_dealt_spawn_text_system, damage_number_system, enemy_fade_out_system,
     enemy_flash_system, impact_effect_system, projectile_system, tower_shooting,
 };
-use systems::combat::towers::{tower_building, tower_selling_click, tower_spawn_effect_system};
+use systems::combat::towers::{
+    tower_building, tower_damage_label_spawner, tower_damage_label_system, tower_selling_click,
+    tower_spawn_effect_system, update_tower_damage_labels,
+};
 use systems::input::{handle_game_input, handle_menu_input, pause_toggle_input};
 use systems::movement::{enemy_movement, player_movement};
 use systems::resource_passes::{
@@ -158,6 +161,10 @@ fn main() {
         .add_systems(Update, tower_building.run_if(in_state(GameState::Playing)))
         .add_systems(
             Update,
+            tower_damage_label_spawner.run_if(in_state(GameState::Playing)),
+        )
+        .add_systems(
+            Update,
             tower_selling_click.run_if(in_state(GameState::Playing)),
         )
         .add_systems(
@@ -185,8 +192,11 @@ fn main() {
         // Position floating damage numbers after transforms have propagated
         .add_systems(
             PostUpdate,
-            damage_number_system
-                .after(camera_system)
+            (
+                damage_number_system.after(camera_system),
+                tower_damage_label_system.after(camera_system),
+                update_tower_damage_labels,
+            )
                 .run_if(in_state(GameState::Playing)),
         )
         // Observers for gameplay events (logging)

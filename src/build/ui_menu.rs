@@ -3,7 +3,10 @@ use bevy::prelude::*;
 
 use super::definitions::{BuildCatalog, BuildCategory, BuildDefinitionId};
 use super::theme::{paper_panel, shadow_node};
-use crate::components::{BuildingMode, GameState, TowerBuildSelection, TowerKind};
+use crate::components::{
+    BuildingMode, BuiltTower, GameState, Player, Tower, TowerBuildSelection, TowerKind,
+    TowerUpgradeConfig, TowerUpgrades, UpgradeableStat,
+};
 
 #[derive(Resource, Default, Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BuildMenuState {
@@ -46,7 +49,6 @@ pub fn manage_build_menu_ui(
     children_q: Query<&Children>,
     roots_q: Query<Entity, With<BuildMenuRoot>>,
     asset_server: Res<AssetServer>,
-    game_state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
     content_q: Query<Entity, With<BuildContentRoot>>,
     current: Res<CurrentCategory>,
@@ -129,8 +131,7 @@ pub fn manage_build_menu_ui(
                 let border = BorderColor::all(Color::srgba(0.18, 0.17, 0.19, 0.9));
                 for (cat, label) in [
                     (BuildCategory::Towers, "Towers [1]"),
-                    (BuildCategory::Buildings, "Buildings [2]"),
-                    (BuildCategory::Plans, "Plans [3]"),
+                    (BuildCategory::Upgrades, "Upgrades [2]"),
                 ] {
                     col.spawn((
                         Button,
@@ -276,53 +277,114 @@ fn build_grid_under(
                 Name::new("Grid"),
             ))
             .with_children(|grid| {
-                for def in catalog.items.iter().filter(|d| d.category == current) {
-                    grid.spawn((
-                        Button,
-                        Node {
-                            width: Val::Px(120.0),
-                            height: Val::Px(120.0),
-                            padding: UiRect::all(Val::Px(8.0)),
-                            border: UiRect::all(Val::Px(2.0)),
-                            flex_direction: FlexDirection::Column,
-                            justify_content: JustifyContent::SpaceBetween,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgba(0.99, 0.99, 0.985, 0.95)),
-                        BorderColor::all(Color::srgba(0.18, 0.17, 0.19, 0.85)),
-                        BuildCard(def.id),
-                    ))
-                    .with_children(|card| {
-                        // Icon placeholder (simple square)
-                        card.spawn((
-                            Node {
-                                width: Val::Px(48.0),
-                                height: Val::Px(48.0),
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgba(0.12, 0.47, 0.95, 0.7)),
-                        ));
-                        // Name
-                        card.spawn((
-                            Text::new(def.display_name),
-                            TextFont {
-                                font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
-                                font_size: 16.0,
-                                ..default()
-                            },
-                            TextColor(Color::srgba(0.08, 0.09, 0.11, 1.0)),
-                        ));
-                        // Cost
-                        card.spawn((
-                            Text::new(format!("Cost: {}", def.cost)),
-                            TextFont {
-                                font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
-                                font_size: 14.0,
-                                ..default()
-                            },
-                            TextColor(Color::srgba(0.18, 0.17, 0.19, 0.85)),
-                        ));
-                    });
+                match current {
+                    BuildCategory::Towers => {
+                        for def in catalog.items.iter().filter(|d| d.category == current) {
+                            grid.spawn((
+                                Button,
+                                Node {
+                                    width: Val::Px(120.0),
+                                    height: Val::Px(120.0),
+                                    padding: UiRect::all(Val::Px(8.0)),
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    flex_direction: FlexDirection::Column,
+                                    justify_content: JustifyContent::SpaceBetween,
+                                    ..default()
+                                },
+                                BackgroundColor(Color::srgba(0.99, 0.99, 0.985, 0.95)),
+                                BorderColor::all(Color::srgba(0.18, 0.17, 0.19, 0.85)),
+                                BuildCard(def.id),
+                            ))
+                            .with_children(|card| {
+                                // Icon placeholder (simple square)
+                                card.spawn((
+                                    Node {
+                                        width: Val::Px(48.0),
+                                        height: Val::Px(48.0),
+                                        ..default()
+                                    },
+                                    BackgroundColor(Color::srgba(0.12, 0.47, 0.95, 0.7)),
+                                ));
+                                // Name
+                                card.spawn((
+                                    Text::new(def.display_name),
+                                    TextFont {
+                                        font: asset_server
+                                            .load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                                        font_size: 16.0,
+                                        ..default()
+                                    },
+                                    TextColor(Color::srgba(0.08, 0.09, 0.11, 1.0)),
+                                ));
+                                // Cost
+                                card.spawn((
+                                    Text::new(format!("Cost: {}", def.cost)),
+                                    TextFont {
+                                        font: asset_server
+                                            .load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                                        font_size: 14.0,
+                                        ..default()
+                                    },
+                                    TextColor(Color::srgba(0.18, 0.17, 0.19, 0.85)),
+                                ));
+                            });
+                        }
+                    }
+                    BuildCategory::Upgrades => {
+                        for upgrade in catalog.upgrades.iter() {
+                            grid.spawn((
+                                Button,
+                                Node {
+                                    width: Val::Px(120.0),
+                                    height: Val::Px(120.0),
+                                    padding: UiRect::all(Val::Px(8.0)),
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    flex_direction: FlexDirection::Column,
+                                    justify_content: JustifyContent::SpaceBetween,
+                                    ..default()
+                                },
+                                BackgroundColor(Color::srgba(0.99, 0.99, 0.985, 0.95)),
+                                BorderColor::all(Color::srgba(0.18, 0.17, 0.19, 0.85)),
+                                UpgradeCard(upgrade.id),
+                            ))
+                            .with_children(|card| {
+                                // Icon placeholder (simple square)
+                                card.spawn((
+                                    Node {
+                                        width: Val::Px(48.0),
+                                        height: Val::Px(48.0),
+                                        ..default()
+                                    },
+                                    BackgroundColor(Color::srgba(0.85, 0.65, 0.13, 0.7)),
+                                ));
+                                // Name
+                                card.spawn((
+                                    Text::new(upgrade.display_name),
+                                    TextFont {
+                                        font: asset_server
+                                            .load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                                        font_size: 16.0,
+                                        ..default()
+                                    },
+                                    TextColor(Color::srgba(0.08, 0.09, 0.11, 1.0)),
+                                ));
+                                // Cost
+                                card.spawn((
+                                    Text::new(format!(
+                                        "{}g {}s",
+                                        upgrade.gold_cost, upgrade.silver_cost
+                                    )),
+                                    TextFont {
+                                        font: asset_server
+                                            .load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                                        font_size: 14.0,
+                                        ..default()
+                                    },
+                                    TextColor(Color::srgba(0.18, 0.17, 0.19, 0.85)),
+                                ));
+                            });
+                        }
+                    }
                 }
             });
     });
@@ -330,6 +392,9 @@ fn build_grid_under(
 
 #[derive(Component, Clone, Copy)]
 pub struct BuildCard(pub BuildDefinitionId);
+
+#[derive(Component, Clone, Copy)]
+pub struct UpgradeCard(pub BuildDefinitionId);
 
 pub fn handle_item_selection(
     mut interactions: Query<(&Interaction, &BuildCard), (Changed<Interaction>, With<Button>)>,
@@ -365,6 +430,87 @@ pub fn handle_item_selection(
         for e in roots_q.iter() {
             if commands.get_entity(e).is_ok() {
                 despawn_entity_recursive(&mut commands, e, &children_q);
+            }
+        }
+    }
+}
+
+pub fn handle_upgrade_selection(
+    mut interactions: Query<(&Interaction, &UpgradeCard), (Changed<Interaction>, With<Button>)>,
+    catalog: Res<BuildCatalog>,
+    mut upgrades: ResMut<TowerUpgrades>,
+    upgrade_config: Res<TowerUpgradeConfig>,
+    mut player_query: Query<&mut Player>,
+    mut towers_query: Query<(&mut Tower, &BuiltTower)>,
+) {
+    for (interaction, card) in interactions.iter_mut() {
+        if matches!(*interaction, Interaction::Pressed) {
+            // Find the upgrade definition
+            if let Some(upgrade_def) = catalog.upgrades.iter().find(|u| u.id == card.0) {
+                // Check if player can afford it
+                if let Ok(mut player) = player_query.single_mut() {
+                    if player.gold >= upgrade_def.gold_cost
+                        && player.silver >= upgrade_def.silver_cost
+                    {
+                        // Deduct resources
+                        player.gold -= upgrade_def.gold_cost;
+                        player.silver -= upgrade_def.silver_cost;
+
+                        // Apply upgrade
+                        match upgrade_def.tower_kind {
+                            TowerKind::Bow => {
+                                upgrades.bow_damage_level += 1;
+                            }
+                            TowerKind::Crossbow => {
+                                upgrades.crossbow_damage_level += 1;
+                            }
+                        }
+
+                        // Update all existing towers of this type using declarative config
+                        let level = upgrades.get_level(upgrade_def.tower_kind);
+                        let damage_bonus = upgrade_config.calculate_bonus(
+                            upgrade_def.tower_kind,
+                            UpgradeableStat::Damage,
+                            level,
+                        ) as u32;
+
+                        // Calculate other stat bonuses
+                        let range_bonus = upgrade_config.calculate_bonus(
+                            upgrade_def.tower_kind,
+                            UpgradeableStat::Range,
+                            level,
+                        );
+                        let fire_speed_bonus = upgrade_config.calculate_bonus(
+                            upgrade_def.tower_kind,
+                            UpgradeableStat::FireSpeed,
+                            level,
+                        );
+                        let projectile_speed_bonus = upgrade_config.calculate_bonus(
+                            upgrade_def.tower_kind,
+                            UpgradeableStat::ProjectileSpeed,
+                            level,
+                        );
+
+                        for (mut tower, built) in towers_query.iter_mut() {
+                            if built.kind == upgrade_def.tower_kind {
+                                // Calculate base stats from tower kind
+                                let (base_damage, base_fire_interval, base_projectile_speed) =
+                                    match upgrade_def.tower_kind {
+                                        TowerKind::Bow => (12, 0.7, 60.0),
+                                        TowerKind::Crossbow => (35, 2.4, 140.0),
+                                    };
+
+                                // Apply upgrades
+                                tower.damage = base_damage + damage_bonus;
+                                tower.range += range_bonus;
+                                tower.fire_interval_secs =
+                                    (base_fire_interval - fire_speed_bonus).max(0.1);
+                                tower.projectile_speed =
+                                    base_projectile_speed + projectile_speed_bonus;
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -1,7 +1,7 @@
 use crate::audio::{BuildingActionEvent, BuildingActionKind};
 use crate::components::{
-    BuildingMode, BuiltTower, Player, SellingMode, Tower, TowerBuildSelection, TowerGhost,
-    TowerKind,
+    BuildingMode, BuiltTower, HasTowerDamageLabel, Player, SellingMode, Tower, TowerBuildSelection,
+    TowerDamageLabel, TowerGhost, TowerKind, TowerUpgradeConfig, TowerUpgrades, UpgradeableStat,
 };
 use crate::constants::Tunables;
 use crate::events::TowerBuilt;
@@ -33,6 +33,8 @@ pub fn tower_building(
     mut selection: ResMut<TowerBuildSelection>,
     tunables: Res<Tunables>,
     mut building_sfx: MessageWriter<BuildingActionEvent>,
+    upgrades: Res<TowerUpgrades>,
+    upgrade_config: Res<TowerUpgradeConfig>,
 ) {
     let building_mode_active = building_mode_query.iter().any(|mode| mode.is_active);
 
@@ -131,7 +133,7 @@ pub fn tower_building(
             player.rock = player.rock.saturating_sub(rock_cost);
         }
         // Determine tower stats from selected kind
-        let (damage, fire_interval_secs, projectile_speed, size, color) = match kind {
+        let (base_damage, base_fire_interval, base_projectile_speed, size, color) = match kind {
             // Bow: smaller and blue (absolute size); slower projectiles
             TowerKind::Bow => (
                 12,
@@ -150,6 +152,21 @@ pub fn tower_building(
             ),
         };
 
+        // Apply upgrades using declarative config system
+        let level = upgrades.get_level(kind);
+        let damage_bonus =
+            upgrade_config.calculate_bonus(kind, UpgradeableStat::Damage, level) as u32;
+        let range_bonus = upgrade_config.calculate_bonus(kind, UpgradeableStat::Range, level);
+        let fire_speed_bonus =
+            upgrade_config.calculate_bonus(kind, UpgradeableStat::FireSpeed, level);
+        let projectile_speed_bonus =
+            upgrade_config.calculate_bonus(kind, UpgradeableStat::ProjectileSpeed, level);
+
+        let damage = base_damage + damage_bonus;
+        let fire_interval_secs = (base_fire_interval - fire_speed_bonus).max(0.1);
+        let projectile_speed = base_projectile_speed + projectile_speed_bonus;
+        let range = tunables.tower_range + range_bonus;
+
         place_tower(
             &mut commands,
             &mut meshes,
@@ -159,6 +176,7 @@ pub fn tower_building(
             damage,
             fire_interval_secs,
             projectile_speed,
+            range,
             size,
             color,
             &tunables,
@@ -390,6 +408,7 @@ fn place_tower(
     damage: u32,
     fire_interval_secs: f32,
     projectile_speed: f32,
+    range: f32,
     size: (f32, f32, f32),
     color: Color,
     tunables: &Tunables,
@@ -403,22 +422,26 @@ fn place_tower(
         ..default()
     });
 
-    commands.spawn((
-        Mesh3d(mesh),
-        MeshMaterial3d(mat),
-        Transform::from_translation(Vec3::new(position.x, size.1 * 0.5, position.z)),
-        Visibility::default(),
-        InheritedVisibility::default(),
-        Tower {
-            range: tunables.tower_range,
-            damage,
-            fire_interval_secs,
-            height: size.1,
-            projectile_speed,
-            last_shot: 0.0,
-        },
-        BuiltTower { kind },
-    ));
+    let _tower_entity = commands
+        .spawn((
+            Mesh3d(mesh),
+            MeshMaterial3d(mat),
+            Transform::from_translation(Vec3::new(position.x, size.1 * 0.5, position.z)),
+            Visibility::default(),
+            InheritedVisibility::default(),
+            Tower {
+                range,
+                damage,
+                fire_interval_secs,
+                height: size.1,
+                projectile_speed,
+                last_shot: 0.0,
+            },
+            BuiltTower { kind },
+        ))
+        .id();
+
+    // Label will be spawned by tower_damage_label_spawner system
 
     tower_events.write(TowerBuilt { position });
 
@@ -487,6 +510,93 @@ fn spawn_tower_spawn_effect(
             base_rgb: base_color,
         },
     ));
+}
+
+/// Spawns damage labels for towers that don't have them yet.
+pub fn tower_damage_label_spawner(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    towers: Query<(Entity, &Tower, &Transform), (With<BuiltTower>, Without<HasTowerDamageLabel>)>,
+) {
+    let font_handle = asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf");
+
+    for (tower_entity, tower, _tower_transform) in towers.iter() {
+        commands.entity(tower_entity).with_children(|parent| {
+            parent.spawn((
+                Text::new(format!("{}", tower.damage)),
+                TextFont {
+                    font: font_handle.clone(),
+                    font_size: 12.0,
+                    ..default()
+                },
+                TextColor(Color::srgba(0.95, 0.95, 0.95, 0.95)),
+                Node {
+                    position_type: PositionType::Absolute,
+                    ..default()
+                },
+                Visibility::default(),
+                TowerDamageLabel {
+                    tower_entity,
+                    world_offset: Vec3::new(0.0, -tower.height * 0.5 + 0.5, 0.0),
+                },
+            ));
+        });
+        // Mark tower so we don't spawn duplicate labels
+        commands.entity(tower_entity).insert(HasTowerDamageLabel);
+    }
+}
+
+/// Positions tower damage labels in screen space.
+pub fn tower_damage_label_system(
+    windows: Query<&Window>,
+    cam_q: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
+    tower_query: Query<&Transform, With<Tower>>,
+    mut labels: Query<(&TowerDamageLabel, &mut Node, &mut Visibility)>,
+) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Ok((camera, camera_transform)) = cam_q.single() else {
+        return;
+    };
+
+    let scale_factor = window.resolution.scale_factor();
+
+    for (label, mut node, mut visibility) in labels.iter_mut() {
+        // Get tower's transform directly
+        if let Ok(tower_transform) = tower_query.get(label.tower_entity) {
+            let world_pos = tower_transform.translation + label.world_offset;
+
+            // Position label in screen space
+            if let Ok(screen_pos) = camera.world_to_viewport(camera_transform, world_pos) {
+                *visibility = Visibility::Visible;
+                let logical_pos = screen_pos / scale_factor;
+                node.left = Val::Px(logical_pos.x);
+                node.top = Val::Px(logical_pos.y + 10.0); // Small offset below tower
+            } else {
+                *visibility = Visibility::Hidden;
+            }
+        }
+    }
+}
+
+/// Updates tower damage label text when tower damage changes.
+pub fn update_tower_damage_labels(
+    towers: Query<(Entity, &Tower), Changed<Tower>>,
+    mut labels: Query<&mut Text, With<TowerDamageLabel>>,
+    children_query: Query<&Children>,
+) {
+    for (tower_entity, tower) in towers.iter() {
+        // Find the label child
+        if let Ok(children) = children_query.get(tower_entity) {
+            for child in children.iter() {
+                if let Ok(mut text) = labels.get_mut(child) {
+                    text.0 = format!("{}", tower.damage);
+                    break;
+                }
+            }
+        }
+    }
 }
 
 pub fn tower_spawn_effect_system(
@@ -572,6 +682,8 @@ pub fn tower_selling_click(
     }
 
     if let Some((entity, kind, _, pos)) = best {
+        // Labels are children and will be automatically despawned with the tower
+
         if let Ok(mut player) = player_q.single_mut() {
             let (wood_cost, rock_cost) = kind.cost();
             let wood_refund = wood_cost / 2;

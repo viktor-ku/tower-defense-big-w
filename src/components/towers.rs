@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 /// Different kinds of towers selectable by the player.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum TowerKind {
     Bow,
     Crossbow,
@@ -45,3 +45,14 @@ pub struct TowerGhost;
 pub struct TowerBuildSelection {
     pub choice: Option<TowerKind>,
 }
+
+/// Component for persistent damage label displayed below towers.
+#[derive(Component)]
+pub struct TowerDamageLabel {
+    pub tower_entity: Entity,
+    pub world_offset: Vec3,
+}
+
+/// Marker on the tower entity indicating a damage label has been spawned.
+#[derive(Component)]
+pub struct HasTowerDamageLabel;

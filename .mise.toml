@@ -11,6 +11,11 @@ description = "Run in debug"
 depends = ["clean"]
 run = "cargo run"
 
+[tasks."dev:rich"]
+description = "Run in debug with rich"
+depends = ["clean"]
+run = "cargo run --features rich"
+
 [tasks."dev:tools"]
 description = "Run in debug with devtools"
 depends = ["clean"]
