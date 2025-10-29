@@ -1,3 +1,4 @@
+use crate::components::TownSquareCenter;
 use crate::components::{
     ChunkRoot, Harvestable, HarvestableKind, NoDistanceCull, Player, Tree, TreeSize,
 };
@@ -154,6 +155,7 @@ fn load_initial_chunks(
     assets: Res<ChunkAssets>,
     tunables: Res<Tunables>,
     policy: Res<RandomizationPolicy>,
+    square_center: Option<Res<TownSquareCenter>>,
 ) {
     let initial_coord = ChunkCoord { x: 0, z: 0 };
 
@@ -183,6 +185,7 @@ fn load_initial_chunks(
                 seed.0,
                 cfg.size,
                 policy.chunk_content_seeded,
+                square_center.as_ref().map(|c| c.0).unwrap_or(Vec3::ZERO),
             );
 
             loaded.0.insert(coord, root);
@@ -237,6 +240,7 @@ fn update_chunks(
     children_q: Query<&Children>,
     mut last_chunk: Local<Option<ChunkCoord>>,
     policy: Res<RandomizationPolicy>,
+    square_center: Option<Res<TownSquareCenter>>,
 ) {
     // Only perform load/unload work when the player actually changes chunks
     if *last_chunk == Some(pc.0) {
@@ -297,6 +301,7 @@ fn update_chunks(
             seed.0,
             cfg.size,
             policy.chunk_content_seeded,
+            square_center.as_ref().map(|c| c.0).unwrap_or(Vec3::ZERO),
         );
 
         loaded.0.insert(coord, root);
@@ -547,6 +552,7 @@ fn spawn_chunk_content(
     world_seed: u64,
     size: f32,
     seeded: bool,
+    exclusion_center: Vec3,
 ) {
     let origin = chunk_origin(coord, size);
     let mut seeded_rng = StdRng::seed_from_u64(hash_combine(world_seed, coord.x, coord.z));
@@ -585,14 +591,15 @@ fn spawn_chunk_content(
         let local_z = pick_f32(seeded, &mut seeded_rng, &mut thread_rng) * size;
         let pos = origin + Vec3::new(local_x, 0.0, local_z);
 
-        // Skip if within town resource exclusion radius
-        if pos.length() <= tunables.town_resource_exclusion_radius {
+        // Skip if within town resource exclusion radius (centered on the plaza)
+        let d_plaza = Vec2::new(pos.x - exclusion_center.x, pos.z - exclusion_center.z).length();
+        if d_plaza <= tunables.town_resource_exclusion_radius {
             continue;
         }
 
         // Determine if this is a big tree based on distance from village
         // Big trees are rare near village (5% chance) but common far away (50% chance)
-        let distance_from_village = pos.length();
+        let distance_from_village = d_plaza;
         let big_tree_chance = if distance_from_village < 100.0 {
             // Very close to village: 5% chance
             0.05
@@ -643,8 +650,9 @@ fn spawn_chunk_content(
         let local_z = pick_f32(seeded, &mut seeded_rng, &mut thread_rng) * size;
         let pos = origin + Vec3::new(local_x, 0.0, local_z);
 
-        // Skip if within town resource exclusion radius
-        if pos.length() <= tunables.town_resource_exclusion_radius {
+        // Skip if within town resource exclusion radius (centered on the plaza)
+        let d_plaza = Vec2::new(pos.x - exclusion_center.x, pos.z - exclusion_center.z).length();
+        if d_plaza <= tunables.town_resource_exclusion_radius {
             continue;
         }
 

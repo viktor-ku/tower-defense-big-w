@@ -71,7 +71,7 @@ pub const C_TREE_WOOD_MIN: u32 = 20;
 pub const C_TREE_WOOD_MAX: u32 = 60;
 pub const C_TREE_SIZE: (f32, f32, f32) = (1.4, 3.2, 1.4);
 pub const C_ROCK_SIZE: (f32, f32, f32) = (1.0, 0.8, 1.0);
-pub const C_TOWN_RESOURCE_EXCLUSION_RADIUS: f32 = 50.0;
+pub const C_TOWN_RESOURCE_EXCLUSION_RADIUS: f32 = 100.0;
 
 /// Tunable values that control the game. Insert this as a Bevy resource to tweak gameplay,
 /// visuals, and pacing without touching system code. Values are read at runtime by systems.

@@ -26,5 +26,9 @@ pub struct TownCenter;
 #[derive(Component)]
 pub struct TownSquare;
 
+/// Global resource storing the world-space center of the town square (plaza).
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct TownSquareCenter(pub Vec3);
+
 #[derive(Component)]
 pub struct Wall;

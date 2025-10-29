@@ -662,6 +662,9 @@ pub fn setup(
         TownSquare,
     ));
 
+    // Publish the plaza center so other systems (e.g., resource spawning) can respect it
+    commands.insert_resource(TownSquareCenter(plaza_center));
+
     // 3D player box (larger and more visible) — spawn on the TownSquare
     let player_mesh = meshes.add(Cuboid::new(2.0, 4.0, 2.0));
     let player_mat = materials.add(StandardMaterial {

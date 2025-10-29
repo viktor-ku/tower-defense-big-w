@@ -6,6 +6,8 @@ pub mod resource_rules;
 pub use resource_rules::*;
 pub mod rocks_along_road;
 pub use rocks_along_road::*;
+pub mod town_square_exclusion;
+pub use town_square_exclusion::*;
 
 /// System set for resource post-processing passes (run after random chunk spawns).
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
