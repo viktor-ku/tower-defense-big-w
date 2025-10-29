@@ -4,31 +4,32 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-rand = "=0.9.2"
+bevy_kira_audio = { version = "0.24.0", features = ["flac", "mp3", "wav"] }
 bevy_shader = "=0.17.2"
 dirs-next = "=2.0.0"
-bevy_kira_audio = { version = "0.24.0", features = ["wav", "mp3", "flac"] }
+rand = "=0.9.2"
 
 [dependencies.bevy]
 version = "=0.17.2"
 features = [
-    "experimental_bevy_ui_widgets",
-    "flac",
-    "jpeg",
-    "mp3",
-    "reflect_documentation",
-    "symphonia-all",
-    "tiff",
-    "trace",
-    "trace_chrome",
-    "wav",
-    "webp",
-    "zlib",
+  "experimental_bevy_ui_widgets",
+  "flac",
+  "jpeg",
+  "mp3",
+  "reflect_documentation",
+  "symphonia-all",
+  "tiff",
+  "trace",
+  "trace_chrome",
+  "track_location",
+  "wav",
+  "webp",
+  "zlib"
 ]
 
 [features]
 devtools = [
-    # Enable Bevy's built-in development tooling and UI debug helpers only in this feature
-    "bevy/bevy_dev_tools",
-    "bevy/bevy_ui_debug",
+  # Enable Bevy's built-in development tooling and UI debug helpers only in this feature
+  "bevy/bevy_dev_tools",
+  "bevy/bevy_ui_debug",
 ]
