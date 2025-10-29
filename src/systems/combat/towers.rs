@@ -521,26 +521,24 @@ pub fn tower_damage_label_spawner(
     let font_handle = asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf");
 
     for (tower_entity, tower, _tower_transform) in towers.iter() {
-        commands.entity(tower_entity).with_children(|parent| {
-            parent.spawn((
-                Text::new(format!("{}", tower.damage)),
-                TextFont {
-                    font: font_handle.clone(),
-                    font_size: 12.0,
-                    ..default()
-                },
-                TextColor(Color::srgba(0.95, 0.95, 0.95, 0.95)),
-                Node {
-                    position_type: PositionType::Absolute,
-                    ..default()
-                },
-                Visibility::default(),
-                TowerDamageLabel {
-                    tower_entity,
-                    world_offset: Vec3::new(0.0, -tower.height * 0.5 + 0.5, 0.0),
-                },
-            ));
-        });
+        commands.spawn((
+            Text::new(format!("{}", tower.damage)),
+            TextFont {
+                font: font_handle.clone(),
+                font_size: 12.0,
+                ..default()
+            },
+            TextColor(Color::srgba(0.95, 0.95, 0.95, 0.95)),
+            Node {
+                position_type: PositionType::Absolute,
+                ..default()
+            },
+            Visibility::default(),
+            TowerDamageLabel {
+                tower_entity,
+                world_offset: Vec3::new(0.0, -tower.height * 0.5 + 0.5, 0.0),
+            },
+        ));
         // Mark tower so we don't spawn duplicate labels
         commands.entity(tower_entity).insert(HasTowerDamageLabel);
     }
@@ -568,7 +566,8 @@ pub fn tower_damage_label_system(
             let world_pos = tower_transform.translation + label.world_offset;
 
             // Position label in screen space
-            if let Ok(screen_pos) = camera.world_to_viewport(camera_transform, world_pos) {
+            if let Ok(mut screen_pos) = camera.world_to_viewport(camera_transform, world_pos) {
+                // Flip Y to convert bottom-left origin to top-left UI origin
                 *visibility = Visibility::Visible;
                 let logical_pos = screen_pos / scale_factor;
                 node.left = Val::Px(logical_pos.x);
@@ -583,18 +582,26 @@ pub fn tower_damage_label_system(
 /// Updates tower damage label text when tower damage changes.
 pub fn update_tower_damage_labels(
     towers: Query<(Entity, &Tower), Changed<Tower>>,
-    mut labels: Query<&mut Text, With<TowerDamageLabel>>,
-    children_query: Query<&Children>,
+    mut labels: Query<(&mut Text, &TowerDamageLabel)>,
 ) {
     for (tower_entity, tower) in towers.iter() {
-        // Find the label child
-        if let Ok(children) = children_query.get(tower_entity) {
-            for child in children.iter() {
-                if let Ok(mut text) = labels.get_mut(child) {
-                    text.0 = format!("{}", tower.damage);
-                    break;
-                }
+        for (mut text, label) in labels.iter_mut() {
+            if label.tower_entity == tower_entity {
+                text.0 = format!("{}", tower.damage);
             }
+        }
+    }
+}
+
+/// Cleanup labels for towers that no longer exist
+pub fn cleanup_tower_damage_labels(
+    mut commands: Commands,
+    towers: Query<(), With<Tower>>,
+    labels: Query<(Entity, &TowerDamageLabel)>,
+) {
+    for (entity, label) in labels.iter() {
+        if towers.get(label.tower_entity).is_err() {
+            commands.entity(entity).despawn();
         }
     }
 }

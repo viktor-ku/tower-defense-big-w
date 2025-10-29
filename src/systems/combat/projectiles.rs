@@ -4,6 +4,7 @@ use crate::components::{BuiltTower, Enemy, EnemyKind, Player, Tower, TowerKind};
 use crate::constants::Tunables;
 use crate::events::{DamageDealt, EnemyKilled};
 use crate::materials::ImpactMaterial;
+use crate::utils::camera as cam_utils;
 use bevy::pbr::MeshMaterial3d;
 use bevy::prelude::*;
 use bevy::time::TimerMode;
@@ -195,6 +196,8 @@ pub fn projectile_system(
                 damage_dealt_events.write(DamageDealt {
                     enemy: projectile.target,
                     amount: projectile.damage,
+                    position: impact_point
+                        + Vec3::new(0.0, tunables.damage_number_spawn_height, 0.0),
                 });
             }
 
@@ -395,38 +398,61 @@ pub fn damage_dealt_spawn_text_system(
     mut commands: Commands,
     tunables: Res<Tunables>,
     mut events: MessageReader<DamageDealt>,
-    enemy_pose_query: Query<&GlobalTransform, With<Enemy>>,
     asset_server: Res<AssetServer>,
+    windows: Query<&Window>,
+    cam_q: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
 ) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Ok((camera, cam_tf)) = cam_q.single() else {
+        return;
+    };
+
     for evt in events.read() {
-        if let Ok(tf) = enemy_pose_query.get(evt.enemy) {
-            let pos = tf.translation() + Vec3::new(0.0, tunables.damage_number_spawn_height, 0.0);
-            // Choose a small random UI offset to prevent overlap (left/right/top/bottom)
-            let dir = rand::random::<u8>() % 4;
-            let offset_px = match dir {
-                0 => Vec2::new(10.0, 0.0),  // right
-                1 => Vec2::new(-10.0, 0.0), // left
-                2 => Vec2::new(0.0, 10.0),  // down
-                _ => Vec2::new(0.0, -10.0), // up
-            };
-            commands.spawn((
-                DamageNumber {
-                    timer: Timer::from_seconds(
-                        tunables.damage_number_lifetime_secs,
-                        TimerMode::Once,
-                    ),
-                    world_position: pos,
-                    ui_offset: offset_px,
-                },
-                Text::new(evt.amount.to_string()),
-                TextFont {
-                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
-                    font_size: tunables.damage_number_font_size,
-                    ..default()
-                },
-                TextColor(Color::srgba(0.6, 0.6, 0.6, 0.9)),
-            ));
+        let world_pos = evt.position;
+
+        // Facing + on-screen gate
+        if !cam_utils::is_facing_world_pos(cam_tf, world_pos, 0.1) {
+            continue;
         }
+        if !cam_utils::is_on_screen_ndc(camera, cam_tf, world_pos, 0.05) {
+            continue;
+        }
+        let Some(logical) = cam_utils::world_to_viewport_logical(camera, cam_tf, window, world_pos)
+        else {
+            continue;
+        };
+
+        // Small random UI offset to reduce overlap
+        let dir = rand::random::<u8>() % 4;
+        let offset_px = match dir {
+            0 => Vec2::new(10.0, 0.0),
+            1 => Vec2::new(-10.0, 0.0),
+            2 => Vec2::new(0.0, 10.0),
+            _ => Vec2::new(0.0, -10.0),
+        };
+        let margin = 10.0;
+
+        commands.spawn((
+            EphemeralText {
+                timer: Timer::from_seconds(tunables.damage_number_lifetime_secs, TimerMode::Once),
+            },
+            Text::new(evt.amount.to_string()),
+            TextFont {
+                font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                font_size: tunables.damage_number_font_size,
+                ..default()
+            },
+            TextColor(Color::srgba(0.6, 0.6, 0.6, 0.9)),
+            Node {
+                position_type: PositionType::Absolute,
+                left: Val::Px(logical.x - margin + offset_px.x),
+                top: Val::Px(logical.y - margin + offset_px.y),
+                ..default()
+            },
+            Visibility::Visible,
+        ));
     }
 }
 
@@ -493,50 +519,19 @@ pub fn impact_effect_system(
 
 // trailing removed
 
-pub fn damage_number_system(
+#[derive(Component)]
+pub struct EphemeralText {
+    timer: Timer,
+}
+
+pub fn ephemeral_text_despawn_system(
     time: Res<Time>,
     mut commands: Commands,
-    windows: Query<&Window>,
-    cam_q: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    mut numbers: Query<(
-        Entity,
-        &mut DamageNumber,
-        &mut Node,
-        &mut TextColor,
-        &mut Visibility,
-    )>,
+    mut q: Query<(Entity, &mut EphemeralText)>,
 ) {
-    let Ok(window) = windows.single() else {
-        return;
-    };
-    let Ok((camera, camera_transform)) = cam_q.single() else {
-        return;
-    };
-
-    let scale_factor = window.resolution.scale_factor();
-
-    for (entity, mut number, mut node, mut color, mut visibility) in numbers.iter_mut() {
-        number.timer.tick(time.delta());
-
-        if let Ok(screen_pos) = camera.world_to_viewport(camera_transform, number.world_position) {
-            *visibility = Visibility::Visible;
-
-            let margin = 10.0;
-
-            // Convert to logical UI coordinates: top-left origin
-            let logical_pos = screen_pos / scale_factor;
-            node.left = Val::Px(logical_pos.x - margin + number.ui_offset.x);
-            node.top = Val::Px(logical_pos.y - margin + number.ui_offset.y);
-        } else {
-            *visibility = Visibility::Hidden;
-        }
-
-        let duration = number.timer.duration().as_secs_f32().max(f32::EPSILON);
-        let ratio = (number.timer.elapsed().as_secs_f32() / duration).clamp(0.0, 1.0);
-        let alpha = (1.0 - ratio).powf(1.4);
-        color.0 = color.0.with_alpha(alpha);
-
-        if number.timer.just_finished() {
+    for (entity, mut et) in q.iter_mut() {
+        et.timer.tick(time.delta());
+        if et.timer.just_finished() {
             commands.entity(entity).despawn();
         }
     }
@@ -554,7 +549,15 @@ pub fn enemy_fade_out_system(
     mut player_q: Query<&mut Player>,
     asset_server: Res<AssetServer>,
     tunables: Res<Tunables>,
+    windows: Query<&Window>,
+    cam_q: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
 ) {
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Ok((camera, cam_tf)) = cam_q.single() else {
+        return;
+    };
     for (entity, mut fade) in fading.iter_mut() {
         fade.timer.tick(time.delta());
         let duration = fade.timer.duration().as_secs_f32().max(f32::EPSILON);
@@ -589,60 +592,88 @@ pub fn enemy_fade_out_system(
                 }
             }
 
-            // Spawn floating reward texts
+            // Spawn reward texts (non-animated, gated by facing/on-screen)
             let pos =
                 fade.death_position + Vec3::new(0.0, tunables.damage_number_spawn_height, 0.0);
-            let dir = rand::random::<u8>() % 4;
-            let offset_px = match dir {
-                0 => Vec2::new(10.0, 0.0),
-                1 => Vec2::new(-10.0, 0.0),
-                2 => Vec2::new(0.0, 10.0),
-                _ => Vec2::new(0.0, -10.0),
-            };
+            if cam_utils::is_facing_world_pos(cam_tf, pos, 0.1)
+                && cam_utils::is_on_screen_ndc(camera, cam_tf, pos, 0.05)
+            {
+                if let Some(logical) =
+                    cam_utils::world_to_viewport_logical(camera, cam_tf, window, pos)
+                {
+                    let dir = rand::random::<u8>() % 4;
+                    let offset_px = match dir {
+                        0 => Vec2::new(10.0, 0.0),
+                        1 => Vec2::new(-10.0, 0.0),
+                        2 => Vec2::new(0.0, 10.0),
+                        _ => Vec2::new(0.0, -10.0),
+                    };
+                    let margin = 10.0;
 
-            commands.spawn((
-                DamageNumber {
-                    timer: Timer::from_seconds(
-                        tunables.damage_number_lifetime_secs,
-                        TimerMode::Once,
-                    ),
-                    world_position: pos,
-                    ui_offset: offset_px,
-                },
-                Text::new(format!("+{}S", silver_award)),
-                TextFont {
-                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
-                    font_size: tunables.damage_number_font_size,
-                    ..default()
-                },
-                TextColor(Color::srgba(0.80, 0.82, 0.90, 0.95)),
-            ));
+                    commands.spawn((
+                        EphemeralText {
+                            timer: Timer::from_seconds(
+                                tunables.damage_number_lifetime_secs,
+                                TimerMode::Once,
+                            ),
+                        },
+                        Text::new(format!("+{}S", silver_award)),
+                        TextFont {
+                            font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                            font_size: tunables.damage_number_font_size,
+                            ..default()
+                        },
+                        TextColor(Color::srgba(0.80, 0.82, 0.90, 0.95)),
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: Val::Px(logical.x - margin + offset_px.x),
+                            top: Val::Px(logical.y - margin + offset_px.y),
+                            ..default()
+                        },
+                        Visibility::Visible,
+                    ));
+                }
+            }
 
             if gold_award > 0 {
-                let dir2 = (dir + 1) % 4; // different offset direction
-                let offset_px2 = match dir2 {
-                    0 => Vec2::new(10.0, 0.0),
-                    1 => Vec2::new(-10.0, 0.0),
-                    2 => Vec2::new(0.0, 10.0),
-                    _ => Vec2::new(0.0, -10.0),
-                };
-                commands.spawn((
-                    DamageNumber {
-                        timer: Timer::from_seconds(
-                            tunables.damage_number_lifetime_secs,
-                            TimerMode::Once,
-                        ),
-                        world_position: pos,
-                        ui_offset: offset_px2,
-                    },
-                    Text::new("+1G".to_string()),
-                    TextFont {
-                        font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
-                        font_size: tunables.damage_number_font_size,
-                        ..default()
-                    },
-                    TextColor(Color::srgba(1.0, 0.92, 0.35, 0.98)),
-                ));
+                if cam_utils::is_facing_world_pos(cam_tf, pos, 0.1)
+                    && cam_utils::is_on_screen_ndc(camera, cam_tf, pos, 0.05)
+                {
+                    if let Some(logical) =
+                        cam_utils::world_to_viewport_logical(camera, cam_tf, window, pos)
+                    {
+                        let dir2 = 1u8; // choose a different direction than silver; simple right offset
+                        let offset_px2 = match dir2 {
+                            0 => Vec2::new(10.0, 0.0),
+                            1 => Vec2::new(-10.0, 0.0),
+                            2 => Vec2::new(0.0, 10.0),
+                            _ => Vec2::new(0.0, -10.0),
+                        };
+                        let margin = 10.0;
+                        commands.spawn((
+                            EphemeralText {
+                                timer: Timer::from_seconds(
+                                    tunables.damage_number_lifetime_secs,
+                                    TimerMode::Once,
+                                ),
+                            },
+                            Text::new("+1G".to_string()),
+                            TextFont {
+                                font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                                font_size: tunables.damage_number_font_size,
+                                ..default()
+                            },
+                            TextColor(Color::srgba(1.0, 0.92, 0.35, 0.98)),
+                            Node {
+                                position_type: PositionType::Absolute,
+                                left: Val::Px(logical.x - margin + offset_px2.x),
+                                top: Val::Px(logical.y - margin + offset_px2.y),
+                                ..default()
+                            },
+                            Visibility::Visible,
+                        ));
+                    }
+                }
             }
 
             enemy_killed_events.write(EnemyKilled {

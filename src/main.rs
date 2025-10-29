@@ -15,6 +15,7 @@ mod random_policy;
 mod setup;
 mod splash;
 mod systems;
+mod utils;
 
 use build::BuildPlugin;
 use components::*;
@@ -29,12 +30,13 @@ use systems::chunks::ChunkPlugin;
 use systems::combat::assets::{CombatVfxAssets, init_combat_vfx_assets};
 use systems::combat::enemy::{enemy_spawning, face_enemy_health_bars, update_enemy_health_bars};
 use systems::combat::projectiles::{
-    damage_dealt_spawn_text_system, damage_number_system, enemy_fade_out_system,
-    enemy_flash_system, impact_effect_system, projectile_system, tower_shooting,
+    damage_dealt_spawn_text_system, enemy_fade_out_system, enemy_flash_system,
+    ephemeral_text_despawn_system, impact_effect_system, projectile_system, tower_shooting,
 };
 use systems::combat::towers::{
-    tower_building, tower_damage_label_spawner, tower_damage_label_system, tower_selling_click,
-    tower_spawn_effect_system, update_tower_damage_labels,
+    cleanup_tower_damage_labels, tower_building, tower_damage_label_spawner,
+    tower_damage_label_system, tower_selling_click, tower_spawn_effect_system,
+    update_tower_damage_labels,
 };
 use systems::input::{handle_game_input, handle_menu_input, pause_toggle_input};
 use systems::movement::{enemy_movement, player_movement};
@@ -193,9 +195,9 @@ fn main() {
         .add_systems(
             PostUpdate,
             (
-                damage_number_system.after(camera_system),
                 tower_damage_label_system.after(camera_system),
                 update_tower_damage_labels,
+                cleanup_tower_damage_labels,
             )
                 .run_if(in_state(GameState::Playing)),
         )
@@ -223,6 +225,10 @@ fn main() {
         )
         // Game speed indicator updates every frame to also hide in non-game states
         .add_systems(Update, update_game_speed_indicator)
+        .add_systems(
+            Update,
+            ephemeral_text_despawn_system.run_if(in_state(GameState::Playing)),
+        )
         .add_systems(
             Update,
             (
