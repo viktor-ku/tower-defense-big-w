@@ -144,6 +144,11 @@ pub fn projectile_system(
     vfx_assets: Res<CombatVfxAssets>,
     tunables: Res<Tunables>,
     mut damage_dealt_events: MessageWriter<DamageDealt>,
+    children_query: Query<&Children>,
+    enemy_kind_q: Query<&EnemyKind>,
+    mut player_q: Query<&mut Player>,
+    asset_server: Res<AssetServer>,
+    mut enemy_killed_events: MessageWriter<EnemyKilled>,
 ) {
     for (entity, mut projectile, mut transform) in projectile_query.iter_mut() {
         projectile.lifetime.tick(time.delta());
@@ -181,6 +186,11 @@ pub fn projectile_system(
                     &mut enemy_hit_query,
                     &mut standard_materials,
                     &tunables,
+                    &children_query,
+                    &enemy_kind_q,
+                    &mut player_q,
+                    &asset_server,
+                    &mut enemy_killed_events,
                 );
                 damage_dealt_events.write(DamageDealt {
                     enemy: projectile.target,
@@ -232,6 +242,11 @@ fn handle_projectile_hit(
     >,
     standard_materials: &mut Assets<StandardMaterial>,
     tunables: &Tunables,
+    children_query: &Query<&Children>,
+    enemy_kind_q: &Query<&EnemyKind>,
+    player_q: &mut Query<&mut Player>,
+    asset_server: &AssetServer,
+    enemy_killed_events: &mut MessageWriter<EnemyKilled>,
 ) {
     if let Ok((mut enemy, material_handle, flash_opt)) = enemy_hit_query.get_mut(enemy_entity) {
         enemy.health = enemy.health.saturating_sub(damage);
@@ -246,21 +261,83 @@ fn handle_projectile_hit(
         let lethal_hit = remaining_health == 0;
 
         if lethal_hit {
-            // Stop any hit flash and start a fade-out instead of pre-explosion blink
+            // Stop any hit flash and immediately despawn with rewards/events
             commands.entity(enemy_entity).remove::<EnemyHitFlash>();
 
-            if let Some(mat) = standard_materials.get_mut(&mat_handle) {
-                mat.alpha_mode = AlphaMode::Blend;
-                let base = original_color.to_srgba();
-                mat.base_color = Color::srgba(base.red, base.green, base.blue, 1.0);
+            // Credit currency based on enemy kind
+            let silver_award: u64 = match enemy_kind_q.get(enemy_entity).ok().copied() {
+                Some(EnemyKind::Minion) => 1u64,
+                Some(EnemyKind::Zombie) => 2u64,
+                Some(EnemyKind::Boss) => 5u64,
+                None => 1u64,
+            };
+            let gold_award: u64 = if rand::random::<f32>() < 0.05 { 1 } else { 0 };
+
+            if let Ok(mut player) = player_q.single_mut() {
+                player.silver = player.silver.saturating_add(silver_award);
+                if gold_award > 0 {
+                    player.gold = player.gold.saturating_add(1u64);
+                }
             }
 
-            commands.entity(enemy_entity).insert(EnemyFadeOut {
-                timer: Timer::from_seconds(tunables.enemy_fade_out_duration_secs, TimerMode::Once),
-                material: mat_handle,
-                original_color,
-                death_position: impact_point,
+            // Spawn floating reward texts
+            let pos = impact_point + Vec3::new(0.0, tunables.damage_number_spawn_height, 0.0);
+            let dir = rand::random::<u8>() % 4;
+            let offset_px = match dir {
+                0 => Vec2::new(10.0, 0.0),
+                1 => Vec2::new(-10.0, 0.0),
+                2 => Vec2::new(0.0, 10.0),
+                _ => Vec2::new(0.0, -10.0),
+            };
+            commands.spawn((
+                DamageNumber {
+                    timer: Timer::from_seconds(
+                        tunables.damage_number_lifetime_secs,
+                        TimerMode::Once,
+                    ),
+                    world_position: pos,
+                    ui_offset: offset_px,
+                },
+                Text::new(format!("+{}S", silver_award)),
+                TextFont {
+                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                    font_size: tunables.damage_number_font_size,
+                    ..default()
+                },
+                TextColor(Color::srgba(0.80, 0.82, 0.90, 0.95)),
+            ));
+            if gold_award > 0 {
+                let dir2 = (dir + 1) % 4;
+                let offset_px2 = match dir2 {
+                    0 => Vec2::new(10.0, 0.0),
+                    1 => Vec2::new(-10.0, 0.0),
+                    2 => Vec2::new(0.0, 10.0),
+                    _ => Vec2::new(0.0, -10.0),
+                };
+                commands.spawn((
+                    DamageNumber {
+                        timer: Timer::from_seconds(
+                            tunables.damage_number_lifetime_secs,
+                            TimerMode::Once,
+                        ),
+                        world_position: pos,
+                        ui_offset: offset_px2,
+                    },
+                    Text::new("+1G".to_string()),
+                    TextFont {
+                        font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
+                        font_size: tunables.damage_number_font_size,
+                        ..default()
+                    },
+                    TextColor(Color::srgba(1.0, 0.92, 0.35, 0.98)),
+                ));
+            }
+
+            // Notify and despawn immediately
+            enemy_killed_events.write(EnemyKilled {
+                position: impact_point,
             });
+            despawn_entity_recursive(commands, enemy_entity, children_query);
         } else {
             if let Some(mut flash) = flash_opt {
                 flash
