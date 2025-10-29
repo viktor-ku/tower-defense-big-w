@@ -36,7 +36,4 @@ pub fn world_to_viewport_logical(
     Some(screen / window.resolution.scale_factor())
 }
 
-/// Transform a world-space point into camera-local space.
-pub fn to_camera_space(world: Vec3, camera_transform: &GlobalTransform) -> Vec3 {
-    camera_transform.affine().inverse().transform_point3(world)
-}
+// Removed unused to_camera_space helper

@@ -163,9 +163,7 @@ fn enforce_rocks_along_road(
                 kind: HarvestableKind::Rock,
                 amount: 10,
             },
-            PlacedByRule {
-                id: RULE_ID_ROCKS_ALONG_ROAD,
-            },
+            PlacedByRule,
         ));
 
         existing_positions.push(rock_pos);

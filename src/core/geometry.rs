@@ -41,23 +41,7 @@ pub fn sample_point_on_polyline_xz(path: &[Vec3], t: f32) -> (Vec3, Vec3) {
     (pos, dir)
 }
 
-/// Return the index of the closest point within the given radius of `origin`.
-/// Returns None if no point is within `radius`.
-pub fn closest_within_radius(origin: Vec3, points: &[Vec3], radius: f32) -> Option<usize> {
-    if points.is_empty() {
-        return None;
-    }
-    let mut best_idx: Option<usize> = None;
-    let mut best_dist = radius;
-    for (i, p) in points.iter().enumerate() {
-        let d = origin.distance(*p);
-        if d <= best_dist {
-            best_dist = d;
-            best_idx = Some(i);
-        }
-    }
-    best_idx
-}
+// Removed unused helper closest_within_radius
 
 /// Compute a normalized XZ-plane direction from `from` toward `to`.
 pub fn direction_xz(from: Vec3, to: Vec3) -> Vec3 {

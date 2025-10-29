@@ -15,7 +15,6 @@ pub struct BuildDefinition {
     pub category: BuildCategory,
     pub display_name: &'static str,
     pub cost: u32,
-    pub footprint_cells: UVec2,
 }
 
 #[derive(Clone, Debug)]
@@ -44,14 +43,12 @@ impl BuildCatalog {
                 category: BuildCategory::Towers,
                 display_name: "Bow Tower",
                 cost: 10,
-                footprint_cells: UVec2::new(1, 1),
             },
             BuildDefinition {
                 id: BuildDefinitionId("crossbow_tower"),
                 category: BuildCategory::Towers,
                 display_name: "Crossbow Tower",
                 cost: 20,
-                footprint_cells: UVec2::new(1, 1),
             },
         ];
         self.upgrades = vec![

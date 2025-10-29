@@ -192,9 +192,7 @@ fn attach_health_bar(
     commands.entity(enemy_entity).with_children(|enemy_parent| {
         enemy_parent
             .spawn((
-                EnemyHealthBarRoot {
-                    owner: enemy_entity,
-                },
+                EnemyHealthBarRoot,
                 Transform::from_translation(Vec3::Y * tunables.health_bar_offset_y),
                 GlobalTransform::default(),
                 Visibility::default(),
@@ -293,39 +291,4 @@ pub fn face_enemy_health_bars(
     }
 }
 
-pub fn position_enemy_health_bars(
-    tunables: Res<Tunables>,
-    owner_tf_q: Query<&GlobalTransform>,
-    mut bars_q: Query<(&EnemyHealthBarRoot, &mut Transform)>,
-) {
-    for (root, mut transform) in bars_q.iter_mut() {
-        if let Ok(owner_tf) = owner_tf_q.get(root.owner) {
-            let owner_pos = owner_tf.translation();
-            transform.translation.x = owner_pos.x;
-            transform.translation.y = owner_pos.y + tunables.health_bar_offset_y;
-            transform.translation.z = owner_pos.z;
-        }
-    }
-}
-
-pub fn cleanup_enemy_health_bars(
-    mut commands: Commands,
-    bars_q: Query<(Entity, &EnemyHealthBarRoot)>,
-    enemy_q: Query<(), With<Enemy>>,
-    children_q: Query<&Children>,
-) {
-    for (bar_entity, root) in bars_q.iter() {
-        if enemy_q.get(root.owner).is_err() {
-            // Despawn bar and all its children
-            let mut stack = vec![bar_entity];
-            while let Some(e) = stack.pop() {
-                if let Ok(children) = children_q.get(e) {
-                    for child in children.iter() {
-                        stack.push(child);
-                    }
-                }
-                commands.entity(e).despawn();
-            }
-        }
-    }
-}
+// Removed unused positioning/cleanup systems for health bars

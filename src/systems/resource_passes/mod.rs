@@ -18,9 +18,7 @@ pub enum ResourcePassSet {
 
 /// Marker for entities placed by a specific rule. `id` is a stable per-rule identifier.
 #[derive(Component, Debug, Clone, Copy)]
-pub struct PlacedByRule {
-    pub id: u64,
-}
+pub struct PlacedByRule;
 
 /// Root plugin that defines the scheduling set for resource passes.
 pub struct ResourcePassesPlugin;

@@ -29,9 +29,7 @@ pub struct Enemy {
 
 /// Root entity for an enemy health bar, decoupled from the enemy transform.
 #[derive(Component)]
-pub struct EnemyHealthBarRoot {
-    pub owner: Entity,
-}
+pub struct EnemyHealthBarRoot;
 
 /// Fill bar component tracking width constraints and owner entity.
 #[derive(Component)]

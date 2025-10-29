@@ -26,7 +26,6 @@ pub struct EnemyKilled {
 
 #[derive(Event, Message, Debug)]
 pub struct DamageDealt {
-    pub enemy: Entity,
     pub amount: u32,
     pub position: Vec3,
 }

@@ -59,6 +59,7 @@ pub fn player_movement(
 }
 
 /// Moves enemies along roads (if assigned) or toward the village center.
+#[allow(dead_code)]
 pub fn enemy_movement(
     time: Res<Time>,
     mut commands: Commands,

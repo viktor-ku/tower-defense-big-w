@@ -66,7 +66,7 @@ pub fn tower_shooting(
 }
 
 #[derive(Component)]
-pub(crate) struct Projectile {
+pub struct Projectile {
     target: Entity,
     speed: f32,
     damage: u32,
@@ -145,10 +145,6 @@ pub fn projectile_system(
     vfx_assets: Res<CombatVfxAssets>,
     tunables: Res<Tunables>,
     mut damage_dealt_events: MessageWriter<DamageDealt>,
-    children_query: Query<&Children>,
-    enemy_kind_q: Query<&EnemyKind>,
-    mut player_q: Query<&mut Player>,
-    asset_server: Res<AssetServer>,
     mut enemy_killed_events: MessageWriter<EnemyKilled>,
 ) {
     for (entity, mut projectile, mut transform) in projectile_query.iter_mut() {
@@ -187,14 +183,9 @@ pub fn projectile_system(
                     &mut enemy_hit_query,
                     &mut standard_materials,
                     &tunables,
-                    &children_query,
-                    &enemy_kind_q,
-                    &mut player_q,
-                    &asset_server,
                     &mut enemy_killed_events,
                 );
                 damage_dealt_events.write(DamageDealt {
-                    enemy: projectile.target,
                     amount: projectile.damage,
                     position: impact_point
                         + Vec3::new(0.0, tunables.damage_number_spawn_height, 0.0),
@@ -245,10 +236,6 @@ fn handle_projectile_hit(
     >,
     standard_materials: &mut Assets<StandardMaterial>,
     tunables: &Tunables,
-    children_query: &Query<&Children>,
-    enemy_kind_q: &Query<&EnemyKind>,
-    player_q: &mut Query<&mut Player>,
-    asset_server: &AssetServer,
     enemy_killed_events: &mut MessageWriter<EnemyKilled>,
 ) {
     if let Ok((mut enemy, material_handle, flash_opt)) = enemy_hit_query.get_mut(enemy_entity) {
@@ -264,83 +251,21 @@ fn handle_projectile_hit(
         let lethal_hit = remaining_health == 0;
 
         if lethal_hit {
-            // Stop any hit flash and immediately despawn with rewards/events
+            // Stop any hit flash and transition to fade-out effect; actual despawn and rewards
+            // are handled by enemy_fade_out_system after the fade finishes.
             commands.entity(enemy_entity).remove::<EnemyHitFlash>();
 
-            // Credit currency based on enemy kind
-            let silver_award: u64 = match enemy_kind_q.get(enemy_entity).ok().copied() {
-                Some(EnemyKind::Minion) => 1u64,
-                Some(EnemyKind::Zombie) => 2u64,
-                Some(EnemyKind::Boss) => 5u64,
-                None => 1u64,
-            };
-            let gold_award: u64 = if rand::random::<f32>() < 0.05 { 1 } else { 0 };
+            commands.entity(enemy_entity).insert(EnemyFadeOut {
+                timer: Timer::from_seconds(tunables.enemy_fade_out_duration_secs, TimerMode::Once),
+                material: mat_handle.clone(),
+                original_color,
+                death_position: impact_point,
+            });
 
-            if let Ok(mut player) = player_q.single_mut() {
-                player.silver = player.silver.saturating_add(silver_award);
-                if gold_award > 0 {
-                    player.gold = player.gold.saturating_add(1u64);
-                }
-            }
-
-            // Spawn floating reward texts
-            let pos = impact_point + Vec3::new(0.0, tunables.damage_number_spawn_height, 0.0);
-            let dir = rand::random::<u8>() % 4;
-            let offset_px = match dir {
-                0 => Vec2::new(10.0, 0.0),
-                1 => Vec2::new(-10.0, 0.0),
-                2 => Vec2::new(0.0, 10.0),
-                _ => Vec2::new(0.0, -10.0),
-            };
-            commands.spawn((
-                DamageNumber {
-                    timer: Timer::from_seconds(
-                        tunables.damage_number_lifetime_secs,
-                        TimerMode::Once,
-                    ),
-                    world_position: pos,
-                    ui_offset: offset_px,
-                },
-                Text::new(format!("+{}S", silver_award)),
-                TextFont {
-                    font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
-                    font_size: tunables.damage_number_font_size,
-                    ..default()
-                },
-                TextColor(Color::srgba(0.80, 0.82, 0.90, 0.95)),
-            ));
-            if gold_award > 0 {
-                let dir2 = (dir + 1) % 4;
-                let offset_px2 = match dir2 {
-                    0 => Vec2::new(10.0, 0.0),
-                    1 => Vec2::new(-10.0, 0.0),
-                    2 => Vec2::new(0.0, 10.0),
-                    _ => Vec2::new(0.0, -10.0),
-                };
-                commands.spawn((
-                    DamageNumber {
-                        timer: Timer::from_seconds(
-                            tunables.damage_number_lifetime_secs,
-                            TimerMode::Once,
-                        ),
-                        world_position: pos,
-                        ui_offset: offset_px2,
-                    },
-                    Text::new("+1G".to_string()),
-                    TextFont {
-                        font: asset_server.load("fonts/Nova_Mono/NovaMono-Regular.ttf"),
-                        font_size: tunables.damage_number_font_size,
-                        ..default()
-                    },
-                    TextColor(Color::srgba(1.0, 0.92, 0.35, 0.98)),
-                ));
-            }
-
-            // Notify and despawn immediately
+            // Notify of kill now so other systems can react immediately
             enemy_killed_events.write(EnemyKilled {
                 position: impact_point,
             });
-            despawn_entity_recursive(commands, enemy_entity, children_query);
         } else {
             if let Some(mut flash) = flash_opt {
                 flash
@@ -461,22 +386,17 @@ fn cleanup_projectile(commands: &mut Commands, entity: Entity) {
 }
 
 #[derive(Component)]
-pub(crate) struct ImpactEffect {
+pub struct ImpactEffect {
     timer: Timer,
     material: Handle<ImpactMaterial>,
 }
 
 // trailing removed
 
-#[derive(Component)]
-pub(crate) struct DamageNumber {
-    timer: Timer,
-    world_position: Vec3,
-    ui_offset: Vec2,
-}
+// Removed unused DamageNumber component in favor of EphemeralText-based UI
 
 #[derive(Component)]
-pub(crate) struct EnemyHitFlash {
+pub struct EnemyHitFlash {
     timer: Timer,
     original_color: Color,
     material: Handle<StandardMaterial>,
@@ -485,7 +405,7 @@ pub(crate) struct EnemyHitFlash {
 // EnemyPreExplosion removed; replaced by EnemyFadeOut
 
 #[derive(Component)]
-pub(crate) struct EnemyFadeOut {
+pub struct EnemyFadeOut {
     timer: Timer,
     material: Handle<StandardMaterial>,
     original_color: Color,

@@ -19,9 +19,6 @@ pub struct AmbienceChannel;
 pub struct AudioVolumes {
     pub master: f32,
     pub sfx: f32,
-    pub music: f32,
-    pub ui: f32,
-    pub ambience: f32,
 }
 
 impl Default for AudioVolumes {
@@ -29,9 +26,6 @@ impl Default for AudioVolumes {
         Self {
             master: 1.0,
             sfx: 1.0,
-            music: 1.0,
-            ui: 1.0,
-            ambience: 1.0,
         }
     }
 }

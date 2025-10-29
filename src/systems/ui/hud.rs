@@ -73,28 +73,28 @@ pub struct WaveCounterText;
 pub struct WaveTimerText;
 
 #[derive(Component)]
-pub(crate) struct ResourceCounter {
+pub struct ResourceCounter {
     pub(crate) kind: HarvestableKind,
     pub(crate) last_value: u32,
 }
 
 #[derive(Component)]
-pub(crate) struct WaveCounterDisplay {
+pub struct WaveCounterDisplay {
     pub(crate) last_value: u32,
 }
 
 #[derive(Component)]
-pub(crate) struct WaveTimerDisplay {
+pub struct WaveTimerDisplay {
     pub(crate) last_seconds: Option<u32>,
 }
 
 #[derive(Component)]
-pub(crate) struct SilverCounterDisplay {
+pub struct SilverCounterDisplay {
     pub(crate) last_value: u64,
 }
 
 #[derive(Component)]
-pub(crate) struct GoldCounterDisplay {
+pub struct GoldCounterDisplay {
     pub(crate) last_value: u64,
 }
 

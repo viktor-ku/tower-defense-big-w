@@ -3,6 +3,7 @@ use bevy::prelude::*;
 
 use super::definitions::{BuildCatalog, BuildCategory, BuildDefinitionId};
 use super::theme::{paper_panel, shadow_node};
+use crate::audio::{BuildingActionEvent, BuildingActionKind};
 use crate::components::{
     BuildingMode, BuiltTower, GameState, Player, Tower, TowerBuildSelection, TowerKind,
     TowerUpgradeConfig, TowerUpgrades, UpgradeableStat,
@@ -440,15 +441,16 @@ pub fn handle_upgrade_selection(
     catalog: Res<BuildCatalog>,
     mut upgrades: ResMut<TowerUpgrades>,
     upgrade_config: Res<TowerUpgradeConfig>,
-    mut player_query: Query<&mut Player>,
+    mut player_query: Query<(&mut Player, &Transform), With<Player>>,
     mut towers_query: Query<(&mut Tower, &BuiltTower)>,
+    mut building_sfx: MessageWriter<BuildingActionEvent>,
 ) {
     for (interaction, card) in interactions.iter_mut() {
         if matches!(*interaction, Interaction::Pressed) {
             // Find the upgrade definition
             if let Some(upgrade_def) = catalog.upgrades.iter().find(|u| u.id == card.0) {
                 // Check if player can afford it
-                if let Ok(mut player) = player_query.single_mut() {
+                if let Ok((mut player, player_tf)) = player_query.single_mut() {
                     if player.gold >= upgrade_def.gold_cost
                         && player.silver >= upgrade_def.silver_cost
                     {
@@ -509,6 +511,12 @@ pub fn handle_upgrade_selection(
                                     base_projectile_speed + projectile_speed_bonus;
                             }
                         }
+
+                        // Emit upgrade SFX event at player position
+                        building_sfx.write(BuildingActionEvent {
+                            kind: BuildingActionKind::Upgrade,
+                            position: player_tf.translation,
+                        });
                     }
                 }
             }

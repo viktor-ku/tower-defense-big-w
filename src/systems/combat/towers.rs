@@ -465,7 +465,7 @@ fn clear_ghost(
 }
 
 #[derive(Component)]
-pub(crate) struct TowerSpawnEffect {
+pub struct TowerSpawnEffect {
     timer: Timer,
     material: Handle<StandardMaterial>,
     mesh: Handle<Mesh>,
@@ -566,7 +566,7 @@ pub fn tower_damage_label_system(
             let world_pos = tower_transform.translation + label.world_offset;
 
             // Position label in screen space
-            if let Ok(mut screen_pos) = camera.world_to_viewport(camera_transform, world_pos) {
+            if let Ok(screen_pos) = camera.world_to_viewport(camera_transform, world_pos) {
                 // Flip Y to convert bottom-left origin to top-left UI origin
                 *visibility = Visibility::Visible;
                 let logical_pos = screen_pos / scale_factor;

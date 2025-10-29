@@ -3,7 +3,6 @@ use bevy::prelude::*;
 use crate::components::{GameState, TowerUpgradeConfig, TowerUpgrades};
 
 pub mod definitions;
-pub mod placement;
 pub mod theme;
 pub mod ui_menu;
 
