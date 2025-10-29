@@ -405,6 +405,18 @@ fn hash_combine(seed: u64, x: i32, z: i32) -> u64 {
     h ^ (h >> 29)
 }
 
+/// Generate a deterministic resource count for a chunk based on the world seed and chunk coordinates.
+/// Returns a value between 200 and 250 (inclusive) that is reproducible for the same seed and chunk.
+fn generate_chunk_resource_count(world_seed: u64, chunk_x: i32, chunk_z: i32) -> u32 {
+    // Create a unique seed for this chunk's resource count
+    let resource_seed = hash_combine(world_seed ^ 0x123456789ABCDEF0, chunk_x, chunk_z);
+    let mut rng = StdRng::seed_from_u64(resource_seed);
+
+    // Generate a value between 200 and 250 (inclusive)
+    let range = 250 - 200 + 1; // 51 possible values
+    200 + (rng.random::<u32>() % range)
+}
+
 fn spawn_chunk_content(
     root: Entity,
     coord: ChunkCoord,
@@ -441,9 +453,10 @@ fn spawn_chunk_content(
         }
     }
 
-    // Increase resource density using tunables as a guide
-    let trees_per_chunk = (tunables.trees_count / 2).max(30) as usize;
-    let rocks_per_chunk = (tunables.rocks_count / 2).max(12) as usize;
+    // Generate seed-based resource counts (200-250 total resources per chunk)
+    let resource_count = generate_chunk_resource_count(world_seed, coord.x, coord.z);
+    let trees_per_chunk = (resource_count * 2 / 3) as usize; // 2/3 trees, 1/3 rocks
+    let rocks_per_chunk = (resource_count / 3) as usize;
 
     // Trees
     for _ in 0..trees_per_chunk {

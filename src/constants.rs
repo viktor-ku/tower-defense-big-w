@@ -67,12 +67,9 @@ pub const C_HEALTH_BAR_FILL_HEIGHT: f32 = 0.4;
 pub const C_HEALTH_BAR_OFFSET_Y: f32 = 4.2;
 
 // Resources placement
-pub const C_TREES_COUNT: u32 = 100;
 pub const C_TREE_WOOD_MIN: u32 = 20;
 pub const C_TREE_WOOD_MAX: u32 = 60;
 pub const C_TREE_SIZE: (f32, f32, f32) = (1.4, 3.2, 1.4);
-
-pub const C_ROCKS_COUNT: u32 = 50;
 pub const C_ROCK_SIZE: (f32, f32, f32) = (1.0, 0.8, 1.0);
 
 /// Tunable values that control the game. Insert this as a Bevy resource to tweak gameplay,
@@ -190,17 +187,12 @@ pub struct Tunables {
     /// Vertical offset above the unit for health bar placement.
     pub health_bar_offset_y: f32,
 
-    /// Number of trees to spawn.
-    pub trees_count: u32,
     /// Minimum wood per tree.
     pub tree_wood_min: u32,
     /// Maximum wood per tree.
     pub tree_wood_max: u32,
     /// Tree mesh dimensions.
     pub tree_size: Vec3,
-
-    /// Number of rocks to spawn.
-    pub rocks_count: u32,
     /// Rock mesh dimensions.
     pub rock_size: Vec3,
 }
@@ -280,12 +272,9 @@ impl Default for Tunables {
             health_bar_offset_y: C_HEALTH_BAR_OFFSET_Y,
 
             // Resources
-            trees_count: C_TREES_COUNT,
             tree_wood_min: C_TREE_WOOD_MIN,
             tree_wood_max: C_TREE_WOOD_MAX,
             tree_size: Vec3::new(C_TREE_SIZE.0, C_TREE_SIZE.1, C_TREE_SIZE.2),
-
-            rocks_count: C_ROCKS_COUNT,
             rock_size: Vec3::new(C_ROCK_SIZE.0, C_ROCK_SIZE.1, C_ROCK_SIZE.2),
         }
     }
