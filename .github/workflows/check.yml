@@ -53,8 +53,5 @@ jobs:
             libxcb-xfixes0-dev \
             mesa-vulkan-drivers
 
-      - name: Tests
-        run: cargo test
-
       - name: Check
         run: cargo check

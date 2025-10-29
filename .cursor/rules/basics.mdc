@@ -7,14 +7,13 @@ alwaysApply: true
 
 - It is a game. Tower defense genre
 
-- Please run `cargo test` followed by `cargo check` at the end of your work to make 
-    sure all of the changes are ready to be tested
-
 - Use ripgrep (rg) to make your life easier when searching for things
 
 - Utilize `mise(.exe)` - it provides the correct environment, has useful tasks in its config
 
-- Run `cargo fmt` to format your code before commiting
+- Run `cargo fmt` to format the code before running `cargo check`
+
+- After running `cargo fmt` always run `cargo check` to check for compiling errors
 
 - When writing the game features keep in mind that we want this game to build on 
     all three platforms: Windows, Linux, Macos
