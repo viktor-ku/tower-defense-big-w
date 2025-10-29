@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-
 /// Global toggle for resource rule overlay execution.
 #[derive(Resource, Debug, Clone, Copy)]
 pub struct ResourceRuleConfig {

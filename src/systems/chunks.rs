@@ -108,10 +108,10 @@ fn setup_chunk_assets(
         ..default()
     });
 
-    // Big tree is 1.7x wider and 1.8x taller
+    // Big tree is 1.7x wider and 2.2x taller
     let big_tree_mesh = meshes.add(Cuboid::new(
         tunables.tree_size.x * 1.7,
-        tunables.tree_size.y * 1.8,
+        tunables.tree_size.y * 2.2,
         tunables.tree_size.z * 1.7,
     ));
     let big_tree_mat = materials.add(StandardMaterial {
