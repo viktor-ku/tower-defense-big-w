@@ -1,57 +1,88 @@
-## Development quick start
+# Tower Defense
 
-Very simple. Do 1, 2, 3 — now you can test/develop the game on all platforms.
+I am exploring how much further can I get using AI + my project management and coding skills in game development
 
-1) Install Rust (rustup)
+## How to get started
 
-```bash
-# Windows (PowerShell)
-winget install Rustlang.Rustup
+### 1. Install `rustup`
 
-# macOS (Terminal)
-curl https://sh.rustup.rs -sSf | sh
-# or: brew install rustup-init && rustup-init
+Follow the official guide: [rustup.rs](https://rustup.rs)
 
-# Linux (Terminal)
-curl https://sh.rustup.rs -sSf | sh
+### 2. System requirements (graphics/audio)
+
+#### Windows 10/11:
+
+Install the latest GPU drivers (NVIDIA/AMD/Intel). Vulkan/DX12 runtimes come with the drivers.
+
+#### macOS 11+ (Intel or Apple Silicon)
+
+- Xcode Command Line Tools: `xcode-select --install`
+- Metal-capable GPU (built-in on modern Macs)
+
+#### Linux
+
+Vulkan loader, drivers, building tools
+
+##### Arch based
+
+```sh
+sudo pacman -Syu --noconfirm vulkan-icd-loader vulkan-tools 
+# plus the driver for your GPU (e.g. nvidia-utils or mesa)
 ```
 
-2) Install system requirements (graphics/audio)
+##### Debian/Ubuntu
 
-- Windows 10/11: 
-  - Install the latest GPU drivers (NVIDIA/AMD/Intel). Vulkan/DX12 runtimes come with the drivers.
-- macOS 11+ (Intel or Apple Silicon): 
-  - Xcode Command Line Tools: `xcode-select --install`
-  - Metal-capable GPU (built-in on modern Macs). Nothing else to install.
-- Linux (modern distro):
-  - Vulkan loader + drivers and a few common dev libs:
-  - Debian/Ubuntu:
-    ```bash
-    sudo apt update && sudo apt install -y \
-      libvulkan1 vulkan-tools mesa-vulkan-drivers \
-      pkg-config libudev-dev libasound2-dev libxkbcommon-dev libwayland-dev
-    ```
-  - Fedora:
-    ```bash
-    sudo dnf install -y \
-      vulkan-loader vulkan-tools mesa-vulkan-drivers \
-      pkgconf-pkg-config systemd-devel alsa-lib-devel libxkbcommon-devel wayland-devel
-    ```
-  - Arch/Manjaro:
-    ```bash
-    sudo pacman -Syu --noconfirm vulkan-icd-loader vulkan-tools 
-    # plus the driver for your GPU (e.g. nvidia-utils or mesa)
-    ```
+```sh
+sudo apt update && sudo apt install -y \
+  libvulkan1 vulkan-tools mesa-vulkan-drivers \
+  pkg-config libudev-dev libasound2-dev libxkbcommon-dev libwayland-dev
+```
 
-3) Run
 
-```bash
+### Start
+
+```sh
 cargo run    # launch the game
 # (optional) cargo test
 ```
 
-That’s it — with rustup and current GPU drivers in place, Bevy/wgpu will pick the best backend automatically (Vulkan/Metal/DirectX) for your platform.
+That’s it — with rustup and current GPU drivers in place, Bevy/wgpu will pick the best backend automatically (Vulkan/Metal/DirectX) for your platform
 
+
+## Optional but recommended: mise CLI
+
+It is optional, although I recommend using `mise` to manage project tasks and developer tools. It makes getting started and running common commands consistent across Windows, macOS, and Linux.
+
+- Install `mise` by following the official guide: [mise installation](https://mise.jdx.dev/installing-mise.html)
+
+Project tasks (from the repo root):
+
+```bash
+# Install any tool versions declared by the project (if present)
+mise install
+
+# Format, check, build, run
+mise run fmt
+mise run check
+mise run build
+mise run "build:release"
+
+# Run the game (debug)
+mise run dev
+
+# Run the game with dev tools enabled (debug)
+mise run "dev:tools"
+
+# Run the game (release)
+mise run start
+
+# Clean transient traces produced by the game (project-specific)
+mise run clean
+```
+
+Notes:
+- Using `mise` is optional; you can always run the underlying `cargo` commands directly.
+- The commands above map to tasks defined in `.mise.toml` and work on Windows, macOS, and Linux.
 
 ## Development tools
 
@@ -59,15 +90,14 @@ That’s it — with rustup and current GPU drivers in place, Bevy/wgpu will pic
 - Use `mise` tasks to run with or without them:
 
 ```bash
-# Without dev tools
-mise run run
+# Without dev tools (debug)
+mise run dev
 
-# With dev tools enabled
-mise run run:devtools
+# With dev tools enabled (debug)
+mise run "dev:tools"
 
-# Release profiles
-mise run "run:release"
-mise run "run:release:devtools"
+# Release run
+mise run start
 ```
 
 Notes:
