@@ -31,6 +31,9 @@ features = [
   "zlib"
 ]
 
+[dev-dependencies]
+bevy_state = "=0.17.2"
+
 [features]
 devtools = [
   # Enable Bevy's built-in development tooling and UI debug helpers only in this feature
@@ -39,5 +42,5 @@ devtools = [
 ]
 rich = []
 
-[dev-dependencies]
-bevy_state = "=0.17.2"
+[profile.dev.package."*"]
+opt-level = 3
