@@ -24,3 +24,11 @@ pub struct CurrentCollectProgress {
     pub target: Option<Entity>,
     pub progress: f32,
 }
+
+/// Component for floating resource collection numbers.
+#[derive(Component)]
+pub struct ResourceNumber {
+    pub timer: Timer,
+    pub world_position: Vec3,
+    pub ui_offset: Vec2,
+}

@@ -205,6 +205,17 @@ fn main() {
         )
         // Tree collection system
         .add_systems(Update, hold_to_collect.run_if(in_state(GameState::Playing)))
+        // Resource collection number systems
+        .add_systems(
+            Update,
+            resource_collected_spawn_text_system.run_if(in_state(GameState::Playing)),
+        )
+        .add_systems(
+            PostUpdate,
+            resource_number_system
+                .after(camera_system)
+                .run_if(in_state(GameState::Playing)),
+        )
         // Window close handling - use force exit for immediate termination
         .add_systems(Update, force_exit_on_close);
 

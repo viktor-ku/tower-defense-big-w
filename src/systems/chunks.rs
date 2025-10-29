@@ -72,7 +72,8 @@ impl Plugin for ChunkPlugin {
                 enabled: true,
                 root: None,
             })
-            .add_systems(Startup, (setup_chunk_assets,))
+            .add_systems(Startup, setup_chunk_assets)
+            .add_systems(Startup, load_initial_chunks.after(setup_chunk_assets))
             .add_systems(
                 Update,
                 (
@@ -123,6 +124,51 @@ fn setup_chunk_assets(
         rock_mesh,
         rock_mat,
     });
+}
+
+/// Load the initial chunk (0,0) and its adjacent chunks at game start.
+fn load_initial_chunks(
+    mut commands: Commands,
+    cfg: Res<ChunkConfig>,
+    seed: Res<WorldSeed>,
+    mut loaded: ResMut<LoadedChunks>,
+    assets: Res<ChunkAssets>,
+    tunables: Res<Tunables>,
+    policy: Res<RandomizationPolicy>,
+) {
+    let initial_coord = ChunkCoord { x: 0, z: 0 };
+
+    // Load the initial chunk and its adjacent chunks
+    let mut chunks_to_load = HashSet::new();
+    chunks_to_load.insert(initial_coord);
+    chunks_to_load.extend(adjacent_chunks(initial_coord));
+
+    for coord in chunks_to_load {
+        // Only load if not already loaded
+        if !loaded.0.contains_key(&coord) {
+            let root = commands
+                .spawn((
+                    Name::new(format!("Chunk ({}, {})", coord.x, coord.z)),
+                    ChunkRoot,
+                    Transform::IDENTITY,
+                    Visibility::default(),
+                ))
+                .id();
+
+            spawn_chunk_content(
+                root,
+                coord,
+                &mut commands,
+                &assets,
+                &tunables,
+                seed.0,
+                cfg.size,
+                policy.chunk_content_seeded,
+            );
+
+            loaded.0.insert(coord, root);
+        }
+    }
 }
 
 // Debug overlay is not implemented in this scaffold; enable logging instead.
@@ -182,6 +228,11 @@ fn update_chunks(
     let desired = desired_chunks(center, cfg.active_radius);
     let keep = desired_chunks(center, cfg.active_radius + cfg.hysteresis);
 
+    // Also preload adjacent chunks for smoother resource availability
+    let adjacent = adjacent_chunks(center);
+    let mut all_desired = desired;
+    all_desired.extend(adjacent);
+
     // Compute unload list (outside keep)
     let mut to_unload: Vec<ChunkCoord> = loaded
         .0
@@ -200,8 +251,8 @@ fn update_chunks(
         }
     }
 
-    // Compute load list (in desired but not loaded)
-    let mut to_load: Vec<ChunkCoord> = desired
+    // Compute load list (in desired + adjacent but not loaded)
+    let mut to_load: Vec<ChunkCoord> = all_desired
         .iter()
         .filter(|c| !loaded.0.contains_key(c))
         .copied()
@@ -397,6 +448,57 @@ fn desired_chunks(center: ChunkCoord, r: i32) -> HashSet<ChunkCoord> {
     set
 }
 
+/// Get the 8 adjacent chunks (cardinal + diagonal) around a center chunk.
+fn adjacent_chunks(center: ChunkCoord) -> HashSet<ChunkCoord> {
+    let mut set = HashSet::new();
+
+    // Cardinal directions
+    // Up (north)
+    set.insert(ChunkCoord {
+        x: center.x,
+        z: center.z + 1,
+    });
+    // Down (south)
+    set.insert(ChunkCoord {
+        x: center.x,
+        z: center.z - 1,
+    });
+    // Left (west)
+    set.insert(ChunkCoord {
+        x: center.x - 1,
+        z: center.z,
+    });
+    // Right (east)
+    set.insert(ChunkCoord {
+        x: center.x + 1,
+        z: center.z,
+    });
+
+    // Diagonal directions
+    // Up-Left (northwest)
+    set.insert(ChunkCoord {
+        x: center.x - 1,
+        z: center.z + 1,
+    });
+    // Up-Right (northeast)
+    set.insert(ChunkCoord {
+        x: center.x + 1,
+        z: center.z + 1,
+    });
+    // Down-Left (southwest)
+    set.insert(ChunkCoord {
+        x: center.x - 1,
+        z: center.z - 1,
+    });
+    // Down-Right (southeast)
+    set.insert(ChunkCoord {
+        x: center.x + 1,
+        z: center.z - 1,
+    });
+
+    set
+}
+
 fn hash_combine(seed: u64, x: i32, z: i32) -> u64 {
     let mut h = seed ^ 0x9E37_79B9_7F4A_7C15u64;
     h ^= (x as u64).wrapping_mul(0xC2B2_AE3D_27D4_EB4Fu64);
@@ -406,15 +508,15 @@ fn hash_combine(seed: u64, x: i32, z: i32) -> u64 {
 }
 
 /// Generate a deterministic resource count for a chunk based on the world seed and chunk coordinates.
-/// Returns a value between 200 and 250 (inclusive) that is reproducible for the same seed and chunk.
+/// Returns a value between 250 and 275 (inclusive) that is reproducible for the same seed and chunk.
 fn generate_chunk_resource_count(world_seed: u64, chunk_x: i32, chunk_z: i32) -> u32 {
     // Create a unique seed for this chunk's resource count
     let resource_seed = hash_combine(world_seed ^ 0x123456789ABCDEF0, chunk_x, chunk_z);
     let mut rng = StdRng::seed_from_u64(resource_seed);
 
-    // Generate a value between 200 and 250 (inclusive)
-    let range = 250 - 200 + 1; // 51 possible values
-    200 + (rng.random::<u32>() % range)
+    // Generate a value between 250 and 275 (inclusive)
+    let range = 275 - 250 + 1; // 26 possible values
+    250 + (rng.random::<u32>() % range)
 }
 
 fn spawn_chunk_content(
@@ -464,6 +566,11 @@ fn spawn_chunk_content(
         let local_z = pick_f32(seeded, &mut seeded_rng, &mut thread_rng) * size;
         let pos = origin + Vec3::new(local_x, 0.0, local_z);
 
+        // Skip if within town resource exclusion radius
+        if pos.length() <= tunables.town_resource_exclusion_radius {
+            continue;
+        }
+
         // Random wood amount per tree within tunables range
         let wood_span = (tunables.tree_wood_max - tunables.tree_wood_min + 1).max(1);
         let wood_amount = tunables.tree_wood_min
@@ -488,6 +595,11 @@ fn spawn_chunk_content(
         let local_x = pick_f32(seeded, &mut seeded_rng, &mut thread_rng) * size;
         let local_z = pick_f32(seeded, &mut seeded_rng, &mut thread_rng) * size;
         let pos = origin + Vec3::new(local_x, 0.0, local_z);
+
+        // Skip if within town resource exclusion radius
+        if pos.length() <= tunables.town_resource_exclusion_radius {
+            continue;
+        }
 
         commands.entity(root).with_children(|p| {
             p.spawn((

@@ -4,6 +4,7 @@ use bevy::prelude::*;
 pub struct ResourceCollected {
     pub kind: crate::components::HarvestableKind,
     pub amount: u32,
+    pub position: Vec3,
 }
 
 // WoodCollected removed; use ResourceCollected

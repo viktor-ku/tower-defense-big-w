@@ -71,6 +71,7 @@ pub const C_TREE_WOOD_MIN: u32 = 20;
 pub const C_TREE_WOOD_MAX: u32 = 60;
 pub const C_TREE_SIZE: (f32, f32, f32) = (1.4, 3.2, 1.4);
 pub const C_ROCK_SIZE: (f32, f32, f32) = (1.0, 0.8, 1.0);
+pub const C_TOWN_RESOURCE_EXCLUSION_RADIUS: f32 = 50.0;
 
 /// Tunable values that control the game. Insert this as a Bevy resource to tweak gameplay,
 /// visuals, and pacing without touching system code. Values are read at runtime by systems.
@@ -195,6 +196,8 @@ pub struct Tunables {
     pub tree_size: Vec3,
     /// Rock mesh dimensions.
     pub rock_size: Vec3,
+    /// Radius around town square where resources should be excluded.
+    pub town_resource_exclusion_radius: f32,
 }
 
 impl Default for Tunables {
@@ -276,6 +279,7 @@ impl Default for Tunables {
             tree_wood_max: C_TREE_WOOD_MAX,
             tree_size: Vec3::new(C_TREE_SIZE.0, C_TREE_SIZE.1, C_TREE_SIZE.2),
             rock_size: Vec3::new(C_ROCK_SIZE.0, C_ROCK_SIZE.1, C_ROCK_SIZE.2),
+            town_resource_exclusion_radius: C_TOWN_RESOURCE_EXCLUSION_RADIUS,
         }
     }
 }
