@@ -1,17 +1,25 @@
 ---
+description: Basic rules to be always applied
 alwaysApply: true
 ---
 
-This project is written in Rust, it uses Bevy engine.
+- This project is written in Rust, it uses Bevy engine
 
-This project is a game. Tower defense genre.
+- It is a game. Tower defense genre
 
-Because this is a typical Rust project please run `cargo check` at the end of your work to make sure all of the changes are ready to be tested.
+- Please run `cargo test` followed by `cargo check` at the end of your work to make 
+    sure all of the changes are ready to be tested
 
-Use ripgrep (rg) (ask user to install it if missing) to make your life easier when searching for things.
+- Use ripgrep (rg) to make your life easier when searching for things
 
-Utilize mise (ask user to install if missing), mise provides the correct environment, has useful tasks in its config.
+- Utilize `mise(.exe)` - it provides the correct environment, has useful tasks in its config
 
-Run `cargo fmt` (or identical mise task) to format your code before commiting. Setup pre-commit hook if needed.
+- Run `cargo fmt` to format your code before commiting
 
-When writing the game features keep in mind that we want this game to build on all three platforms: Windows, Linux, Macos.
+- When writing the game features keep in mind that we want this game to build on 
+    all three platforms: Windows, Linux, Macos
+
+- Prefer to import/export concrete things instead of using `*` (star)
+
+- Respect the splash screen: it should always load first without interruptions. While it's showed the main
+    chunk of the game should be loaded. After that we should let the player play the game.
