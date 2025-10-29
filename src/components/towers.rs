@@ -25,6 +25,10 @@ pub struct Tower {
     pub fire_interval_secs: f32,
     /// Visual height of the tower, used for VFX spawn offsets.
     pub height: f32,
+    /// Visual width (X extent) of the tower in world units.
+    pub width: f32,
+    /// Visual depth (Z extent) of the tower in world units.
+    pub depth: f32,
     /// Projectile speed for this tower's shots.
     pub projectile_speed: f32,
     pub last_shot: f32,

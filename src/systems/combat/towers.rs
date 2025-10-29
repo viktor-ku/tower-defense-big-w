@@ -434,6 +434,8 @@ fn place_tower(
                 damage,
                 fire_interval_secs,
                 height: size.1,
+                width: size.0,
+                depth: size.2,
                 projectile_speed,
                 last_shot: 0.0,
             },
@@ -548,7 +550,7 @@ pub fn tower_damage_label_spawner(
 pub fn tower_damage_label_system(
     windows: Query<&Window>,
     cam_q: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
-    tower_query: Query<&Transform, With<Tower>>,
+    tower_query: Query<(&Transform, &Tower), With<Tower>>,
     mut labels: Query<(&TowerDamageLabel, &mut Node, &mut Visibility)>,
 ) {
     let Ok(window) = windows.single() else {
@@ -561,17 +563,38 @@ pub fn tower_damage_label_system(
     let scale_factor = window.resolution.scale_factor();
 
     for (label, mut node, mut visibility) in labels.iter_mut() {
-        // Get tower's transform directly
-        if let Ok(tower_transform) = tower_query.get(label.tower_entity) {
+        // Get tower's transform and dimensions directly
+        if let Ok((tower_transform, tower)) = tower_query.get(label.tower_entity) {
             let world_pos = tower_transform.translation + label.world_offset;
 
             // Position label in screen space
             if let Ok(screen_pos) = camera.world_to_viewport(camera_transform, world_pos) {
-                // Flip Y to convert bottom-left origin to top-left UI origin
                 *visibility = Visibility::Visible;
-                let logical_pos = screen_pos / scale_factor;
-                node.left = Val::Px(logical_pos.x);
-                node.top = Val::Px(logical_pos.y + 10.0); // Small offset below tower
+
+                let logical_center = screen_pos / scale_factor;
+
+                // Determine tower world half-extents from component
+                let hx = tower.width * 0.5;
+                let hz = tower.depth * 0.5;
+
+                // Estimate half the on-screen width by projecting +X and +Z offsets
+                let mut half_width_px: f32 = 0.0;
+                if let Ok(px) =
+                    camera.world_to_viewport(camera_transform, world_pos + Vec3::new(hx, 0.0, 0.0))
+                {
+                    half_width_px =
+                        half_width_px.max(((px.x / scale_factor) - logical_center.x).abs());
+                }
+                if let Ok(pz) =
+                    camera.world_to_viewport(camera_transform, world_pos + Vec3::new(0.0, 0.0, hz))
+                {
+                    half_width_px =
+                        half_width_px.max(((pz.x / scale_factor) - logical_center.x).abs());
+                }
+
+                // Subtract exactly half the tower's thickness (in pixels)
+                node.left = Val::Px(logical_center.x - half_width_px);
+                node.top = Val::Px(logical_center.y + 10.0);
             } else {
                 *visibility = Visibility::Hidden;
             }
