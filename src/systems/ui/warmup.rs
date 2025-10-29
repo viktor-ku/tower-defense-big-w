@@ -5,7 +5,7 @@ pub fn warm_ui_pipelines(mut commands: Commands, asset_server: Res<AssetServer>)
     // Tiny, transparent UI subtree that exercises:
     // - Overflow::clip (clipping pipeline)
     // - Borders
-    // - Text with glyphs used in the drawer (digits, bullet, tilde, colon, period, s)
+    // - Text with common glyphs (digits, bullet, tilde, colon, period, s)
     commands
         .spawn((
             Node {

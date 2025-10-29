@@ -41,8 +41,8 @@ pub fn tower_building(
         return;
     }
 
-    // Allow preview if either a selection is chosen or a hovered choice exists.
-    let preview_kind = selection.choice.or(selection.hovered_choice);
+    // Allow preview if a selection is chosen.
+    let preview_kind = selection.choice;
     if preview_kind.is_none() {
         clear_ghost(&mut commands, &mut meshes, &mut materials, &mut ghost_state);
         return;

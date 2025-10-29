@@ -35,27 +35,10 @@ pub fn handle_game_input(
             selling.is_active = false;
         }
 
-        if was_building
-            || selection.choice.is_some()
-            || selection.hovered_choice.is_some()
-            || selection.drawer_root.is_some()
-        {
+        if was_building || selection.choice.is_some() {
             selection.choice = None;
-            selection.hovered_choice = None;
-            // Drawer will be cleaned up by manage_tower_selection_drawer next frame
             return;
         }
-    }
-
-    if keyboard_input.just_pressed(KeyCode::KeyB) {
-        for mut building_mode in building_mode_query.iter_mut() {
-            building_mode.is_active = !building_mode.is_active;
-            if cfg!(debug_assertions) {
-                info!("Building mode: {}", building_mode.is_active);
-            }
-        }
-        // Clear selection so the drawer prompts again when entering build mode
-        selection.choice = None;
     }
 }
 

@@ -5,6 +5,7 @@ use bevy::prelude::*;
 mod constants;
 
 mod audio;
+mod build;
 mod components;
 mod core;
 mod entities;
@@ -15,6 +16,7 @@ mod setup;
 mod splash;
 mod systems;
 
+use build::BuildPlugin;
 use components::*;
 use constants::Tunables;
 use events::*;
@@ -47,11 +49,6 @@ use systems::ui::hud::{
 };
 use systems::ui::observers::{
     on_enemy_killed, on_enemy_spawned, on_resource_collected, on_tower_built,
-};
-use systems::ui::tower_drawer::{
-    handle_drawer_sell_button_interactions, handle_tower_selection_buttons,
-    manage_tower_selection_drawer, tower_drawer_shortcuts, update_tower_option_hover,
-    update_tower_selection_affordability,
 };
 use systems::ui::warmup::warm_ui_pipelines;
 use systems::waves::wave_progression;
@@ -108,6 +105,7 @@ fn main() {
         .add_plugins(RocksAlongRoadPassPlugin)
         .add_plugins(TownSquareExclusionPassPlugin)
         .add_plugins(SplashPlugin)
+        .add_plugins(BuildPlugin)
         .add_plugins(FrameTimeDiagnosticsPlugin::default());
 
     // Dev tools (frame time graph) only in devtools feature
@@ -161,19 +159,6 @@ fn main() {
         .add_systems(
             Update,
             tower_selling_click.run_if(in_state(GameState::Playing)),
-        )
-        // Tower selection drawer UI
-        .add_systems(
-            Update,
-            (
-                manage_tower_selection_drawer,
-                handle_tower_selection_buttons,
-                update_tower_option_hover,
-                update_tower_selection_affordability,
-                tower_drawer_shortcuts,
-                handle_drawer_sell_button_interactions,
-            )
-                .run_if(in_state(GameState::Playing)),
         )
         .add_systems(
             Update,

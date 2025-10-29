@@ -374,4 +374,3 @@ pub fn update_game_speed_indicator(
     }
 }
 
-// (SELL button moved into the tower drawer)
