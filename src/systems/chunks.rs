@@ -253,14 +253,26 @@ fn update_chunks(
     let mut all_desired = desired;
     all_desired.extend(adjacent);
 
-    // Compute unload list (outside keep)
+    // Compute unload list (outside keep) and prioritize farthest-first
     let mut to_unload: Vec<ChunkCoord> = loaded
         .0
         .keys()
         .copied()
         .filter(|c| !keep.contains(c))
         .collect();
-    to_unload.truncate(cfg.max_unloads_per_frame.min(to_unload.len()));
+    to_unload.sort_by_key(|c| {
+        let dx = c.x - center.x;
+        let dz = c.z - center.z;
+        -(dx * dx + dz * dz)
+    });
+
+    // If we somehow have way more loaded than the keep set, allow a burst of unloads this tick
+    let keep_len = keep.len();
+    let loaded_len = loaded.0.len();
+    let overage = loaded_len.saturating_sub(keep_len);
+    let burst_extra = overage.min(64);
+    let max_unloads_this_tick = cfg.max_unloads_per_frame.max(burst_extra);
+    to_unload.truncate(max_unloads_this_tick.min(to_unload.len()));
 
     // Prepare a query to fetch children for manual recursive despawn
     // Note: we cannot query here; this is a system param-only place. We will despawn root (children will remain)
@@ -271,12 +283,17 @@ fn update_chunks(
         }
     }
 
-    // Compute load list (in desired + adjacent but not loaded)
+    // Compute load list (in desired + adjacent but not loaded), prioritize nearest-first
     let mut to_load: Vec<ChunkCoord> = all_desired
         .iter()
         .filter(|c| !loaded.0.contains_key(c))
         .copied()
         .collect();
+    to_load.sort_by_key(|c| {
+        let dx = c.x - center.x;
+        let dz = c.z - center.z;
+        dx * dx + dz * dz
+    });
     to_load.truncate(cfg.max_loads_per_frame.min(to_load.len()));
 
     for coord in to_load {

@@ -88,6 +88,16 @@ pub(crate) struct WaveTimerDisplay {
     pub(crate) last_seconds: Option<u32>,
 }
 
+#[derive(Component)]
+pub(crate) struct SilverCounterDisplay {
+    pub(crate) last_value: u64,
+}
+
+#[derive(Component)]
+pub(crate) struct GoldCounterDisplay {
+    pub(crate) last_value: u64,
+}
+
 pub fn spawn_resource_counters(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn((
@@ -145,6 +155,7 @@ pub fn spawn_resource_counters(mut commands: Commands, asset_server: Res<AssetSe
                 },
                 TextColor(Color::srgba(0.88, 0.9, 0.96, 1.0)),
                 SilverCounterText,
+                SilverCounterDisplay { last_value: 0 },
             ));
 
             parent.spawn((
@@ -156,6 +167,7 @@ pub fn spawn_resource_counters(mut commands: Commands, asset_server: Res<AssetSe
                 },
                 TextColor(Color::srgba(1.0, 0.9, 0.35, 1.0)),
                 GoldCounterText,
+                GoldCounterDisplay { last_value: 0 },
             ));
         });
 }
@@ -253,15 +265,27 @@ pub fn update_resource_counters(
 
 pub fn update_currency_counters(
     player_q: Query<&Player>,
-    mut silver_text_q: Query<&mut Text, (With<SilverCounterText>, Without<GoldCounterText>)>,
-    mut gold_text_q: Query<&mut Text, (With<GoldCounterText>, Without<SilverCounterText>)>,
+    mut silver_text_q: Query<
+        (&mut Text, &mut SilverCounterDisplay),
+        (With<SilverCounterText>, Without<GoldCounterText>),
+    >,
+    mut gold_text_q: Query<
+        (&mut Text, &mut GoldCounterDisplay),
+        (With<GoldCounterText>, Without<SilverCounterText>),
+    >,
 ) {
     if let Ok(player) = player_q.single() {
-        for mut text in silver_text_q.iter_mut() {
-            *text = Text::new(format!("Silver: {}", player.silver));
+        for (mut text, mut display) in silver_text_q.iter_mut() {
+            if display.last_value != player.silver {
+                display.last_value = player.silver;
+                *text = Text::new(format!("Silver: {}", player.silver));
+            }
         }
-        for mut text in gold_text_q.iter_mut() {
-            *text = Text::new(format!("Gold: {}", player.gold));
+        for (mut text, mut display) in gold_text_q.iter_mut() {
+            if display.last_value != player.gold {
+                display.last_value = player.gold;
+                *text = Text::new(format!("Gold: {}", player.gold));
+            }
         }
     }
 }
@@ -337,6 +361,9 @@ pub fn update_game_speed_indicator(
     state: Res<State<GameState>>,
     mut query: Query<&mut Text, With<GameSpeedIndicatorText>>,
 ) {
+    if !state.is_changed() {
+        return;
+    }
     let desired = match state.get() {
         GameState::Playing => "1x",
         GameState::Paused => "||",

@@ -24,11 +24,8 @@ use setup::*;
 use splash::SplashPlugin;
 use systems::camera::camera_system;
 use systems::chunks::ChunkPlugin;
-use systems::combat::assets::CombatVfxAssets;
-use systems::combat::enemy::{
-    cleanup_enemy_health_bars, enemy_spawning, face_enemy_health_bars, position_enemy_health_bars,
-    update_enemy_health_bars,
-};
+use systems::combat::assets::{CombatVfxAssets, init_combat_vfx_assets};
+use systems::combat::enemy::{enemy_spawning, face_enemy_health_bars, update_enemy_health_bars};
 use systems::combat::projectiles::{
     damage_dealt_spawn_text_system, damage_number_system, enemy_fade_out_system,
     enemy_flash_system, impact_effect_system, projectile_system, tower_shooting,
@@ -138,6 +135,7 @@ fn main() {
             OnEnter(GameState::Loading),
             (
                 setup,
+                init_combat_vfx_assets,
                 warm_ui_pipelines,
                 spawn_village_health_bar,
                 spawn_resource_counters,
@@ -233,11 +231,10 @@ fn main() {
         .add_systems(
             Update,
             (
-                tower_spawn_effect_system,
-                face_enemy_health_bars,
-                position_enemy_health_bars,
+                face_enemy_health_bars.run_if(bevy::time::common_conditions::on_timer(
+                    std::time::Duration::from_millis(33),
+                )),
                 update_enemy_health_bars,
-                cleanup_enemy_health_bars,
             )
                 .run_if(in_state(GameState::Playing)),
         )

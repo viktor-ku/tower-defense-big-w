@@ -110,7 +110,6 @@ pub fn enemy_spawning(
                 &mut materials,
                 &mut health_bar_assets,
                 &tunables,
-                Vec3::new(spawn_pos.x, half_h, spawn_pos.z),
             );
 
             enemy_events.write(EnemySpawned {
@@ -182,7 +181,6 @@ fn attach_health_bar(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     health_bar_assets: &mut ResMut<EnemyHealthBarAssets>,
     tunables: &Tunables,
-    owner_world_pos: Vec3,
 ) {
     let quad_mesh = health_bar_assets.mesh(meshes);
     let background_mat = health_bar_assets.background_material(materials);
@@ -191,65 +189,69 @@ fn attach_health_bar(
     let border_mat = health_bar_assets.border_material(materials);
     let d = tunables.health_bar_height * 0.12;
 
-    let root_translation = owner_world_pos + Vec3::Y * tunables.health_bar_offset_y;
-
-    commands
-        .spawn((
-            EnemyHealthBarRoot {
-                owner: enemy_entity,
-            },
-            Transform::from_translation(root_translation),
-            GlobalTransform::default(),
-            Visibility::default(),
-            InheritedVisibility::default(),
-        ))
-        .with_children(|bar| {
-            // White border (slightly larger)
-            bar.spawn((
-                Mesh3d(quad_mesh.clone()),
-                MeshMaterial3d(border_mat),
-                Transform {
-                    translation: Vec3::new(0.0, 0.0, 0.0),
-                    scale: Vec3::new(
-                        tunables.health_bar_width + d,
-                        tunables.health_bar_height + d,
-                        1.0,
-                    ),
-                    ..default()
-                },
-            ));
-
-            // Background (dark)
-            bar.spawn((
-                Mesh3d(quad_mesh.clone()),
-                MeshMaterial3d(background_mat.clone()),
-                Transform {
-                    translation: Vec3::new(0.0, 0.0, -0.001),
-                    scale: Vec3::new(tunables.health_bar_width, tunables.health_bar_height, 1.0),
-                    ..default()
-                },
-            ));
-
-            // Fill (bright red), left-to-right
-            bar.spawn((
-                Mesh3d(quad_mesh.clone()),
-                MeshMaterial3d(fill_mat),
-                Transform {
-                    translation: Vec3::new(0.0, 0.0, -0.002),
-                    scale: Vec3::new(
-                        tunables.health_bar_width,
-                        tunables.health_bar_fill_height,
-                        1.0,
-                    ),
-                    ..default()
-                },
-                EnemyHealthBarFill {
-                    max_width: tunables.health_bar_width,
+    commands.entity(enemy_entity).with_children(|enemy_parent| {
+        enemy_parent
+            .spawn((
+                EnemyHealthBarRoot {
                     owner: enemy_entity,
-                    last_ratio: 1.0,
                 },
-            ));
-        });
+                Transform::from_translation(Vec3::Y * tunables.health_bar_offset_y),
+                GlobalTransform::default(),
+                Visibility::default(),
+                InheritedVisibility::default(),
+            ))
+            .with_children(|bar| {
+                // White border (slightly larger)
+                bar.spawn((
+                    Mesh3d(quad_mesh.clone()),
+                    MeshMaterial3d(border_mat),
+                    Transform {
+                        translation: Vec3::new(0.0, 0.0, 0.0),
+                        scale: Vec3::new(
+                            tunables.health_bar_width + d,
+                            tunables.health_bar_height + d,
+                            1.0,
+                        ),
+                        ..default()
+                    },
+                ));
+
+                // Background (dark)
+                bar.spawn((
+                    Mesh3d(quad_mesh.clone()),
+                    MeshMaterial3d(background_mat.clone()),
+                    Transform {
+                        translation: Vec3::new(0.0, 0.0, -0.001),
+                        scale: Vec3::new(
+                            tunables.health_bar_width,
+                            tunables.health_bar_height,
+                            1.0,
+                        ),
+                        ..default()
+                    },
+                ));
+
+                // Fill (bright red), left-to-right
+                bar.spawn((
+                    Mesh3d(quad_mesh.clone()),
+                    MeshMaterial3d(fill_mat),
+                    Transform {
+                        translation: Vec3::new(0.0, 0.0, -0.002),
+                        scale: Vec3::new(
+                            tunables.health_bar_width,
+                            tunables.health_bar_fill_height,
+                            1.0,
+                        ),
+                        ..default()
+                    },
+                    EnemyHealthBarFill {
+                        max_width: tunables.health_bar_width,
+                        owner: enemy_entity,
+                        last_ratio: 1.0,
+                    },
+                ));
+            });
+    });
 }
 
 pub fn update_enemy_health_bars(

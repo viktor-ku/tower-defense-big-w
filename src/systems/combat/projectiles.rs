@@ -2,7 +2,6 @@ use super::assets::CombatVfxAssets;
 use crate::audio::{TowerShotEvent, TowerShotKind};
 use crate::components::{BuiltTower, Enemy, EnemyKind, Player, Tower, TowerKind};
 use crate::constants::Tunables;
-use crate::core::geometry::closest_within_radius;
 use crate::events::{DamageDealt, EnemyKilled};
 use crate::materials::ImpactMaterial;
 use bevy::pbr::MeshMaterial3d;
@@ -18,32 +17,30 @@ pub fn tower_shooting(
     mut tower_query: Query<(&Transform, &mut Tower, Option<&BuiltTower>)>,
     enemy_pos: Query<(&Transform, Entity), (With<Enemy>, Without<EnemyFadeOut>)>,
     tunables: Res<Tunables>,
-    mut vfx_assets: ResMut<CombatVfxAssets>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut standard_materials: ResMut<Assets<StandardMaterial>>,
+    vfx_assets: Res<CombatVfxAssets>,
     mut shot_events: MessageWriter<TowerShotEvent>,
 ) {
     for (tower_transform, mut tower, built_kind_opt) in tower_query.iter_mut() {
         tower.last_shot += time.delta_secs();
 
         if tower.last_shot >= tower.fire_interval_secs {
-            // Find closest enemy in range using pure helper
-            let mut positions: Vec<Vec3> = Vec::new();
-            let mut entities: Vec<Entity> = Vec::new();
+            // Find closest enemy within range without per-frame allocations
+            let origin = tower_transform.translation;
+            let mut best_entity: Option<(Vec3, Entity)> = None;
+            let mut best_dist: f32 = tower.range;
             for (enemy_transform, entity) in enemy_pos.iter() {
-                positions.push(enemy_transform.translation);
-                entities.push(entity);
+                let pos = enemy_transform.translation;
+                let d = origin.distance(pos);
+                if d <= best_dist {
+                    best_dist = d;
+                    best_entity = Some((pos, entity));
+                }
             }
-            let closest_enemy =
-                closest_within_radius(tower_transform.translation, &positions, tower.range)
-                    .map(|idx| (positions[idx], entities[idx]));
 
-            if let Some((enemy_pos_vec, enemy_entity)) = closest_enemy {
+            if let Some((enemy_pos_vec, enemy_entity)) = best_entity {
                 spawn_projectile(
                     &mut commands,
-                    &mut vfx_assets,
-                    &mut meshes,
-                    &mut standard_materials,
+                    &vfx_assets,
                     tower_transform.translation,
                     enemy_pos_vec,
                     enemy_entity,
@@ -79,9 +76,7 @@ pub(crate) struct Projectile {
 #[allow(clippy::too_many_arguments)]
 fn spawn_projectile(
     commands: &mut Commands,
-    vfx_assets: &mut CombatVfxAssets,
-    meshes: &mut Assets<Mesh>,
-    standard_materials: &mut Assets<StandardMaterial>,
+    vfx_assets: &CombatVfxAssets,
     tower_position: Vec3,
     target_position: Vec3,
     target_entity: Entity,
@@ -100,12 +95,18 @@ fn spawn_projectile(
         direction = Vec3::Y;
     }
 
-    let mesh = vfx_assets.projectile_mesh(meshes);
+    let mesh = vfx_assets
+        .projectile_mesh_handle()
+        .expect("CombatVfxAssets not initialized: projectile_mesh");
 
     commands.spawn((
         Mesh3d(mesh),
         // Use a solid unlit white StandardMaterial for the main projectile visibility
-        MeshMaterial3d(vfx_assets.projectile_white_material(standard_materials)),
+        MeshMaterial3d(
+            vfx_assets
+                .projectile_white_material_handle()
+                .expect("CombatVfxAssets not initialized: projectile_white_material"),
+        ),
         Transform {
             translation: spawn_pos,
             rotation: Quat::from_rotation_arc(Vec3::Y, direction.normalize_or_zero()),
@@ -140,8 +141,7 @@ pub fn projectile_system(
     >,
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
     mut impact_materials: ResMut<Assets<ImpactMaterial>>,
-    mut vfx_assets: ResMut<CombatVfxAssets>,
-    mut meshes: ResMut<Assets<Mesh>>,
+    vfx_assets: Res<CombatVfxAssets>,
     tunables: Res<Tunables>,
     mut damage_dealt_events: MessageWriter<DamageDealt>,
 ) {
@@ -190,8 +190,7 @@ pub fn projectile_system(
 
             spawn_impact_flash(
                 &mut commands,
-                &mut vfx_assets,
-                &mut meshes,
+                &vfx_assets,
                 &mut impact_materials,
                 impact_point,
                 &tunables,
@@ -287,13 +286,14 @@ fn handle_projectile_hit(
 
 fn spawn_impact_flash(
     commands: &mut Commands,
-    vfx_assets: &mut CombatVfxAssets,
-    meshes: &mut Assets<Mesh>,
+    vfx_assets: &CombatVfxAssets,
     impact_materials: &mut Assets<ImpactMaterial>,
     impact_point: Vec3,
     tunables: &Tunables,
 ) {
-    let mesh = vfx_assets.impact_mesh(meshes);
+    let mesh = vfx_assets
+        .impact_mesh_handle()
+        .expect("CombatVfxAssets not initialized: impact_mesh");
     let material = impact_materials.add(ImpactMaterial::new(Color::srgba(1.0, 0.65, 0.3, 0.9)));
     commands.spawn((
         Mesh3d(mesh),

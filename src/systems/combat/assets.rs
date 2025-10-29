@@ -111,8 +111,31 @@ impl CombatVfxAssets {
             })
             .clone()
     }
+
+    pub fn projectile_mesh_handle(&self) -> Option<Handle<Mesh>> {
+        self.projectile_mesh.clone()
+    }
+
+    pub fn impact_mesh_handle(&self) -> Option<Handle<Mesh>> {
+        self.impact_mesh.clone()
+    }
+
+    pub fn projectile_white_material_handle(&self) -> Option<Handle<StandardMaterial>> {
+        self.projectile_white_material.clone()
+    }
 }
 
 fn build_quad_mesh() -> Mesh {
     Mesh::from(Rectangle::new(1.0, 1.0))
+}
+
+/// Eagerly initialize VFX meshes/materials so gameplay systems can use read-only access later.
+pub fn init_combat_vfx_assets(
+    mut vfx_assets: ResMut<CombatVfxAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let _ = vfx_assets.projectile_mesh(&mut meshes);
+    let _ = vfx_assets.impact_mesh(&mut meshes);
+    let _ = vfx_assets.projectile_white_material(&mut materials);
 }
