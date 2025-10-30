@@ -43,6 +43,17 @@ pub fn toggle_build_menu_input(
     }
 }
 
+/// When the build menu is open, allow closing it with Escape.
+pub fn close_build_menu_on_escape(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    menu_state: Res<BuildMenuState>,
+    mut writer: MessageWriter<ToggleBuildMenu>,
+) {
+    if matches!(*menu_state, BuildMenuState::Open) && keyboard.just_pressed(KeyCode::Escape) {
+        writer.write(ToggleBuildMenu);
+    }
+}
+
 pub fn manage_build_menu_ui(
     mut commands: Commands,
     mut state: ResMut<BuildMenuState>,
@@ -52,7 +63,7 @@ pub fn manage_build_menu_ui(
     asset_server: Res<AssetServer>,
     mut next_state: ResMut<NextState<GameState>>,
     content_q: Query<Entity, With<BuildContentRoot>>,
-    current: Res<CurrentCategory>,
+    mut current: ResMut<CurrentCategory>,
     catalog: Res<BuildCatalog>,
 ) {
     let mut toggled = false;
@@ -66,6 +77,8 @@ pub fn manage_build_menu_ui(
     *state = match *state {
         BuildMenuState::Closed => {
             next_state.set(GameState::Paused);
+            // Always open the menu with the Towers category selected
+            current.0 = BuildCategory::Towers;
             BuildMenuState::Open
         }
         BuildMenuState::Open => {
@@ -113,6 +126,7 @@ pub fn manage_build_menu_ui(
         ))
         .id();
 
+    let mut content_root_entity: Option<Entity> = None;
     let panel = commands
         .spawn((paper_panel(), Name::new("BuildPanel")))
         .with_children(|root| {
@@ -160,24 +174,26 @@ pub fn manage_build_menu_ui(
             });
 
             // Right content area placeholder
-            root.spawn((
-                Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    padding: UiRect::all(Val::Px(8.0)),
-                    ..default()
-                },
-                BackgroundColor(Color::srgba(0.98, 0.98, 0.975, 0.95)),
-                BuildContentRoot,
-            ))
-            .with_children(|_| {});
+            let cr = root
+                .spawn((
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        padding: UiRect::all(Val::Px(8.0)),
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(0.98, 0.98, 0.975, 0.95)),
+                    BuildContentRoot,
+                ))
+                .id();
+            content_root_entity = Some(cr);
         })
         .id();
 
     commands.entity(backdrop).add_child(shadow);
     commands.entity(backdrop).add_child(panel);
 
-    if let Ok(root) = content_q.single() {
+    if let Some(root) = content_root_entity {
         build_grid_under(&mut commands, &asset_server, root, &catalog, current.0);
     }
 }

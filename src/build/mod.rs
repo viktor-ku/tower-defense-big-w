@@ -25,6 +25,7 @@ impl Plugin for BuildPlugin {
                 Update,
                 (
                     ui_menu::toggle_build_menu_input,
+                    ui_menu::close_build_menu_on_escape,
                     ui_menu::manage_build_menu_ui,
                     ui_menu::handle_category_buttons,
                     ui_menu::handle_item_selection,
