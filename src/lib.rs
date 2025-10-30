@@ -12,3 +12,4 @@ pub mod setup;
 pub mod splash;
 pub mod systems;
 pub mod utils;
+pub mod waves;

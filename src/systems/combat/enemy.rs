@@ -60,7 +60,11 @@ pub fn enemy_spawning(
 
         // Determine which enemy to spawn next
         if let Some(kind) = wave_state.spawn_queue.pop_front() {
-            let (hp, dmg, spd, size) = kind.stats();
+            let (base_hp, base_dmg, base_spd, size) = kind.stats();
+            let mul = wave_state.multiplier_for(kind);
+            let hp = (base_hp as f32 * mul.hp).round().max(1.0) as u32;
+            let dmg = (base_dmg as f32 * mul.dmg).round().max(1.0) as u32;
+            let spd = base_spd * mul.spd;
             let half_h = size * 0.5;
             let color = match kind {
                 EnemyKind::Minion => Color::srgb(0.9, 0.1, 0.1),

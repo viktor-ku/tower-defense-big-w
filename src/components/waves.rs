@@ -1,7 +1,9 @@
 use crate::components::EnemyKind;
 use crate::constants::Tunables;
+use crate::waves::rules::{Multipliers, WavePlan, WaveRules};
 use bevy::prelude::*;
 use bevy::time::TimerMode;
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::time::Duration;
 
@@ -22,6 +24,7 @@ pub struct WaveState {
     pub enemies_to_spawn: u32,
     pub enemies_spawned: u32,
     pub spawn_queue: VecDeque<EnemyKind>,
+    pub current_multipliers: HashMap<EnemyKind, Multipliers>,
 }
 
 impl WaveState {
@@ -40,65 +43,47 @@ impl WaveState {
             enemies_to_spawn: 0,
             enemies_spawned: 0,
             spawn_queue: VecDeque::new(),
+            current_multipliers: HashMap::new(),
         }
     }
 
-    pub fn start_next_wave(&mut self, tunables: &Tunables, seed_mode: Option<u64>) {
+    pub fn start_next_wave(
+        &mut self,
+        tunables: &Tunables,
+        seed_mode: Option<u64>,
+        rules: &WaveRules,
+    ) {
         self.current_wave += 1;
         self.phase = WavePhase::Spawning;
-
-        // Build composition for this wave
-        let base = self.wave_enemy_count(tunables) as usize;
-        // Minions: 50–60%; Zombies: 20–30%; remainder -> minions to keep majority
-        let (rm, rz, mut shuffler): (f32, f32, Box<dyn FnMut(&mut Vec<EnemyKind>)>) =
-            match seed_mode {
-                Some(world_seed) => {
-                    use rand::{Rng, SeedableRng, rngs::StdRng};
-                    let seed = world_seed
-                        ^ ((self.current_wave as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15));
-                    let mut rng = StdRng::seed_from_u64(seed);
-                    let rm = 0.5 + rng.random::<f32>() * 0.1;
-                    let rz = 0.2 + rng.random::<f32>() * 0.1;
-                    let shuf = move |list: &mut Vec<EnemyKind>| {
-                        use rand::seq::SliceRandom;
-                        list.shuffle(&mut rng);
-                    };
-                    (rm, rz, Box::new(shuf))
-                }
-                None => {
-                    let rm = 0.5 + rand::random::<f32>() * 0.1;
-                    let rz = 0.2 + rand::random::<f32>() * 0.1;
-                    let shuf = move |list: &mut Vec<EnemyKind>| {
-                        use rand::seq::SliceRandom;
-                        let mut rng = rand::rng();
-                        list.shuffle(&mut rng);
-                    };
-                    (rm, rz, Box::new(shuf))
-                }
-            };
-        let mut minions = (rm * base as f32).floor() as usize;
-        let zombies = (rz * base as f32).floor() as usize;
-        // Ensure remainder goes to minions (keeps them majority)
-        minions = base.saturating_sub(zombies).max(minions);
-
-        let mut list: Vec<EnemyKind> = Vec::with_capacity(base);
-        list.extend(std::iter::repeat_n(EnemyKind::Minion, minions));
-        list.extend(std::iter::repeat_n(EnemyKind::Zombie, base - minions));
-
-        // Shuffle for random mixing using the selected shuffler
-        shuffler(&mut list);
-
-        // Build spawn queue; boss first on every 10th wave, added on top
+        // Build from rules
+        let plan = rules.plan(self.current_wave, tunables, seed_mode);
         self.spawn_queue.clear();
-        if self.current_wave.is_multiple_of(10) {
-            self.spawn_queue.push_back(EnemyKind::Boss);
-        }
-        for k in list {
+        for k in plan.enemies.iter().copied() {
             self.spawn_queue.push_back(k);
         }
 
         self.enemies_to_spawn = self.spawn_queue.len() as u32;
         self.enemies_spawned = 0;
+        self.current_multipliers.clear();
+        self.current_multipliers
+            .extend(plan.multipliers.into_iter());
+        self.spawn_timer
+            .set_duration(Duration::from_secs_f32(tunables.enemy_spawn_interval_secs));
+        self.spawn_timer.reset();
+    }
+
+    pub fn start_next_wave_from_plan(&mut self, tunables: &Tunables, plan: WavePlan) {
+        self.current_wave += 1;
+        self.phase = WavePhase::Spawning;
+        self.spawn_queue.clear();
+        for k in plan.enemies.iter().copied() {
+            self.spawn_queue.push_back(k);
+        }
+        self.enemies_to_spawn = self.spawn_queue.len() as u32;
+        self.enemies_spawned = 0;
+        self.current_multipliers.clear();
+        self.current_multipliers
+            .extend(plan.multipliers.into_iter());
         self.spawn_timer
             .set_duration(Duration::from_secs_f32(tunables.enemy_spawn_interval_secs));
         self.spawn_timer.reset();
@@ -125,5 +110,12 @@ impl WaveState {
     fn wave_enemy_count(&self, tunables: &Tunables) -> u32 {
         tunables.wave_base_enemy_count
             + (self.current_wave.saturating_sub(1)) * tunables.wave_enemy_increment
+    }
+
+    pub fn multiplier_for(&self, kind: EnemyKind) -> Multipliers {
+        self.current_multipliers
+            .get(&kind)
+            .copied()
+            .unwrap_or_default()
     }
 }

@@ -3,6 +3,7 @@ use crate::components::{Enemy, WavePhase, WaveState};
 use crate::constants::Tunables;
 use crate::random_policy::RandomizationPolicy;
 use crate::systems::chunks::WorldSeed;
+use crate::waves::rules::{WaveRules, WaveSchedule};
 use bevy::prelude::*;
 use std::time::Duration;
 
@@ -14,6 +15,8 @@ pub fn wave_progression(
     enemy_query: Query<Entity, With<Enemy>>,
     seed: Res<WorldSeed>,
     policy: Res<RandomizationPolicy>,
+    schedule: Option<Res<WaveSchedule>>,
+    rules: Res<WaveRules>,
     mut wave_started_writer: MessageWriter<WaveStartedEvent>,
     mut boss_wave_started_writer: MessageWriter<BossWaveStartedEvent>,
 ) {
@@ -45,7 +48,15 @@ pub fn wave_progression(
                 } else {
                     None
                 };
-                wave_state.start_next_wave(&tunables, seed_mode);
+                if let Some(schedule) = schedule {
+                    if let Some(plan) = schedule.plans.get((next_wave - 1) as usize).cloned() {
+                        wave_state.start_next_wave_from_plan(&tunables, plan);
+                    } else {
+                        wave_state.start_next_wave(&tunables, seed_mode, &rules);
+                    }
+                } else {
+                    wave_state.start_next_wave(&tunables, seed_mode, &rules);
+                }
             }
         }
         WavePhase::Spawning => {

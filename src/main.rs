@@ -16,6 +16,7 @@ mod setup;
 mod splash;
 mod systems;
 mod utils;
+mod waves;
 
 use build::BuildPlugin;
 use components::*;
@@ -58,6 +59,7 @@ use systems::ui::observers::{
 use systems::ui::warmup::warm_ui_pipelines;
 use systems::waves::wave_progression;
 use systems::window::force_exit_on_close;
+use waves::rules::{WaveRules, WaveSchedule};
 // Frame time graph (Bevy 0.17 dev tools)
 #[cfg(feature = "devtools")]
 use bevy::dev_tools::frame_time_graph::FrameTimeGraphPlugin;
@@ -79,10 +81,27 @@ fn main() {
     persist_seed_to_app_data(launch_seed);
 
     let mut app = App::new();
+    // Wave rules configured via macro DSL (simple defaults; can be tweaked later)
+    let wave_rules: WaveRules = wave_rules! {
+      defaults {
+        count = linear(tunables.wave_base_enemy_count, + tunables.wave_enemy_increment);
+        health = exp(1.05);
+        damage = linear(1.0, + 0.02);
+        speed  = const(1.0);
+        composition = weights { EnemyKind::Minion: 0.6, EnemyKind::Zombie: 0.4 };
+        boss_every = 10;
+      }
+      every(10) { boss; }
+    };
+    // Precompute wave schedule once during loading. Adjust count as needed.
+    let wave_schedule: WaveSchedule =
+        WaveSchedule::precompute(300, &wave_rules, &tunables, tunables.world_seed);
     app.insert_resource(tunables.clone())
         .insert_resource(WaveState::new(&tunables))
+        .insert_resource(wave_rules)
         .insert_resource(CombatVfxAssets::default())
         .insert_resource(RandomizationPolicy::default())
+        .insert_resource(wave_schedule)
         .add_plugins((DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
